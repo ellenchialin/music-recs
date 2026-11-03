@@ -1,0 +1,58 @@
+@import "tailwindcss";
+
+/*
+ * Cyberpunk 主題的設計 token。元件只用這裡的名字（bg-surface、text-neon-cyan…），
+ * 不直接寫色碼；之後 polish 時改這裡就好。
+ * 配色取自參考圖（動畫版 key art）：紫黑夜空、青色天空、紅色斜劃、酸黃、橘色尖刺。
+ */
+@theme {
+  --color-void: #120c24;          /* 頁面底色：紫黑夜空 */
+  --color-surface: #1e1437;       /* 卡片、輸入框 */
+  --color-surface-raised: #2a1d4d;
+  --color-line: #3d2c6b;          /* 邊框、分隔線 */
+  --color-haze: #6b569f;          /* 城市剪影的紫，用於次要裝飾 */
+
+  --color-ink: #f4efff;           /* 主要文字 */
+  --color-ink-muted: #a391b9;     /* 次要文字：薰衣草色塵霧 */
+
+  --color-neon-cyan: #11c4e9;     /* 主要動作、焦點、播放 */
+  --color-neon-red: #fc1636;      /* 不喜歡、警示、斜劃裝飾 */
+  --color-neon-yellow: #ffe428;   /* 強調、推薦標記 */
+  --color-neon-orange: #ff7a1a;   /* 熱度、冷門滑桿的「大眾」端 */
+
+  --font-display: "Chakra Petch", "Noto Sans TC", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Noto Sans TC", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+
+  /* 霓虹光暈：shadow-glow-cyan 等 */
+  --shadow-glow-cyan: 0 0 12px rgb(17 196 233 / 0.45), 0 0 32px rgb(17 196 233 / 0.15);
+  --shadow-glow-red: 0 0 12px rgb(252 22 54 / 0.5), 0 0 32px rgb(252 22 54 / 0.18);
+  --shadow-glow-yellow: 0 0 12px rgb(255 228 40 / 0.4), 0 0 28px rgb(255 228 40 / 0.12);
+}
+
+@layer base {
+  html {
+    color-scheme: dark;
+  }
+
+  body {
+    @apply bg-void font-sans text-ink antialiased;
+  }
+}
+
+/* 參考圖的造型語彙：切角、斜線條紋、斜切 */
+
+/* 右上、左下切角的面板，取代圓角 */
+@utility clip-corner {
+  clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 14px 100%, 0 calc(100% - 14px));
+}
+
+/* 斜線條紋，顏色跟著 text 色（例：text-neon-red stripes） */
+@utility stripes {
+  background-image: repeating-linear-gradient(-55deg, currentColor 0 6px, transparent 6px 12px);
+}
+
+/* 往右傾的斜切，用在標籤、按鈕 */
+@utility skew-slash {
+  transform: skewX(-12deg);
+}
