@@ -23,7 +23,8 @@
     "db:sandbox": "docker compose exec db psql -U app -d music_test",
     "test:unit": "vitest run --project unit",
     "test:db": "vitest run --project db",
-    "record:lastfm": "tsx --env-file=.env scripts/record-lastfm-fixtures.ts"
+    "record:lastfm": "tsx --env-file=.env scripts/record-lastfm-fixtures.ts",
+    "record:itunes": "tsx scripts/record-itunes-fixtures.ts"
   },
   "pnpm": {
     "onlyBuiltDependencies": [

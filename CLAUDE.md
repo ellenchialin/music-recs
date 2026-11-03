@@ -22,6 +22,7 @@ Nuxt 4（Vue 3）+ TypeScript strict、Pinia、Tailwind、VueUse、Postgres 17�
 | `pnpm db:studio` | Drizzle Studio，看資料表 |
 | `pnpm db:sandbox` | 進 `music_test` 的 psql |
 | `pnpm record:lastfm` | 打真的 Last.fm API，重錄 `server/lastfm/fixtures/`（需要 `.env` 的 `LASTFM_API_KEY`；測試不需要） |
+| `pnpm record:itunes` | 打真的 iTunes Search API，重錄 `server/itunes/fixtures/`（不需要 key） |
 
 CI（`.github/workflows/ci.yml`）跑 typecheck → lint → test。
 
@@ -29,7 +30,7 @@ CI（`.github/workflows/ci.yml`）跑 typecheck → lint → test。
 
 - **TDD**：先寫會失敗的測試 → 寫最少的程式讓它通過 → 重構。每個功能先有測試才有實作
 - 推薦演算法、排序、評分統計都寫成純函式，放 `server/utils/`，測試放在被測檔案旁（`*.test.ts`）
-- 外部 API（Last.fm、Deezer）和 LLM 的回應一律用 zod 驗證；測試用錄好的 fixture，不打真的 API
+- 外部 API（Last.fm、iTunes）和 LLM 的回應一律用 zod 驗證；測試用錄好的 fixture，不打真的 API
 - 環境變數經 zod schema 讀取，不直接讀 `process.env`
 - **UI 主題**：Cyberpunk，配色參考 Edgerunners key art 的氛圍（只取顏色和造型語彙，不用它的 logo、角色、字體）。顏色、字型、光暈只用 `app/assets/css/main.css` `@theme` 裡的 token（`bg-surface`、`text-neon-cyan`、`shadow-glow-cyan`…）與造型 utility（`clip-corner` 切角、`stripes` 斜紋、`skew-slash` 斜切；不用圓角），不寫死色碼；缺 token 就先加 token。功能期只套 token，特效（glitch、掃描線等）留到第 7 天 polish
 - **UI 動態**：互動回饋（卡片進場、喜歡／不喜歡後重新排序、測驗揭曉、按鈕按壓）用 Motion for Vue（`motion-v`）做，不手刻 CSS transition。重新排序用 `layout` 動畫、元素出現／消失用 `AnimatePresence`；時間與彈簧參數統一從 `app/utils/motion.ts` 取。`app.vue` 的 `MotionConfig reduced-motion="user"` 會尊重系統的「減少動態效果」設定，不要拿掉
