@@ -20,7 +20,9 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio",
-    "db:sandbox": "docker compose exec db psql -U app -d music_test"
+    "db:sandbox": "docker compose exec db psql -U app -d music_test",
+    "test:unit": "vitest run --project unit",
+    "test:db": "vitest run --project db"
   },
   "pnpm": {
     "onlyBuiltDependencies": [

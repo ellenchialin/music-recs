@@ -13,7 +13,8 @@ Nuxt 4（Vue 3）+ TypeScript strict、Pinia、Tailwind、VueUse、Postgres 17�
 | 指令 | 用途 |
 |---|---|
 | `pnpm dev` | 開發伺服器 http://localhost:3000 |
-| `pnpm test` / `pnpm test:watch` | Vitest：`unit`（`server/`、`shared/` 的純函式，Node 環境）、`nuxt`（`app/` 的元件，happy-dom） |
+| `pnpm test` / `pnpm test:watch` | Vitest 全部：`unit`（`server/`、`shared/` 的純函式）、`db`（`*.db.test.ts`，連 `music_test`，需先 `pnpm db:up`）、`nuxt`（`app/` 的元件，happy-dom） |
+| `pnpm test:unit` / `pnpm test:db` | 只跑其中一個 project |
 | `pnpm typecheck` | `nuxt typecheck`（vue-tsc） |
 | `pnpm lint` | ESLint（`@nuxt/eslint`） |
 | `pnpm db:up` / `pnpm db:down` | 本機 Postgres 17（Docker，port 5434；開發 DB `music`、測試 DB `music_test`） |

@@ -8,6 +8,21 @@ on:
 jobs:
   check:
     runs-on: ubuntu-latest
+    # DB 測試（*.db.test.ts）需要真的 Postgres；設定和本機 docker-compose.yml 一致
+    services:
+      db:
+        image: postgres:17
+        env:
+          POSTGRES_USER: app
+          POSTGRES_PASSWORD: app
+          POSTGRES_DB: music
+        ports:
+          - 5434:5432
+        options: >-
+          --health-cmd "pg_isready -U app -d music"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
