@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { sql } from "drizzle-orm";
 import { beforeEach, describe, expect, it } from "vitest";
 import { getDb } from "./client";
-import { artistSimilar, artists, visitors } from "./schema";
+import { artistSimilar, artists, tracks, visitors } from "./schema";
 
 const db = getDb();
 
@@ -13,7 +13,7 @@ function pgCode(err: unknown): string | undefined {
 }
 
 beforeEach(async () => {
-  await db.execute(sql`truncate artists, visitors restart identity cascade`);
+  await db.execute(sql`truncate artists, tracks, visitors restart identity cascade`);
 });
 
 describe("visitors", () => {
@@ -87,5 +87,36 @@ describe("artist_similar", () => {
     await db.insert(artistSimilar).values({ artistId, name: "Thom Yorke", nameNorm: "thom yorke", match: 1 });
     await db.delete(artists);
     expect(await db.select().from(artistSimilar)).toEqual([]);
+  });
+});
+
+describe("tracks", () => {
+  // 每位歌手只存一首代表歌
+  it("stores one track per artist", async () => {
+    await db.insert(tracks).values({ artistName: "Radiohead", artistNameNorm: "radiohead", title: "Creep" });
+    const err = await db
+      .insert(tracks)
+      .values({ artistName: "radiohead", artistNameNorm: "radiohead", title: "Karma Police" })
+      .catch((e: unknown) => e);
+    expect(pgCode(err)).toBe("23505");
+  });
+
+  // iTunes 挑不到時也存一列，試聽欄位是 null：記住「查過、沒有」，30 天內不再問 iTunes
+  it("allows a track with no iTunes match", async () => {
+    const [row] = await db
+      .insert(tracks)
+      .values({ artistName: "Utada", artistNameNorm: "utada", title: "Simple And Clean" })
+      .returning();
+    expect(row).toMatchObject({ itunesId: null, previewUrl: null, artworkUrl: null });
+    expect(row?.fetchedAt).toBeInstanceOf(Date);
+  });
+
+  // iTunes 的 trackId 已經接近 int 的上限（2,147,483,647），要用 bigint
+  it("stores iTunes ids beyond the int range", async () => {
+    const [row] = await db
+      .insert(tracks)
+      .values({ artistName: "Radiohead", artistNameNorm: "radiohead", title: "Creep", itunesId: 3_000_000_000 })
+      .returning();
+    expect(row?.itunesId).toBe(3_000_000_000);
   });
 });

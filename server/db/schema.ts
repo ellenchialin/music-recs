@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { check, integer, pgTable, primaryKey, real, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { bigint, check, integer, pgTable, primaryKey, real, text, timestamp, uuid } from "drizzle-orm/pg-core";
 
 // Drizzle schema。資料表依 SPEC.md「資料模型」逐一加入，每張表先有用到它的測試。
 
@@ -50,3 +50,20 @@ export const artistSimilar = pgTable(
     check("artist_similar_match_range", sql`${t.match} between 0 and 1`),
   ],
 );
+
+// 每位歌手的代表歌：Last.fm 的熱門第一名 + 從 iTunes 挑到的試聽和封面
+// 用歌手名字當 key，不指向 artists：推薦的是相似歌手，他們不一定在 artists 裡
+// iTunes 挑不到時試聽欄位是 null，但還是存一列，記住「查過、沒有」，30 天內不再問 iTunes
+export const tracks = pgTable("tracks", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  artistName: text("artist_name").notNull(),
+  artistNameNorm: text("artist_name_norm").notNull().unique(),
+  // Last.fm 的歌名（推薦卡片顯示這個）
+  title: text("title").notNull(),
+  // iTunes 的 trackId 已經接近 int 上限
+  itunesId: bigint("itunes_id", { mode: "number" }),
+  // iTunes 的試聽網址不會過期，可以直接存
+  previewUrl: text("preview_url"),
+  artworkUrl: text("artwork_url"),
+  fetchedAt: timestamp("fetched_at", { withTimezone: true }).notNull().defaultNow(),
+});

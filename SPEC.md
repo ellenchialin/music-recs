@@ -22,7 +22,7 @@
 | 資料庫 | Postgres 17 + Drizzle ORM；本機 Docker，正式環境 Neon |
 | 驗證 | zod：API 輸入、外部 API 回應、LLM 輸出 |
 | LLM | Claude Haiku 5.5，結構化輸出，只用來寫推薦理由 |
-| 外部資料 | Last.fm API（搜尋、相似歌手、標籤、熱門歌曲）、Deezer API（試聽、封面）；都不需要使用者登入 |
+| 外部資料 | Last.fm API（搜尋、相似歌手、標籤、熱門歌曲）、iTunes Search API（試聽、封面）；都不需要使用者登入 |
 | 測試 | Vitest + `@nuxt/test-utils`；Playwright 跑主要流程 |
 | 部署 | Vercel + Neon |
 | CI | GitHub Actions：typecheck、lint、測試 |
@@ -52,7 +52,7 @@
 2. 合併候選：跟越多個種子相似、相似度越高，分數越高
 3. 排除種子本身與按過不喜歡的歌手
 4. 冷門程度：用聽眾人數的對數調整權重 [可延後]
-5. 每個歌手取一首代表歌，用 Deezer 補試聽與封面；找不到試聽就不顯示播放鈕
+5. 每個歌手取一首代表歌，用 iTunes 補試聽與封面（依序試台灣、美國、日本商店）；找不到試聽就顯示「暫無試聽」，不顯示播放鈕
 
 每次結果標記演算法版本 `algo_version`。
 
@@ -94,7 +94,7 @@
 |---|---|
 | `artists` | Last.fm 歌手：名稱、MusicBrainz ID、聽眾人數、標籤、抓取時間 |
 | `artist_similar` | 歌手之間的相似度 |
-| `tracks` | 歌曲、Deezer ID、封面 |
+| `tracks` | 每位歌手的代表歌、iTunes ID、試聽網址、封面 |
 | `visitors` | 匿名 ID、建立時間 |
 | `feedback` | 訪客對歌手的喜歡／不喜歡 |
 | `reason_cache` | 推薦理由快取 |
@@ -124,7 +124,7 @@
 | 天 | 內容 |
 |---|---|
 | 1 | Nuxt 骨架、Docker Postgres、Drizzle schema、測試環境、CI |
-| 2 | Last.fm／Deezer client（zod 驗證）、快取；推薦演算法（純函式，TDD） |
+| 2 | Last.fm／iTunes client（zod 驗證）、快取；推薦演算法（純函式，TDD） |
 | 3 | `/api/recommendations`、首頁：種子輸入、推薦卡片、試聽 |
 | 4 | 回饋與重新排序、冷門滑桿 |
 | 5 | 速率限制、部署 Vercel + Neon；LLM 推薦理由 |
@@ -147,7 +147,7 @@
 | 風險 | 備案 |
 |---|---|
 | 冷門歌手的 Last.fm 相似資料太少 | 改用標籤找候選 |
-| Deezer 找不到試聽 | iTunes Search API；都沒有就不顯示播放鈕 |
+| iTunes 台灣商店找不到試聽（各國商店把歌手名在地化） | 依序試美國、日本商店；都沒有就顯示「暫無試聽」 |
 | 盲聽人數太少 | 報告寫清楚樣本數；先找朋友 |
 | Last.fm 使用條款 | 非商業使用，標示資料來源 |
-| Deezer 試聽網址有時效 | 只快取 Deezer ID，網址每次重新取 |
+| iTunes 速率限制（約每分鐘 20 次） | 結果快取 30 天，「查過、沒有」也快取 |

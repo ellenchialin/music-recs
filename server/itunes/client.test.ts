@@ -40,6 +40,17 @@ describe("createItunesClient", () => {
     expect(calls[0]?.searchParams.get("country")).toBe("JP");
   });
 
+  // 歌曲快取會依序試好幾個商店，所以每次搜尋可以指定商店
+  it("can override the store for a single search", async () => {
+    const { fetch, calls } = fakeFetch(200, utada.body);
+    const client = createItunesClient({ fetch });
+
+    await client.searchTracks("First Love", { country: "US" });
+    await client.searchTracks("First Love");
+
+    expect(calls.map((c) => c.searchParams.get("country"))).toEqual(["US", "TW"]);
+  });
+
   it("throws ItunesError with the API's message for a 400", async () => {
     const { fetch } = fakeFetch(badRequest.status, badRequest.body);
     const client = createItunesClient({ fetch });

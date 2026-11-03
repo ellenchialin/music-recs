@@ -16,9 +16,13 @@ type Fetch = (input: string | URL | Request, init?: RequestInit) => Promise<Resp
 
 // 不需要 API key。country 決定查哪一國的商店：曲目、歌手名的寫法、能不能試聽都會不同
 export function createItunesClient({ fetch = globalThis.fetch, country = "TW" }: { fetch?: Fetch; country?: string } = {}) {
-  async function searchTracks(term: string, { limit = 10 } = {}): Promise<ItunesTrack[]> {
+  // country 可以每次指定，覆蓋建立 client 時的預設
+  async function searchTracks(
+    term: string,
+    { limit = 10, country: store = country }: { limit?: number; country?: string } = {},
+  ): Promise<ItunesTrack[]> {
     const url = new URL(BASE_URL);
-    url.search = new URLSearchParams({ term, entity: "song", limit: String(limit), country }).toString();
+    url.search = new URLSearchParams({ term, entity: "song", limit: String(limit), country: store }).toString();
 
     const res = await fetch(url);
     let body: unknown;

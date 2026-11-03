@@ -125,3 +125,16 @@ Last.fm 的原始回應很不好用：數字是字串（`"8500398"`）、沒有 
 - **`now` 由參數傳入**：和 fetch 一樣是依賴注入。測試可以直接傳「31 天後」，不必 mock 系統時間。
 
 **親眼看**：`pnpm db:studio` 打開 `artists` 和 `artist_similar`。第一次查一位歌手要打 2 次 API（約 700ms），第二次 0 次（約 3ms）。
+
+### 「沒有」也要快取，「壞了」不能快取
+
+> **前端類比**：搜尋框打「zzqx」，後端回空陣列，SWR 會把空陣列也快取起來，不會每次重打。但如果是 500 錯誤，SWR 不會把錯誤當成資料存下來，下次會重試。
+
+`server/cache/tracks.ts` 分兩種情況：
+
+| 情況 | 處理 | 為什麼 |
+|---|---|---|
+| iTunes 正常回應，但挑不到歌 | 存一列，試聽欄位是 `null`（**negative cache**） | 不存的話，每次推薦到這位歌手都再問一次 iTunes，很快撞到每分鐘約 20 次的限制 |
+| iTunes 出錯（403、當機） | 什麼都不存，錯誤往上丟 | 存了的話，iTunes 恢復後 30 天內這位歌手都沒有試聽 |
+
+測試 `remembers that iTunes had nothing` 和 `does not cache anything when iTunes fails` 各檢查一種。
