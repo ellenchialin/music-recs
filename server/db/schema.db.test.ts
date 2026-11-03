@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { sql } from "drizzle-orm";
 import { beforeEach, describe, expect, it } from "vitest";
 import { getDb } from "./client";
-import { artists, visitors } from "./schema";
+import { artistSimilar, artists, visitors } from "./schema";
 
 const db = getDb();
 
@@ -47,5 +47,45 @@ describe("artists", () => {
       .values({ name: "Nobody", nameNorm: "nobody", listeners: -1 })
       .catch((e: unknown) => e);
     expect(pgCode(err)).toBe("23514");
+  });
+});
+
+describe("artist_similar", () => {
+  async function radiohead() {
+    const [row] = await db.insert(artists).values({ name: "Radiohead", nameNorm: "radiohead" }).returning();
+    return row!.id;
+  }
+
+  // 相似歌手還沒抓過時是 null，和「抓過但已過期」分得開
+  it("starts with similar_fetched_at empty", async () => {
+    const [row] = await db.insert(artists).values({ name: "Radiohead", nameNorm: "radiohead" }).returning();
+    expect(row?.similarFetchedAt).toBeNull();
+  });
+
+  it("stores each similar artist once per source artist", async () => {
+    const artistId = await radiohead();
+    await db.insert(artistSimilar).values({ artistId, name: "Thom Yorke", nameNorm: "thom yorke", match: 1 });
+    const err = await db
+      .insert(artistSimilar)
+      .values({ artistId, name: "thom yorke", nameNorm: "thom yorke", match: 0.5 })
+      .catch((e: unknown) => e);
+    expect(pgCode(err)).toBe("23505");
+  });
+
+  it("rejects a match outside 0 to 1", async () => {
+    const artistId = await radiohead();
+    const err = await db
+      .insert(artistSimilar)
+      .values({ artistId, name: "Thom Yorke", nameNorm: "thom yorke", match: 1.5 })
+      .catch((e: unknown) => e);
+    expect(pgCode(err)).toBe("23514");
+  });
+
+  // 刪掉歌手時，它的相似清單一起刪，不留孤兒資料
+  it("is deleted with its artist", async () => {
+    const artistId = await radiohead();
+    await db.insert(artistSimilar).values({ artistId, name: "Thom Yorke", nameNorm: "thom yorke", match: 1 });
+    await db.delete(artists);
+    expect(await db.select().from(artistSimilar)).toEqual([]);
   });
 });
