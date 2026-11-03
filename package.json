@@ -22,7 +22,8 @@
     "db:studio": "drizzle-kit studio",
     "db:sandbox": "docker compose exec db psql -U app -d music_test",
     "test:unit": "vitest run --project unit",
-    "test:db": "vitest run --project db"
+    "test:db": "vitest run --project db",
+    "record:lastfm": "tsx --env-file=.env scripts/record-lastfm-fixtures.ts"
   },
   "pnpm": {
     "onlyBuiltDependencies": [
@@ -55,6 +56,7 @@
     "drizzle-kit": "^0.31.11",
     "eslint": "^10.14.0",
     "happy-dom": "^21.0.4",
+    "tsx": "^4.23.15",
     "typescript": "^5.9.3",
     "vitest": "^5.1.0",
     "vue-tsc": "^3.3.14"

@@ -1,0 +1,8 @@
+{
+  "status": 200,
+  "body": {
+    "error": 6,
+    "message": "The artist you supplied could not be found",
+    "links": []
+  }
+}

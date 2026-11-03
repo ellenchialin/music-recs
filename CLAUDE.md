@@ -21,6 +21,7 @@ Nuxt 4（Vue 3）+ TypeScript strict、Pinia、Tailwind、VueUse、Postgres 17�
 | `pnpm db:generate` / `pnpm db:migrate` | drizzle-kit 產生／套用 migration（schema 在 `server/db/schema.ts`） |
 | `pnpm db:studio` | Drizzle Studio，看資料表 |
 | `pnpm db:sandbox` | 進 `music_test` 的 psql |
+| `pnpm record:lastfm` | 打真的 Last.fm API，重錄 `server/lastfm/fixtures/`（需要 `.env` 的 `LASTFM_API_KEY`；測試不需要） |
 
 CI（`.github/workflows/ci.yml`）跑 typecheck → lint → test。
 
