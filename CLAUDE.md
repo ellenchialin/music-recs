@@ -34,6 +34,7 @@ CI（`.github/workflows/ci.yml`）跑 typecheck → lint → test。
 - 環境變數經 zod schema 讀取，不直接讀 `process.env`
 - **UI 主題**：Retro-Modern Futuristic Cyberpunk，配色取自我給的參考插畫（平塗桃紅底、青綠太陽圓、深海軍藍粗墨線、灰青、梅紫、珊瑚橘）。顏色、字型只用 `app/assets/css/main.css` `@theme` 裡的 token（`bg-pink`、`text-ink`、`bg-teal`…）與 `font-wide`（Archivo 寬體標題），不寫死色碼；缺 token 就先加 token。大塊平塗、粗墨線（`border-3 border-ink`），**不用漸層、光暈、陰影、等寬字**；面板是直角，唯一的圓是太陽圓。功能期只套 token，特效留到第 7 天 polish
 - **UI 動態**：互動回饋（卡片進場、喜歡／不喜歡後重新排序、測驗揭曉、按鈕按壓）用 Motion for Vue（`motion-v`）做，不手刻 CSS transition。重新排序用 `layout` 動畫、元素出現／消失用 `AnimatePresence`；時間與彈簧參數統一從 `app/utils/motion.ts` 取。`app.vue` 的 `MotionConfig reduced-motion="user"` 會尊重系統的「減少動態效果」設定，不要拿掉
+- **UI 文案一律英文**（頁面上的字、`aria-label`、`alt`、錯誤訊息）；程式註解和文件維持中文
 - 不收集個資；匿名 ID 之外不存任何可識別使用者的資料
 - 不改 schema 就不要動 migration；migration 一律由 drizzle-kit 產生
 - commit 只在我說的時候做
