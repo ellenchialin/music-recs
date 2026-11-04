@@ -158,3 +158,26 @@ Last.fm 的原始回應很不好用：數字是字串（`"8500398"`）、沒有 
 - 盲聽測驗要比較不同版本的演算法時，同樣的輸入一定得到同樣的輸出（所以分數一樣時要依名字排，不能靠 `Map` 或資料庫回傳的順序）
 
 **用 Map 分組累加**（練習 3）：同一位歌手出現在好幾位種子的清單裡時，用 `nameNorm` 當 key 找到原本那筆，把分數加上去，而不是新增一筆。
+
+## 8. API route：一層只做一件事
+
+> **前端類比**：元件不直接 `fetch`，而是呼叫一個 hook 或 service；hook 再用 API client。元件只管畫面，service 只管資料流程。這裡是同樣的分層，只是在伺服器上。
+
+`GET /api/recommendations?seed=Tame%20Impala&seed=Kokoroko` 經過四層：
+
+| 層 | 檔案 | 只做這件事 |
+|---|---|---|
+| route | `server/api/recommendations.get.ts` | 驗證 query（zod）、呼叫 service、把錯誤轉成 HTTP 狀態碼（404、502） |
+| service | `server/services/recommendations.ts` | 串接：種子 → 快取 → 演算法 → 每張卡片補試聽；決定哪些錯誤要往上丟、哪些自己接住 |
+| 快取 | `server/cache/` | 先查 Postgres，沒有才打 Last.fm、iTunes |
+| 演算法 | `server/utils/recommend/` | 純函式，不知道資料從哪來 |
+
+測試也照層分：演算法用手寫資料（unit）、快取和 service 用假的 client ＋ 測試資料庫（db）、route 只剩幾行，用 `curl` 親眼看。
+
+**錯誤要在哪一層接住？** 看它影響多大：
+
+- 一位歌手的試聽查不到（iTunes 403）→ service 在**那張卡片**接住，回 `preview: { status: "error" }`，其他 9 張照常
+- 種子找不到 → 整份推薦做不出來，丟 `SeedNotFoundError`，route 轉成 404 加上建議的歌手名
+- Last.fm 當機 → route 轉成 502，不把 Last.fm 的原始錯誤訊息傳給前端
+
+**同時打幾個 API？** `mapLimit(items, 3, fn)` 像 `Promise.all(items.map(fn))`，但同時最多 3 個。全部一起打比較快，但會撞到速率限制；一個一個打不會撞，但 10 位歌手要等很久。

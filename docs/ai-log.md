@@ -128,3 +128,21 @@
   - **一位種子的清單蓋過另一位**：前 10 名有 8 位只來自宇多田ヒカル。可以考慮每位種子的分數先各自正規化，或每位種子保底幾個名額
   - **合作名義**：`椎名林檎×斎藤ネコ` 是種子本人的合作作品，名字裡含種子名字就該排除
   - **樂團與本人**：`東京事変` 是椎名林檎 的樂團，兩邊都推所以排第一。算不算重複要再決定
+
+## 2026-11-04 · /api/recommendations
+
+| # | 問題 | Claude 建議 | 決定 | 理由 |
+|---|---|---|---|---|
+| 1 | GET 還是 POST | `GET /api/recommendations?seed=A&seed=B`，回應 `{ algoVersion, seeds, recommendations }` | 採用 | 只讀不寫；網址可以直接分享、用 curl 測 |
+| 2 | 幾位種子 | API 接受 1–5 位；SPEC 的「至少 3 位」由前端要求 | 採用 | 開發時用 1 位種子測比較方便 |
+| 3 | 同時打幾個外部 API | 最多 3 個（`mapLimit`） | 採用 | Last.fm 每秒約 5 次、iTunes 每分鐘約 20 次 |
+| 4 | 找不到種子時的建議 | `artist.search` 前 5 位、聽眾 1000 人以上 | 採用 | 擋掉 radıohead 這種拼錯的分身 |
+| 5 | Last.fm 當機 | 502，不轉傳原始訊息 | 採用 | |
+| 6 | 測試用的歌手 | 之後試真實資料改用歐美歌手（Tame Impala、Justin Bieber、Kokoroko…） | 採用（我提出） | |
+
+**用真實資料試（Tame Impala、Justin Bieber、Kokoroko）**
+
+- 第一次 6.4 秒，第二次 0.03 秒（全部從快取）；10 張卡片 8 張有試聽
+- Last.fm 的 autocorrect 會自己修好小拼錯（`Tame Impalla` → Tame Impala），修不好的（`Kokoroco`）才回 404，建議是 Kokoroko、LocoRoco
+- **種子分數蓋過的問題又出現**：Kokoroko 5 位、Justin Bieber 4 位，Tame Impala 只有 Pond 1 位。原因是各種子的相似清單第一名都接近 1，誰的清單「前段比較密」誰就佔比較多名額。v2 優先處理
+- 400 的錯誤訊息是 zod 的原始 JSON，前端不要直接顯示
