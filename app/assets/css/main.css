@@ -32,6 +32,10 @@
   --font-sans: "Noto Sans TC", ui-sans-serif, system-ui, sans-serif;
 }
 
+/* 很矮的橫向畫面（手機橫放）：寬，但高度不到 600px，直排放不下，要改左右兩欄。
+   桌機視窗也是橫向，但夠高，維持直排 */
+@custom-variant short-landscape (@media (orientation: landscape) and (max-height: 600px));
+
 @layer base {
   html {
     color-scheme: light;

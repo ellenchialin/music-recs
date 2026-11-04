@@ -130,4 +130,37 @@ describe("RecordCrate", () => {
     expect(explore.text()).toBe("Finding more…");
     expect(explore.attributes("disabled")).toBeDefined();
   });
+
+  // 一個畫面放得下：上一張、播放、下一張合成一排（像播放器）
+  it("puts previous, play and next in one row", async () => {
+    const wrapper = await mountCrate();
+    const labels = wrapper.get('[data-testid="controls"]').findAll("button").map((b) => b.attributes("aria-label"));
+    expect(labels).toEqual(["Previous record", "Play preview of Khruangbin Hit", "Next record"]);
+  });
+
+  // 沒有試聽時，播放鍵的位置換成說明文字，上一張、下一張還在兩旁
+  it("keeps the arrows around the no-preview message", async () => {
+    const wrapper = await mountCrate();
+    await button(wrapper, "Next record").trigger("click");
+    const controls = wrapper.get('[data-testid="controls"]');
+    expect(controls.text()).toContain("No preview");
+    expect(controls.findAll("button").map((b) => b.attributes("aria-label"))).toEqual(["Previous record", "Next record"]);
+  });
+
+  // 「1 / 3」是 12px 的小字，放在最下面（Explore 之後）
+  it("shows the position in small text at the very bottom", async () => {
+    const wrapper = await mountCrate();
+    const position = wrapper.get('[data-testid="position"]');
+    expect(position.text()).toBe("1 / 3");
+    expect(position.classes()).toContain("text-xs");
+    const explore = button(wrapper, "Explore artists like Khruangbin").element;
+    expect(explore.compareDocumentPosition(position.element) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  // 提示（例如往下挖沒有新歌手）暫時放在 Explore 的位置，不另外佔一行
+  it("shows a notice in place of Explore", async () => {
+    const wrapper = await mountSuspended(RecordCrate, { props: { cards, notice: "No new artists here — try another record" } });
+    expect(wrapper.text()).toContain("No new artists here — try another record");
+    expect(button(wrapper, "Explore artists like Khruangbin")).toBeUndefined();
+  });
 });

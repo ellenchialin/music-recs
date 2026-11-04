@@ -231,3 +231,16 @@ Nuxt 預設先在伺服器把頁面渲染成 HTML，再到瀏覽器「接手」�
 - 「看到第幾張」用 `v-model:index` 綁到唱片箱：唱片箱改，路徑裡那一層跟著改；回到那一層時，唱片箱從那一張開始
 
 演算法本身沒有變：往下挖只是「一位種子 ＋ 一份排除名單」再跑一次推薦。
+
+## 12. 網址是推薦結果的唯一來源
+
+> **前端類比**：React Router 的 `useSearchParams`，或篩選條件放在網址的商品列表頁。畫面由網址算出來，不是由按鈕點了幾次算出來。
+
+`/recommendations?seed=Tame+Impala&seed=Kokoroko&explore=Pond`
+
+- **解析網址**：`app/utils/recommendations-route.ts` 把 query 轉成 `{ seeds, explore }`。網址可以手改：多的、空的、重複的都去掉，最多 3 位種子、3 層
+- **依網址查詢**：`useAsyncData` 監看網址，一層一層查。伺服器端渲染時就查好，打開頁面直接有結果；從首頁換過來時（`lazy`）先顯示唱盤
+- **查過的不再查**：每一層的結果存在 `useState`，key 是「種子 ＋ 路徑」。伺服器查好的會跟著頁面送到瀏覽器；往下挖、回上一層、按上一頁都先看這裡
+- **往下挖＝改網址**：先查好下一層、確認有新歌手，才 `router.push`；網址一變，`useAsyncData` 重跑時直接從快取拿
+
+**SSR 的坑**：在 `setup` 裡用瀏覽器才有的東西（`Audio`、`window`、`localStorage`）會讓伺服器端渲染失敗。等真的要用時才建立（試聽播放器），或放在 `onMounted` 裡（種子的 localStorage）。
