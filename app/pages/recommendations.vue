@@ -73,6 +73,23 @@ const currentKey = computed(() =>
 );
 const loadingFirst = computed(() => status.value === "pending" && !data.value);
 
+// 從首頁按 Recommend 進來（旗標由首頁設定）：資料就算馬上回來，唱盤也先停在中央 NEEDLE_DROP_MS，
+// 讓 View Transition 把唱盤移過來、看清楚它在轉，再換成唱片，才不會像一閃而過的殘影。
+// 直接打開網址（重新整理、分享連結）沒有旗標，結果直接出現
+const NEEDLE_DROP_MS = 1100;
+const needleDrop = useState("needle-drop", () => false);
+// 換頁是在瀏覽器裡發生的，setup 這時就讀得到旗標；第一次畫面就要用對的值，不能等 onMounted
+const fromHome = import.meta.client && needleDrop.value;
+const holding = ref(fromHome);
+// 從首頁移過來的唱盤不重播進場；沒有 View Transition 的瀏覽器才自己播
+const morphed = fromHome && "startViewTransition" in document;
+onMounted(() => {
+  if (!fromHome) return;
+  needleDrop.value = false;
+  setTimeout(() => (holding.value = false), NEEDLE_DROP_MS);
+});
+const showTurntable = computed(() => loadingFirst.value || holding.value);
+
 // 換層的動畫方向：往下挖從右邊滑進來（1），回上一層（麵包屑、上一頁）從左邊（-1）
 const direction = ref(1);
 watch(
@@ -186,11 +203,12 @@ useHead({ title: () => (currentLevel.value?.artist ? `More like ${currentLevel.v
         </NuxtLink>
       </section>
 
-      <!-- 查詢中：置中的唱盤 -->
-      <div v-else-if="loadingFirst" role="status" class="flex flex-1 items-center justify-center py-10">
+      <!-- 查詢中、或剛從首頁換過來：置中的唱盤 -->
+      <div v-else-if="showTurntable" role="status" class="flex flex-1 items-center justify-center py-10">
         <span class="sr-only">Finding recommendations…</span>
-        <div class="size-[min(70vw,22rem)]">
-          <SunTurntable :record-delay="0.1" />
+        <!-- 和首頁的唱盤同一個 view-transition-name：換頁時從首頁的位置、大小移過來 -->
+        <div class="size-[min(70vw,22rem)] [view-transition-name:turntable]">
+          <SunTurntable :record-delay="0.1" :entrance="!morphed" />
         </div>
       </div>
 

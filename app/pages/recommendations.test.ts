@@ -172,4 +172,20 @@ describe("recommendations page", () => {
     release();
     await vi.waitFor(() => expect(recordNames(page)).toHaveLength(2));
   });
+
+  // 從首頁按 Recommend 進來：就算資料很快回來，也先播完「放唱針」（唱臂放下）才出現唱片，不會一閃而過
+  it("plays the needle drop when arriving from home, then shows the records", async () => {
+    useState("needle-drop").value = true;
+    const page = await open(SEEDS);
+    expect(page.find('[role="status"]').exists()).toBe(true);
+    expect(page.findAll('[aria-roledescription="slide"]')).toHaveLength(0);
+    await vi.waitFor(() => expect(recordNames(page)).toHaveLength(2), { timeout: 3000 });
+    expect(page.find('[role="status"]').exists()).toBe(false);
+  });
+
+  // 直接打開連結（分享、重新整理）：不播，結果直接出現
+  it("shows the records right away on a direct visit", async () => {
+    const page = await open(SEEDS);
+    await vi.waitFor(() => expect(recordNames(page)).toHaveLength(2), { timeout: 300 });
+  });
 });

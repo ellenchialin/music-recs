@@ -74,3 +74,14 @@
   text-transform: uppercase;
   letter-spacing: -0.01em;
 }
+
+/* 換頁的 View Transition（nuxt.config 的 experimental.viewTransition）：
+   整頁淡入淡出要快，唱盤從首頁移到推薦頁中央慢一點、減速停下，看得清楚它是「同一台」 */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 0.25s;
+}
+::view-transition-group(turntable) {
+  animation-duration: 0.55s;
+  animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+}

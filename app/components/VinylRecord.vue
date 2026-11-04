@@ -11,6 +11,9 @@ function ringSector(a: number, b: number, inner = 46, outer = 88) {
   return `M ${point(outer, a)} A ${outer} ${outer} 0 0 1 ${point(outer, b)} L ${point(inner, b)} A ${inner} ${inner} 0 0 0 ${point(inner, a)} Z`;
 }
 const shines = [ringSector(-150, -105), ringSector(30, 75)];
+
+// entrance：false 時唱臂一開始就放在唱片上（不擺進來）
+withDefaults(defineProps<{ entrance?: boolean }>(), { entrance: true });
 </script>
 
 <template>
@@ -44,7 +47,7 @@ const shines = [ringSector(-150, -105), ringSector(30, 75)];
       class="pointer-events-none absolute inset-0 size-full overflow-visible"
       aria-hidden="true"
       :style="{ originX: '86%', originY: '10%' }"
-      :initial="{ rotate: -28 }"
+      :initial="entrance ? { rotate: -28 } : false"
       :animate="{ rotate: 0 }"
       :transition="{ ...spring.smooth, delay: 0.6 }"
     >

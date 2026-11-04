@@ -40,8 +40,13 @@ onMounted(() => {
 });
 const sunContentDelay = (i = 0) => (introDone.value ? 0 : intro.sunContent + staggerStep * i);
 
+// 推薦頁看到這個旗標，就先讓唱盤停在畫面中央一下（放唱針），再出現唱片，不會一閃而過
+const needleDrop = useState("needle-drop", () => false);
+
 function recommend() {
-  if (store.isReady) void navigateTo(recommendationsLocation(store.seeds));
+  if (!store.isReady) return;
+  needleDrop.value = true;
+  void navigateTo(recommendationsLocation(store.seeds));
 }
 </script>
 
@@ -146,7 +151,8 @@ function recommend() {
              container-type: size 讓太陽圓用 cqw/cqh 取「寬、高較小的那個」當直徑，手機上自動縮到放得下 -->
         <div class="flex min-h-0 items-center justify-center [container-type:size] [grid-area:record] lg:min-h-[28rem]">
           <!-- 黑膠唱盤在太陽圓出現後放大出現，接著唱臂擺進來 -->
-          <div class="aspect-square w-[min(100cqw,100cqh)] lg:w-[min(100cqw,100cqh,32rem)]">
+          <!-- view-transition-name 和推薦頁的唱盤同名：按 Recommend 換頁時，瀏覽器把它從這裡移到推薦頁中央 -->
+          <div class="aspect-square w-[min(100cqw,100cqh)] [view-transition-name:turntable] lg:w-[min(100cqw,100cqh,32rem)]">
             <SunTurntable :record-delay="intro.sunContent" />
           </div>
         </div>

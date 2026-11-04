@@ -83,6 +83,8 @@ describe("index page", () => {
         query: { seed: ["Tame Impala", "Kokoroko"] },
       }),
     );
+    // 推薦頁會先播「放唱針」再出現唱片
+    expect(useState("needle-drop").value).toBe(true);
   });
 
   // 從推薦頁的麵包屑回來（/?seed=…）：輸入框換成那組種子，可以接著改；網址清回 /
