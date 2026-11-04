@@ -39,6 +39,12 @@
     @apply bg-pink font-sans text-ink antialiased;
   }
 
+  /* Tailwind v4 把按鈕的游標改回預設箭頭；可以按的按鈕一律顯示手指，停用的不顯示 */
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]) {
+    cursor: pointer;
+  }
+
   /* 鍵盤焦點：粗墨線外框，和插畫的描邊一致 */
   :focus-visible {
     outline: 3px solid var(--color-ink);
