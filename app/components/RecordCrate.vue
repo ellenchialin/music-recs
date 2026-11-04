@@ -4,16 +4,21 @@ import type { RecommendationCard } from "~~/shared/types/recommendations";
 
 // 推薦結果像翻唱片箱：選到的封面在中間、最大；其他的往左右疊，越遠越小、往內轉。
 // 左右滑（或拖、按箭頭、按鍵盤左右鍵、點旁邊的封面）換一張；資訊和圓形播放鍵在封面下方
-const props = defineProps<{ cards: RecommendationCard[] }>();
-// 試聽暫時無法載入時，請頁面重新查詢（錯誤沒有被快取，重查會再試一次 iTunes）
-const emit = defineEmits<{ retry: [] }>();
+// canExplore：還能不能再往下挖（最多 3 層，由頁面決定）；exploring：下一層正在查（第一次可能要好幾秒）
+const props = withDefaults(defineProps<{ cards: RecommendationCard[]; canExplore?: boolean; exploring?: boolean }>(), {
+  canExplore: true,
+  exploring: false,
+});
+const emit = defineEmits<{
+  // 試聽暫時無法載入時，請頁面重新查詢（錯誤沒有被快取，重查會再試一次 iTunes）
+  retry: [];
+  // Explore from here：以這位歌手為種子往下挖
+  explore: [artist: string];
+}>();
 
-const active = ref(0);
-// 換了一批推薦（重新查詢）就回到第一張
-watch(
-  () => props.cards,
-  () => (active.value = 0),
-);
+// 目前選到第幾張。用 v-model:index 讓頁面記住：從下一層回來時停在當時看的那張。
+// 每一層是不同的唱片箱（頁面用不同的 key），換一批推薦時自然從頭開始
+const active = defineModel<number>("index", { default: 0 });
 const current = computed(() => props.cards[active.value]!);
 const count = computed(() => props.cards.length);
 
@@ -160,7 +165,7 @@ const appleMusicUrl = computed(() => {
     </motion.div>
 
     <!-- 目前這張的資訊：歌手、歌名、和哪些種子相似；換唱片時淡出淡入，螢幕閱讀器會念新的歌手 -->
-    <div data-testid="record-info" aria-live="polite" class="mt-8 flex min-h-[11rem] w-full max-w-md flex-col items-center text-center">
+    <div data-testid="record-info" aria-live="polite" class="mt-8 flex min-h-[14rem] w-full max-w-md flex-col items-center text-center">
       <AnimatePresence mode="wait">
         <motion.div
           :key="current.artist"
@@ -212,6 +217,22 @@ const appleMusicUrl = computed(() => {
               <span class="text-ink/70">Preview failed to load</span>
               <button type="button" class="font-bold underline underline-offset-4" @click="emit('retry')">Retry</button>
             </p>
+          </div>
+
+          <!-- Explore from here：從這張往下挖。到最深時不顯示（想換方向可以點上方的路徑回去）；
+               外層留著同樣的高度，換層時資訊區不會跳 -->
+          <div class="mt-4 flex h-7 items-center justify-center">
+            <button
+              v-if="canExplore"
+              type="button"
+              :aria-label="`Explore artists like ${current.artist}`"
+              :disabled="exploring"
+              :aria-busy="exploring"
+              class="font-bold underline underline-offset-4 disabled:no-underline disabled:opacity-40"
+              @click="emit('explore', current.artist)"
+            >
+              {{ exploring ? "Finding more…" : "Explore from here →" }}
+            </button>
           </div>
         </motion.div>
       </AnimatePresence>

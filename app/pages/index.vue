@@ -1,11 +1,19 @@
 <script setup lang="ts">
 import { AnimatePresence, motion } from "motion-v";
 import type { RecommendationsResult, SeedNotFoundData } from "~~/shared/types/recommendations";
+import { backTo, canExplore, excludedFor, exploreFrom, type Trail } from "~/utils/explore-trail";
 import { MIN_SEEDS } from "~/stores/seeds";
 
 const store = useSeedsStore();
 
-const result = ref<RecommendationsResult | null>(null);
+// Explore from here 的路徑：第一層是使用者選的種子推出來的，之後每往下挖一層加一層（app/utils/explore-trail.ts）
+const trail = ref<Trail>([]);
+const currentLevel = computed(() => trail.value.at(-1));
+// 換層的動畫方向：往下挖從右邊滑進來（1），回上一層從左邊（-1）
+const direction = ref(1);
+const exploring = ref(false);
+// 往下挖沒有新歌手、或查詢失敗時，唱片箱下方的一行提示
+const exploreMessage = ref("");
 const loading = ref(false);
 // 種子找不到（404）：哪一位、建議的名字
 const notFound = ref<SeedNotFoundData | null>(null);
@@ -45,7 +53,11 @@ async function fetchRecommendations() {
   failed.value = false;
   try {
     // query 的陣列會變成 ?seed=A&seed=B&seed=C
-    result.value = await $fetch<RecommendationsResult>("/api/recommendations", { query: { seed: store.seeds } });
+    const result = await $fetch<RecommendationsResult>("/api/recommendations", { query: { seed: store.seeds } });
+    // 重新推薦：路徑清空，回到第一層
+    direction.value = 1;
+    exploreMessage.value = "";
+    trail.value = [{ artist: null, result, index: 0 }];
     await nextTick();
     reveal(resultsHeading.value);
   } catch (err) {
@@ -66,6 +78,55 @@ function reveal(heading: HTMLElement | null) {
   const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   heading.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "start" });
   heading.focus({ preventScroll: true });
+}
+
+// Explore from here：以這位歌手為種子查下一層，排除原本的種子和前面各層看過的唱片
+async function explore(artist: string) {
+  if (!canExplore(trail.value) || exploring.value) return;
+  exploring.value = true;
+  exploreMessage.value = "";
+  try {
+    const result = await fetchLevel(artist, trail.value);
+    if (!result.recommendations.length) {
+      exploreMessage.value = "No new artists here — try another record";
+      return;
+    }
+    await changeLevel(1, () => exploreFrom(trail.value, artist, result));
+  } catch {
+    exploreMessage.value = "Couldn't load more artists — try again in a moment";
+  } finally {
+    exploring.value = false;
+  }
+}
+
+// 點路徑回到某一層：不重新查詢，那一層看到第幾張保留
+function goBack(level: number) {
+  exploreMessage.value = "";
+  void changeLevel(-1, () => backTo(trail.value, level));
+}
+
+// 試聽載入失敗時的重試：第一層重新推薦；更深的層用同樣的種子和排除名單重查這一層
+async function retryLevel() {
+  const level = currentLevel.value;
+  if (!level?.artist) return fetchRecommendations();
+  const result = await fetchLevel(level.artist, trail.value.slice(0, -1)).catch(() => null);
+  if (result) trail.value = [...trail.value.slice(0, -1), { ...level, result }];
+}
+
+function fetchLevel(artist: string, above: Trail) {
+  const seeds = trail.value[0]?.result.seeds ?? store.seeds;
+  return $fetch<RecommendationsResult>("/api/recommendations", {
+    query: { seed: artist, exclude: excludedFor(above, seeds) },
+  });
+}
+
+// 先設好方向再換層：舊的唱片箱離場時才知道要往哪邊滑
+async function changeLevel(to: 1 | -1, next: () => Trail) {
+  direction.value = to;
+  await nextTick();
+  trail.value = next();
+  await nextTick();
+  reveal(resultsHeading.value);
 }
 
 // 點了「你是不是要找…」：換掉打錯的種子，馬上重新推薦
@@ -214,7 +275,7 @@ function removeMissing(seed: string) {
     </div>
 
     <!-- 第一個畫面以下：錯誤提示和推薦結果，出現時才需要捲動 -->
-    <div v-if="notFound || failed || result" class="mx-auto w-full max-w-7xl overflow-x-clip px-4 py-16 sm:px-8 sm:py-20">
+    <div v-if="notFound || failed || trail.length" class="mx-auto w-full max-w-7xl overflow-x-clip px-4 py-16 sm:px-8 sm:py-20">
       <!-- 種子找不到（404）：說是哪一位，給建議的名字 -->
       <section v-if="notFound" class="max-w-2xl border-3 border-ink bg-paper p-6 text-ink" role="alert">
         <h2 ref="feedbackHeading" tabindex="-1" class="scroll-mt-6 font-wide text-2xl font-black focus:outline-none">
@@ -245,22 +306,57 @@ function removeMissing(seed: string) {
           Music data is unavailable
         </h2>
         <p class="mt-2 text-base">The data source may be busy. Try again in a moment.</p>
-        <button type="button" class="mt-4 border-3 border-ink bg-teal px-4 py-2 font-bold" @click="fetchRecommendations">
+        <button type="button" class="mt-4 border-3 border-ink bg-teal px-4 py-2 font-bold" @click="fetchRecommendations()">
           Try again
         </button>
       </section>
 
-      <section v-if="result" :class="{ 'mt-16': notFound || failed }" :aria-busy="loading">
+      <section v-if="currentLevel" :class="{ 'mt-16': notFound || failed }" :aria-busy="loading || exploring">
         <h2 ref="resultsHeading" tabindex="-1" class="scroll-mt-6 font-wide text-4xl font-black focus:outline-none sm:text-5xl">
-          Recommended for you
+          {{ currentLevel.artist ? `More like ${currentLevel.artist}` : "Recommended for you" }}
         </h2>
-        <!-- 唱片箱：左右疊的封面會超出內容寬度，由外層 overflow-x-clip 裁掉，頁面不會左右捲 -->
-        <motion.div
-          v-bind="fadeUp"
-          :transition="{ ...spring.smooth, delay: staggerStep }"
-          class="mt-10"
-        >
-          <RecordCrate :cards="result.recommendations" @retry="fetchRecommendations" />
+
+        <!-- 往下挖之後才出現的路徑：Your artists › Pond › GUM。最後一層是目前所在，其他可以點回去。
+             手機上只有一行，太長就左右捲 -->
+        <nav v-if="trail.length > 1" aria-label="Exploration path" class="mt-4 overflow-x-auto">
+          <ol class="flex items-center gap-2 text-base whitespace-nowrap">
+            <li v-for="(level, i) in trail" :key="i" class="flex items-center gap-2">
+              <span v-if="i > 0" aria-hidden="true">›</span>
+              <button
+                v-if="i < trail.length - 1"
+                type="button"
+                class="font-bold underline underline-offset-4"
+                @click="goBack(i)"
+              >
+                {{ level.artist ?? "Your artists" }}
+              </button>
+              <span v-else aria-current="page" class="font-bold">{{ level.artist ?? "Your artists" }}</span>
+            </li>
+          </ol>
+        </nav>
+
+        <!-- 唱片箱：左右疊的封面會超出內容寬度，由外層 overflow-x-clip 裁掉，頁面不會左右捲。
+             每一層是一個唱片箱（key 不同）：往下挖時舊的往左滑出、新的從右邊滑進來，回上一層相反 -->
+        <motion.div v-bind="fadeUp" :transition="{ ...spring.smooth, delay: staggerStep }" class="mt-10">
+          <AnimatePresence mode="wait" :initial="false">
+            <motion.div
+              :key="`${trail.length}-${currentLevel.artist ?? ''}`"
+              :initial="{ opacity: 0, x: 48 * direction }"
+              :animate="{ opacity: 1, x: 0 }"
+              :exit="{ opacity: 0, x: -48 * direction }"
+              :transition="spring.smooth"
+            >
+              <RecordCrate
+                v-model:index="currentLevel.index"
+                :cards="currentLevel.result.recommendations"
+                :can-explore="canExplore(trail)"
+                :exploring="exploring"
+                @explore="explore"
+                @retry="retryLevel"
+              />
+            </motion.div>
+          </AnimatePresence>
+          <p aria-live="polite" class="mt-4 min-h-6 text-center text-base font-medium">{{ exploreMessage }}</p>
         </motion.div>
       </section>
     </div>

@@ -99,4 +99,35 @@ describe("RecordCrate", () => {
     await info(wrapper).findAll("button").find((b) => b.text() === "Retry")!.trigger("click");
     expect(wrapper.emitted("retry")).toHaveLength(1);
   });
+
+  // Explore from here：以目前這張的歌手為種子往下挖
+  it("explores from the selected record", async () => {
+    const wrapper = await mountCrate();
+    await button(wrapper, "Next record").trigger("click");
+    await button(wrapper, "Explore artists like Pond").trigger("click");
+    expect(wrapper.emitted("explore")).toEqual([["Pond"]]);
+  });
+
+  // 已經挖到最深：不顯示 Explore（停用的按鈕只會多一個要理解的東西；想換方向可以點上方的路徑回去）
+  it("hides Explore when it cannot go any deeper", async () => {
+    const wrapper = await mountSuspended(RecordCrate, { props: { cards, canExplore: false } });
+    expect(button(wrapper, "Explore artists like Khruangbin")).toBeUndefined();
+    expect(wrapper.text()).not.toContain("Explore from here");
+  });
+
+  // 回到上一層時，停在當時看的那張：目前第幾張由外面用 v-model:index 帶進來、帶出去
+  it("starts on the given record and reports where the visitor moves", async () => {
+    const wrapper = await mountSuspended(RecordCrate, { props: { cards, index: 2 } });
+    expect(info(wrapper).get("h3").text()).toBe("Ezra Collective");
+    await button(wrapper, "Previous record").trigger("click");
+    expect(wrapper.emitted("update:index")).toEqual([[1]]);
+  });
+
+  // 往下挖第一次要打 Last.fm、iTunes，可能要好幾秒：按鈕顯示正在找，並且不能連按
+  it("shows that it is finding more while exploring", async () => {
+    const wrapper = await mountSuspended(RecordCrate, { props: { cards, exploring: true } });
+    const explore = button(wrapper, "Explore artists like Khruangbin");
+    expect(explore.text()).toBe("Finding more…");
+    expect(explore.attributes("disabled")).toBeDefined();
+  });
 });
