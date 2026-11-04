@@ -138,3 +138,23 @@ Last.fm 的原始回應很不好用：數字是字串（`"8500398"`）、沒有 
 | iTunes 出錯（403、當機） | 什麼都不存，錯誤往上丟 | 存了的話，iTunes 恢復後 30 天內這位歌手都沒有試聽 |
 
 測試 `remembers that iTunes had nothing` 和 `does not cache anything when iTunes fails` 各檢查一種。
+
+## 7. 推薦演算法是一條純函式的管線
+
+> **前端類比**：Redux 的 selector（或 Vue 的 computed）。state 進去、畫面要的資料出來，不打 API、不改 state。同樣的輸入永遠得到同樣的輸出，所以測試只要準備輸入、比對輸出。
+
+`server/utils/recommend/` 的每一步都是這樣：
+
+```
+每位種子的相似清單 ──mergeCandidates──▶ 合併、加總分數、排序
+                     ──excludeArtists──▶ 拿掉種子本身、不喜歡的
+                     ──取前 10 位────▶ 推薦結果（標上 algo_version）
+```
+
+資料從哪來（快取、Last.fm）是 `/api/recommendations` 的事，演算法只吃 `types.ts` 裡的普通物件。好處：
+
+- 測試不需要資料庫，也不需要 fixture，手寫幾筆就能測一條規則
+- 換資料來源（例如之後改用標籤找候選）不必改演算法
+- 盲聽測驗要比較不同版本的演算法時，同樣的輸入一定得到同樣的輸出（所以分數一樣時要依名字排，不能靠 `Map` 或資料庫回傳的順序）
+
+**用 Map 分組累加**（練習 3）：同一位歌手出現在好幾位種子的清單裡時，用 `nameNorm` 當 key 找到原本那筆，把分數加上去，而不是新增一筆。
