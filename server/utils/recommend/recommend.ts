@@ -5,7 +5,8 @@ import type { Candidate, ExcludedArtist, SeedSimilarity } from "./types";
 
 // 演算法版本：規則一改（例如加上冷門程度的權重）就換新版本，
 // 盲聽測驗的評分會連同版本存下來，才比得出哪一版比較好
-export const ALGO_VERSION = "v1";
+// v1：match 加總。v2：名次加總（Reciprocal Rank Fusion），讓每位種子分到差不多的名額
+export const ALGO_VERSION = "v2";
 
 const DEFAULT_LIMIT = 10;
 

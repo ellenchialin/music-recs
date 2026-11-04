@@ -93,11 +93,12 @@ describe("getRecommendations", () => {
     expect(result.algoVersion).toBe(ALGO_VERSION);
     // 種子用 Last.fm 的正式寫法回傳，前端顯示用
     expect(result.seeds).toEqual(["Tame Impala", "Kokoroko"]);
-    // Khruangbin 兩位種子都推（0.5 + 0.4），排第一
-    expect(result.recommendations.map((r) => r.artist)).toEqual(["Khruangbin", "Pond", "Ezra Collective", "MGMT"]);
+    // Khruangbin 兩位種子都推（Tame Impala 第 3 名、Kokoroko 第 2 名），排第一；
+    // 接著是兩位種子各自的第 1 名，分數一樣依名字排
+    expect(result.recommendations.map((r) => r.artist)).toEqual(["Khruangbin", "Ezra Collective", "Pond", "MGMT"]);
     expect(result.recommendations[0]).toEqual({
       artist: "Khruangbin",
-      score: 0.9,
+      score: expect.closeTo(1 / 8 + 1 / 7, 6),
       sources: ["Tame Impala", "Kokoroko"],
       track: { title: "Khruangbin Hit", artworkUrl: "https://art.example/600x600bb.jpg" },
       preview: { status: "available", url: expect.stringMatching(/^https:\/\/audio\.example\//) },
@@ -145,7 +146,8 @@ describe("getRecommendations", () => {
     const result = await getRecommendations({ db, lastfm, itunes, now }, { seeds: ["Tame Impala", " tame impala"] });
 
     expect(result.seeds).toEqual(["Tame Impala"]);
-    expect(result.recommendations[0]).toMatchObject({ artist: "Pond", score: 0.9 });
+    // 只算一次：Pond 是唯一一位種子的第 1 名，分數 1/6，不是 2/6
+    expect(result.recommendations[0]).toMatchObject({ artist: "Pond", score: expect.closeTo(1 / 6, 6) });
   });
 
   // 找不到種子：丟 SeedNotFoundError，附上搜尋到的相近歌手；聽眾太少的分身（例如 radıohead）不列

@@ -28,7 +28,7 @@ function seed(name: string, list: [string, number][], seedMbid: string | null = 
 describe("recommend", () => {
   // 每次結果都標上演算法版本，盲聽測驗的評分才知道是哪一版的推薦
   it("labels the result with the algorithm version", () => {
-    expect(ALGO_VERSION).toBe("v1");
+    expect(ALGO_VERSION).toBe("v2");
     expect(recommend({ seeds: [radiohead] }).algoVersion).toBe(ALGO_VERSION);
   });
 

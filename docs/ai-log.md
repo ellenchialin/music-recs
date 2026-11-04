@@ -146,3 +146,19 @@
 - Last.fm 的 autocorrect 會自己修好小拼錯（`Tame Impalla` → Tame Impala），修不好的（`Kokoroco`）才回 404，建議是 Kokoroko、LocoRoco
 - **種子分數蓋過的問題又出現**：Kokoroko 5 位、Justin Bieber 4 位，Tame Impala 只有 Pond 1 位。原因是各種子的相似清單第一名都接近 1，誰的清單「前段比較密」誰就佔比較多名額。v2 優先處理
 - 400 的錯誤訊息是 zod 的原始 JSON，前端不要直接顯示
+
+## 2026-11-04 · 推薦演算法 v2：種子平衡
+
+| # | 問題 | Claude 建議 | 決定 | 理由 |
+|---|---|---|---|---|
+| 1 | 一位種子蓋過其他種子 | 分數改成看名次：第 rank 名得 `weight / (5 + rank)`，加總（Reciprocal Rank Fusion）；`ALGO_VERSION` 換成 `v2` | 採用（我要求先修這個） | 每位種子的第 1 名一樣重，結果輪流來自各種子；被多位種子推薦的仍然排前面 |
+| 2 | `RANK_K` 用多少 | 5：兩位種子各排第 5 名贏過單一種子的第 1 名；各排第 10 名落在第 2、3 名之間 | 採用 | 太小（1）名次差距太大，太大（60，常見的預設）共同推薦會壓過一切 |
+
+同一組種子（Tame Impala、Justin Bieber、Kokoroko）：
+
+| | Kokoroko | Justin Bieber | Tame Impala | 有試聽 |
+|---|---|---|---|---|
+| v1 | 5 | 4 | 1 | 8 / 10 |
+| v2 | 3 | 4 | 3 | 9 / 10 |
+
+代價：丟掉 `match` 的大小，相似清單整體很弱的種子也拿到一樣多名額。

@@ -24,7 +24,7 @@ export type Candidate = {
   name: string;
   nameNorm: string;
   mbid: string | null;
-  // 分數：每位種子的 weight × match 加總，越高越前面
+  // 分數：每位種子依名次給的分數加總（見 merge-candidates.ts），越高越前面
   score: number;
   // 跟哪幾位種子相似，依種子的順序；推薦理由沒做時顯示「和 A、B 相似」
   sources: string[];
