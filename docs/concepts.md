@@ -219,3 +219,15 @@ Nuxt 預設先在伺服器把頁面渲染成 HTML，再到瀏覽器「接手」�
 ### 全頁共用一個播放器
 
 `createSharedComposable`（VueUse）：每張卡片呼叫 `usePreviewPlayer()` 拿到的是同一份狀態，像一個小型的全域 store。播 B 的時候 A 自動停，因為只有一個 `<audio>`。
+
+## 11. Explore from here：路徑狀態是純函式
+
+> **前端類比**：瀏覽器的上一頁／下一頁，或 React Router 的 history stack。每往下挖一層 push 一筆，點路徑回去就把後面的切掉。
+
+`app/utils/explore-trail.ts` 把路徑存成陣列，每一層記三件事：從哪位歌手挖下來（第一層是 `null`）、推薦結果、看到第幾張。
+
+- `exploreFrom`、`backTo` 都回傳新陣列、不改原本的：回上一層時前面各層原封不動，所以不用重新查詢
+- `excludedFor` 算下一層的排除名單：原本的種子 ＋ 每一層顯示過的唱片，送給 API 的 `exclude`
+- 「看到第幾張」用 `v-model:index` 綁到唱片箱：唱片箱改，路徑裡那一層跟著改；回到那一層時，唱片箱從那一張開始
+
+演算法本身沒有變：往下挖只是「一位種子 ＋ 一份排除名單」再跑一次推薦。
