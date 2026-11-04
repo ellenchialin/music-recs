@@ -4,6 +4,8 @@
 // 一位種子歌手和他的相似清單（來自 artist_similar）
 export type SeedSimilarity = {
   seed: string;
+  // 種子本身的 MBID（來自 artists）：用來排除換個名字出現的種子
+  seedMbid: string | null;
   // 使用者直接選的種子是 1；之後「喜歡」加進來的種子權重比較低（SPEC：回饋）
   weight: number;
   similar: SimilarArtistInput[];

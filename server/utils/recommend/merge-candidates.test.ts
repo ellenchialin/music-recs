@@ -6,6 +6,7 @@ import type { SeedSimilarity } from "./types";
 function seed(name: string, similar: [string, number][], weight = 1): SeedSimilarity {
   return {
     seed: name,
+    seedMbid: null,
     weight,
     similar: similar.map(([n, match]) => ({ name: n, nameNorm: n.toLowerCase(), mbid: null, match })),
   };
