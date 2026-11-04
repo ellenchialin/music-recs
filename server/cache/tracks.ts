@@ -5,7 +5,7 @@ import type { ItunesClient } from "../itunes/client";
 import type { ItunesTrack } from "../itunes/schemas";
 import type { LastfmClient } from "../lastfm/client";
 import { isFresh } from "../utils/is-fresh";
-import { normalizeArtistName } from "../utils/normalize-artist-name";
+import { normalizeArtistName } from "../../shared/utils/normalize-artist-name";
 import { pickTrack } from "../utils/pick-track";
 
 // 每位歌手的代表歌快取：Last.fm 熱門第一名 → 依序搜 iTunes 各國商店 → pickTrack 挑試聽和封面

@@ -15,12 +15,11 @@ describe("recommendationsQuery", () => {
     });
   });
 
-  // SPEC：3–5 位種子。API 接受 1–5 位，方便測試；「至少 3 位」由前端要求
-  it("accepts one to five seeds", () => {
+  // 種子 1–3 位，和前端一樣
+  it("accepts one to three seeds", () => {
     expect(recommendationsQuery.safeParse({}).success).toBe(false);
-    const six = ["A", "B", "C", "D", "E", "F"];
-    expect(recommendationsQuery.safeParse({ seed: six }).success).toBe(false);
-    expect(recommendationsQuery.safeParse({ seed: six.slice(0, 5) }).success).toBe(true);
+    expect(recommendationsQuery.safeParse({ seed: ["A", "B", "C", "D"] }).success).toBe(false);
+    expect(recommendationsQuery.safeParse({ seed: ["A", "B", "C"] }).success).toBe(true);
   });
 
   it("rejects empty or very long names", () => {

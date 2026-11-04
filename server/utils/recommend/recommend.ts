@@ -1,4 +1,4 @@
-import { normalizeArtistName } from "../normalize-artist-name";
+import { normalizeArtistName } from "../../../shared/utils/normalize-artist-name";
 import { excludeArtists } from "./exclude-artists";
 import { mergeCandidates } from "./merge-candidates";
 import type { Candidate, ExcludedArtist, SeedSimilarity } from "./types";

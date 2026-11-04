@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import similar from "../../lastfm/fixtures/similar-radiohead.json";
 import { similarArtistsResponse } from "../../lastfm/schemas";
-import { normalizeArtistName } from "../normalize-artist-name";
+import { normalizeArtistName } from "../../../shared/utils/normalize-artist-name";
 import { ALGO_VERSION, recommend } from "./recommend";
 import type { SeedSimilarity } from "./types";
 

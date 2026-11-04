@@ -5,7 +5,7 @@ import { ItunesError, type ItunesClient } from "../itunes/client";
 import type { ItunesTrack } from "../itunes/schemas";
 import { LastfmError, type LastfmClient } from "../lastfm/client";
 import type { ArtistSearchResult } from "../lastfm/schemas";
-import { normalizeArtistName } from "../utils/normalize-artist-name";
+import { normalizeArtistName } from "../../shared/utils/normalize-artist-name";
 import { ALGO_VERSION } from "../utils/recommend/recommend";
 import { SeedNotFoundError, getRecommendations } from "./recommendations";
 

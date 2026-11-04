@@ -6,6 +6,6 @@ const seedName = z.string().trim().min(1).max(200);
 
 export const recommendationsQuery = z
   .object({ seed: z.union([seedName, z.array(seedName)]) })
-  // SPEC 是 3–5 位；API 接受 1–5 位方便測試，「至少 3 位」由前端要求
+  // 種子 1–3 位，和前端的 stores/seeds.ts 一樣
   .transform(({ seed }) => ({ seeds: Array.isArray(seed) ? seed : [seed] }))
-  .pipe(z.object({ seeds: z.array(z.string()).min(1).max(5) }));
+  .pipe(z.object({ seeds: z.array(z.string()).min(1).max(3) }));

@@ -1,5 +1,5 @@
 import type { ItunesTrack } from "../itunes/schemas";
-import { normalizeArtistName } from "./normalize-artist-name";
+import { normalizeArtistName } from "../../shared/utils/normalize-artist-name";
 
 // 歌名後面接這些，才算同一首歌的其他版本："Creep (Acoustic)"、"Creep [Live]"、"First Love - From THE FIRST TAKE"
 // 前面都有空白，所以 "Creeping Death"、"Creep-Show" 不算

@@ -25,7 +25,7 @@ pnpm test:unit
 pnpm vitest --project unit normalize-artist-name
 ```
 
-要寫的檔案：`server/utils/normalize-artist-name.ts`。測試在旁邊的 `normalize-artist-name.test.ts`，**先讀一遍測試**，每個 `it` 上面的註解說明了它在檢查什麼。
+要寫的檔案：`shared/utils/normalize-artist-name.ts`（原本在 `server/utils/`，之後前端也要用，搬到 `shared/`）。測試在旁邊的 `normalize-artist-name.test.ts`，**先讀一遍測試**，每個 `it` 上面的註解說明了它在檢查什麼。
 
 ## 第 1 步：先做實驗（5 分鐘）
 

@@ -3,7 +3,7 @@ import type { Db } from "../db/client";
 import { artistSimilar, artists } from "../db/schema";
 import type { LastfmClient } from "../lastfm/client";
 import { isFresh } from "../utils/is-fresh";
-import { normalizeArtistName } from "../utils/normalize-artist-name";
+import { normalizeArtistName } from "../../shared/utils/normalize-artist-name";
 
 // Last.fm 資料的快取：先查 Postgres，沒有或過期才打 API，再寫回去（cache-aside）
 // 依賴都從參數傳入：測試傳假的 Last.fm client 和固定的「現在」
