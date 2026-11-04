@@ -195,3 +195,27 @@ v2 用 **Reciprocal Rank Fusion**（搜尋引擎合併多份結果的常見做�
 - `RANK_K` 控制兩者的平衡：越大，名次之間差越少，「被好幾位種子推薦」越佔優勢。這裡用 5
 
 **代價**：只看名次就丟掉了 `match` 的大小。一位種子的相似清單整體都很弱（第 1 名只有 0.2），它的第 1 名還是和別的種子的第 1 名一樣重。
+
+## 10. 首頁：SSR、localStorage 和自動完成
+
+### SSR 時 localStorage 的陷阱（`skipHydrate`）
+
+> **前端類比**：Next.js 裡在 render 時讀 `localStorage` 會報錯或造成 hydration mismatch，要等 `useEffect` 才讀。Nuxt 也一樣，而且 Pinia 多了一層坑。
+
+Nuxt 預設先在伺服器把頁面渲染成 HTML，再到瀏覽器「接手」（hydration）。伺服器沒有 `localStorage`，所以種子清單是空的；Pinia 會把這份**空狀態**連同 HTML 一起送到瀏覽器，瀏覽器接手時套用它——蓋掉 localStorage 讀出來的種子，再把空陣列寫回 localStorage。結果：重新整理後種子全不見。
+
+`app/stores/seeds.ts` 的兩個修正：
+
+- `skipHydrate(seeds)`：告訴 Pinia 這個欄位不要用伺服器送來的值
+- `useLocalStorage(..., { initOnMounted: true })`：等瀏覽器掛載完才讀 localStorage，伺服器和瀏覽器第一次渲染出來的 HTML 一樣，不會 hydration mismatch
+
+測試 `keeps the browser's seeds when the server sent an empty state` 模擬「伺服器送來空狀態」重現這個問題。
+
+### 自動完成的兩個細節
+
+- **debounce**：`refDebounced(query, 250)`，停止打字 250ms 才查，不是每按一個鍵就打一次 API
+- **舊請求晚回來**：打「ta」「tam」「tame」送出三個請求，回來的順序不一定。每次送出記一個編號，只採用最後一個編號的結果（`latestRequest`）
+
+### 全頁共用一個播放器
+
+`createSharedComposable`（VueUse）：每張卡片呼叫 `usePreviewPlayer()` 拿到的是同一份狀態，像一個小型的全域 store。播 B 的時候 A 自動停，因為只有一個 `<audio>`。
