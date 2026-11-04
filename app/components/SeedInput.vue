@@ -52,8 +52,8 @@ watch(debouncedQuery, async (q) => {
 });
 
 const messages: Record<Exclude<AddResult, "added">, string> = {
-  duplicate: "已經加過這位了",
-  full: `最多 ${MAX_SEEDS} 位，先拿掉一位再加`,
+  duplicate: "Already added",
+  full: `Up to ${MAX_SEEDS} artists. Remove one to add another.`,
   empty: "",
 };
 
@@ -74,9 +74,11 @@ function onKeydown(event: KeyboardEvent) {
   if (event.key === "ArrowDown" && count) {
     event.preventDefault();
     active.value = (active.value + 1) % count;
+    revealActive();
   } else if (event.key === "ArrowUp" && count) {
     event.preventDefault();
     active.value = (active.value - 1 + count) % count;
+    revealActive();
   } else if (event.key === "Enter") {
     event.preventDefault();
     add(suggestions.value[active.value]?.name ?? query.value);
@@ -86,14 +88,21 @@ function onKeydown(event: KeyboardEvent) {
   }
 }
 
-const listeners = (n: number) => `${new Intl.NumberFormat("zh-Hant", { notation: "compact" }).format(n)} 位聽眾`;
+// 建議清單有最大高度、超過會在裡面捲動；用方向鍵選的時候，把選到的那一個捲進看得到的範圍
+async function revealActive() {
+  await nextTick();
+  document.getElementById(optionId(active.value))?.scrollIntoView?.({ block: "nearest" });
+}
+
+const listeners = (n: number) => `${new Intl.NumberFormat("en", { notation: "compact" }).format(n)} listeners`;
 const listboxId = "seed-suggestions";
 const optionId = (i: number) => `seed-suggestion-${i}`;
 </script>
 
 <template>
   <div class="relative">
-    <label for="seed-input" class="block text-base font-bold sm:text-lg">加入喜歡的歌手</label>
+    <!-- 很矮的畫面（手機橫放）視覺上藏起來，螢幕閱讀器仍然念 -->
+    <label for="seed-input" class="block text-base font-bold sm:text-lg [@media(max-height:520px)]:sr-only">Add an artist you love</label>
     <!-- ARIA combobox：螢幕閱讀器會念出「有幾個建議、現在選到哪一個」 -->
     <input
       id="seed-input"
@@ -106,21 +115,23 @@ const optionId = (i: number) => `seed-suggestion-${i}`;
       :aria-activedescendant="active >= 0 ? optionId(active) : undefined"
       aria-describedby="seed-input-hint"
       :disabled="store.isFull || locked"
-      placeholder="例如 Tame Impala"
-      class="mt-2 w-full border-3 border-ink bg-paper px-4 py-2.5 text-lg sm:py-3 text-ink placeholder:text-ink/50 focus:outline-none focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-ink disabled:opacity-60"
+      placeholder="e.g. Tame Impala"
+      class="mt-2 w-full border-3 border-ink bg-paper [@media(max-height:520px)]:mt-0 px-4 py-2.5 text-lg sm:py-3 text-ink placeholder:text-ink/50 focus:outline-none focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-ink disabled:opacity-60"
       @keydown="onKeydown"
       @blur="suggestions = []"
     >
     <p id="seed-input-hint" class="mt-2 min-h-5 text-sm font-medium sm:min-h-6 sm:text-base" aria-live="polite">
-      {{ message || (store.isFull ? `已經選了 ${MAX_SEEDS} 位` : "打幾個字會出現建議；找不到也可以直接按 Enter") }}
+      {{ message || (store.isFull ? `You've picked ${MAX_SEEDS} artists` : "Type for suggestions, or press Enter") }}
     </p>
 
+    <!-- 手機、直立平板：輸入框在畫面下半部，建議清單往上開（蓋住上面的唱盤，那只是裝飾）；
+         桌機和橫放：輸入框在上面，往下開。清單有最大高度，超過在裡面捲動 -->
     <AnimatePresence>
       <motion.ul
         v-if="suggestions.length"
         :id="listboxId"
         role="listbox"
-        class="absolute inset-x-0 top-full z-10 -mt-7 sm:-mt-8 border-3 border-ink bg-ink text-paper"
+        class="absolute inset-x-0 bottom-full z-10 mb-2 max-h-[min(20rem,45dvh)] overflow-y-auto border-3 border-ink bg-ink text-paper md:landscape:top-full md:landscape:bottom-auto md:landscape:mb-0 md:landscape:-mt-8 lg:top-full lg:bottom-auto lg:mb-0 lg:-mt-8 lg:max-h-[min(18rem,35dvh)]"
         :initial="{ opacity: 0, y: -6 }"
         :animate="{ opacity: 1, y: 0 }"
         :exit="{ opacity: 0, y: -6 }"

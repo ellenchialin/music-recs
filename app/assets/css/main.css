@@ -27,6 +27,8 @@
 
   /* 標題：寬體無襯線，像海報上的字；內文：思源黑體 */
   --font-display: "Archivo", "Noto Sans TC", ui-sans-serif, system-ui, sans-serif;
+  /* 首頁大標：極粗、極窄的襯線字（參考新世紀福音戰士標題卡的字體處理，不用它的 logo） */
+  --font-title: "Noto Serif", ui-serif, Georgia, serif;
   --font-sans: "Noto Sans TC", ui-sans-serif, system-ui, sans-serif;
 }
 
@@ -57,4 +59,14 @@
   font-family: var(--font-display);
   font-stretch: 125%;
   letter-spacing: -0.03em;
+}
+
+/* 首頁大標：Noto Serif 的 wdth 軸壓到最窄（62.5%）、字重 900，大寫、行距壓緊；
+   再用 scale-y 拉高（加在每一行的 span 上，h1 本身的 transform 留給進場動畫） */
+@utility font-title {
+  font-family: var(--font-title);
+  font-stretch: 62.5%;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: -0.01em;
 }

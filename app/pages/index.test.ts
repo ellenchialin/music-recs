@@ -52,7 +52,8 @@ beforeEach(() => {
 });
 
 type Page = Awaited<ReturnType<typeof mountSuspended<typeof IndexPage>>>;
-const recommendButton = (wrapper: Page) => wrapper.findAll("button").find((b) => b.text().includes("推薦給我"))!;
+const records = (wrapper: Page) => wrapper.findAll('[aria-roledescription="slide"]');
+const recommendButton = (wrapper: Page) => wrapper.findAll("button").find((b) => b.text().includes("Recommend"))!;
 
 describe("index page", () => {
   it("shows the app title", async () => {
@@ -60,41 +61,57 @@ describe("index page", () => {
     expect(page.get("h1").text()).toContain("Music Recs");
   });
 
-  // 還沒有種子時，太陽圓上是音浪動畫；螢幕閱讀器念「還沒有選歌手」
-  it("shows a sound wave until the first seed is added", async () => {
+  // 黑膠唱盤一直在太陽圓上；加入的歌手是唱盤下方的標籤，不會蓋住或換掉唱盤
+  // 沒有歌手時標籤區是空的，不放提示文字（高度照樣留著，加第一位時版面不跳）
+  it("shows no placeholder text before any artist is added", async () => {
     const page = await mountSuspended(IndexPage);
-    expect(page.find('[role="img"][aria-label="還沒有選歌手"]').exists()).toBe(true);
+    expect(page.text()).not.toContain("Your artists will appear here");
+  });
+
+  it("lists added artists as tags under the record", async () => {
+    const page = await mountSuspended(IndexPage);
+    const record = () => page.find('[data-testid="vinyl-record"]');
+    const tags = () => page.findAll('ul[aria-label="Your artists"] li').map((li) => li.text().replace("×", "").trim());
+
+    expect(record().exists()).toBe(true);
+    expect(tags()).toEqual([]);
+
     useSeedsStore().add("Tame Impala");
+    useSeedsStore().add("Kokoroko");
     await nextTick();
-    expect(page.find('[role="img"][aria-label="還沒有選歌手"]').exists()).toBe(false);
+
+    expect(record().exists()).toBe(true);
+    expect(tags()).toEqual(["Tame Impala", "Kokoroko"]);
   });
 
   // 至少 1 位種子才能推薦
   it("asks for a seed before recommending", async () => {
     const page = await mountSuspended(IndexPage);
     expect(recommendButton(page).attributes("disabled")).toBeDefined();
-    expect(page.text()).toContain("先選 1 位歌手");
+    expect(page.text()).toContain("Pick an artist first");
     useSeedsStore().add("Tame Impala");
     await nextTick();
     expect(recommendButton(page).attributes("disabled")).toBeUndefined();
-    expect(page.text()).not.toContain("先選 1 位歌手");
+    expect(page.text()).not.toContain("Pick an artist first");
   });
 
   it("removes a seed from the list", async () => {
     const store = useSeedsStore();
     ["Tame Impala", "Kokoroko"].forEach((n) => store.add(n));
     const page = await mountSuspended(IndexPage);
-    await page.get('button[aria-label="移除 Tame Impala"]').trigger("click");
+    await page.get('button[aria-label="Remove Tame Impala"]').trigger("click");
     expect(store.seeds).toEqual(["Kokoroko"]);
   });
 
-  it("shows a card for each recommendation", async () => {
+  it("shows the recommendations as a crate of records", async () => {
     ["Tame Impala", "Justin Bieber", "Kokoroko"].forEach((n) => useSeedsStore().add(n));
     const page = await mountSuspended(IndexPage);
     await recommendButton(page).trigger("click");
-    await vi.waitFor(() => expect(page.findAll("article")).toHaveLength(2));
+    await vi.waitFor(() => expect(records(page)).toHaveLength(2));
     expect(receivedSeeds).toEqual(["Tame Impala", "Justin Bieber", "Kokoroko"]);
-    expect(page.findAll("article h3").map((h) => h.text())).toEqual(["Khruangbin", "Pond"]);
+    // 唱片箱：兩張封面，第一張是選到的
+    expect(records(page).map((r) => r.attributes("aria-label"))).toEqual(["1 of 2: Khruangbin", "2 of 2: Pond"]);
+    expect(page.get('[data-testid="record-info"] h3').text()).toBe("Khruangbin");
   });
 
   // 推薦中不能改種子：查詢用的是按下按鈕那一刻的種子，中途改了結果會對不上
@@ -107,10 +124,10 @@ describe("index page", () => {
 
     await recommendButton(page).trigger("click");
     await vi.waitFor(() => expect(page.get("#seed-input").attributes("disabled")).toBeDefined());
-    expect(page.get('button[aria-label="移除 Tame Impala"]').attributes("disabled")).toBeDefined();
+    expect(page.get('button[aria-label="Remove Tame Impala"]').attributes("disabled")).toBeDefined();
 
     release();
-    await vi.waitFor(() => expect(page.findAll("article")).toHaveLength(2));
+    await vi.waitFor(() => expect(records(page)).toHaveLength(2));
     expect(page.get("#seed-input").attributes("disabled")).toBeUndefined();
   });
 
@@ -122,7 +139,7 @@ describe("index page", () => {
     await vi.waitFor(() => expect(scrollIntoView).toHaveBeenCalled());
 
     const target = scrollIntoView.mock.contexts[0] as HTMLElement;
-    expect(target.textContent).toContain("推薦給你");
+    expect(target.textContent).toContain("Recommended for you");
     expect(scrollIntoView.mock.calls[0]?.[0]).toMatchObject({ block: "start" });
   });
 
@@ -132,11 +149,11 @@ describe("index page", () => {
     ["Tame Impala", "Kokoroco", "Justin Bieber"].forEach((n) => store.add(n));
     const page = await mountSuspended(IndexPage);
     await recommendButton(page).trigger("click");
-    await vi.waitFor(() => expect(page.text()).toContain("找不到「Kokoroco」"));
+    await vi.waitFor(() => expect(page.text()).toContain('Can\'t find "Kokoroco"'));
 
     await page.findAll("button").find((b) => b.text() === "Kokoroko")!.trigger("click");
 
     expect(store.seeds).toEqual(["Tame Impala", "Kokoroko", "Justin Bieber"]);
-    await vi.waitFor(() => expect(page.findAll("article")).toHaveLength(2));
+    await vi.waitFor(() => expect(records(page)).toHaveLength(2));
   });
 });

@@ -8,13 +8,13 @@ export default defineNuxtConfig({
   css: ["~/assets/css/main.css"],
   app: {
     head: {
-      htmlAttrs: { lang: "zh-Hant" },
+      htmlAttrs: { lang: "en" },
       link: [
         { rel: "preconnect", href: "https://fonts.googleapis.com" },
         { rel: "preconnect", href: "https://fonts.gstatic.com", crossorigin: "" },
         {
           rel: "stylesheet",
-          href: "https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@100..125,500..900&family=Noto+Sans+TC:wght@400;500;700&display=swap",
+          href: "https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@100..125,500..900&family=Noto+Serif:wdth,wght@62.5,900&family=Noto+Sans+TC:wght@400;500;700&display=swap",
         },
       ],
     },

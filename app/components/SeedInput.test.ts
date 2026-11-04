@@ -92,7 +92,7 @@ describe("SeedInput", () => {
     store.add("Kokoroko");
     await input.setValue("kokoroko");
     await input.trigger("keydown", { key: "Enter" });
-    expect(wrapper.text()).toContain("已經加過");
+    expect(wrapper.text()).toContain("Already added");
     expect(store.seeds).toEqual(["Kokoroko"]);
   });
 });
