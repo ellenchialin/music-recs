@@ -46,7 +46,7 @@ describe("usePreviewPlayer", () => {
   it("resets when the preview ends", async () => {
     const player = usePreviewPlayer();
     await player.toggle(A);
-    player.audio.dispatchEvent(new Event("ended"));
+    player.audio().dispatchEvent(new Event("ended"));
     expect(player.playingUrl.value).toBeNull();
   });
 
@@ -56,5 +56,18 @@ describe("usePreviewPlayer", () => {
     const player = usePreviewPlayer();
     await player.toggle(A);
     expect(player.playingUrl.value).toBeNull();
+  });
+
+  // 伺服器端渲染（SSR）沒有 Audio：還沒按播放之前不能建立 <audio>，不然推薦頁直接 500
+  it("does not create an audio element until a preview is played", async () => {
+    vi.resetModules();
+    const AudioSpy = vi.spyOn(globalThis, "Audio");
+    const { usePreviewPlayer: fresh } = await import("./usePreviewPlayer");
+    const player = fresh();
+    expect(player.playingUrl.value).toBeNull();
+    expect(AudioSpy).not.toHaveBeenCalled();
+    await player.toggle(A);
+    expect(AudioSpy).toHaveBeenCalledOnce();
+    AudioSpy.mockRestore();
   });
 });
