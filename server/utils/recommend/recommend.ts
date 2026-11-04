@@ -13,17 +13,18 @@ const DEFAULT_LIMIT = 10;
 // 推薦的入口：合併 → 排除 → 取前 N 位
 export function recommend({
   seeds,
-  disliked = [],
+  exclude = [],
   limit = DEFAULT_LIMIT,
 }: {
   seeds: SeedSimilarity[];
-  disliked?: ExcludedArtist[];
+  // 不要推薦的歌手：Explore from here 往下挖時，原本的種子和前面各層看過的
+  exclude?: ExcludedArtist[];
   limit?: number;
 }): { algoVersion: string; artists: Candidate[] } {
   // 種子本身一律排除，不靠呼叫的人記得傳
   const seedsAsExcluded = seeds.map((s) => ({ nameNorm: normalizeArtistName(s.seed), mbid: s.seedMbid }));
 
-  const candidates = excludeArtists(mergeCandidates(seeds), [...seedsAsExcluded, ...disliked]);
+  const candidates = excludeArtists(mergeCandidates(seeds), [...seedsAsExcluded, ...exclude]);
 
   // 先排除再取前 N 位，排除掉的名額由後面的候選補上
   return { algoVersion: ALGO_VERSION, artists: candidates.slice(0, limit) };

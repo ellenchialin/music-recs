@@ -64,10 +64,10 @@ describe("recommend", () => {
     expect(artists.map((a) => a.name)).toEqual(["Boa"]);
   });
 
-  it("leaves out artists the visitor disliked", () => {
+  it("leaves out the artists to exclude", () => {
     const { artists } = recommend({
       seeds: [radiohead],
-      disliked: [{ nameNorm: "thom yorke", mbid: null }],
+      exclude: [{ nameNorm: "thom yorke", mbid: null }],
       limit: 3,
     });
     expect(artists.map((a) => a.name)).not.toContain("Thom Yorke");
@@ -77,7 +77,7 @@ describe("recommend", () => {
   // 排除之後才取前 10：不能先取 10 再排除，那樣會不足 10 位
   it("fills the list after removing excluded artists", () => {
     const list = seed("A", [["B", 0.9], ["C", 0.8], ["D", 0.7]]);
-    const { artists } = recommend({ seeds: [list], disliked: [{ nameNorm: "b", mbid: null }], limit: 2 });
+    const { artists } = recommend({ seeds: [list], exclude: [{ nameNorm: "b", mbid: null }], limit: 2 });
     expect(artists.map((a) => a.name)).toEqual(["C", "D"]);
   });
 

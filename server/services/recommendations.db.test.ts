@@ -166,4 +166,16 @@ describe("getRecommendations", () => {
     expect(err).toBeInstanceOf(SeedNotFoundError);
     expect(err).toMatchObject({ seed: "Tame Impalla", suggestions: ["Tame Impala"] });
   });
+
+  // Explore from here：往下挖時排除原本的種子和前面看過的歌手；名字寫法不同也算同一位
+  it("leaves out the artists to exclude", async () => {
+    const { lastfm, itunes } = world();
+
+    const result = await getRecommendations(
+      { db, lastfm, itunes, now },
+      { seeds: ["Tame Impala"], exclude: ["pond", "Khruangbin "] },
+    );
+
+    expect(result.recommendations.map((r) => r.artist)).toEqual(["MGMT"]);
+  });
 });

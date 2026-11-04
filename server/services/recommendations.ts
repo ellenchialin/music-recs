@@ -37,7 +37,11 @@ export class SeedNotFoundError extends Error {
 const CONCURRENCY = 3;
 const SUGGESTION_LIMIT = 5;
 
-export async function getRecommendations(deps: Deps, input: { seeds: string[] }): Promise<RecommendationsResult> {
+// exclude：不要推薦的歌手名（Explore from here 往下挖時，原本的種子和前面各層看過的）
+export async function getRecommendations(
+  deps: Deps,
+  input: { seeds: string[]; exclude?: string[] },
+): Promise<RecommendationsResult> {
   // 同一位歌手輸入兩次只算一次，不然分數會加倍
   const seedNames = [...new Map(input.seeds.map((s) => [normalizeArtistName(s), s.trim()])).values()];
 
@@ -47,7 +51,8 @@ export async function getRecommendations(deps: Deps, input: { seeds: string[] })
     return { seed: artist.name, seedMbid: artist.mbid, weight: 1, similar };
   });
 
-  const { algoVersion, artists } = recommend({ seeds });
+  const exclude = (input.exclude ?? []).map((name) => ({ nameNorm: normalizeArtistName(name), mbid: null }));
+  const { algoVersion, artists } = recommend({ seeds, exclude });
 
   // 每張卡片自己接住錯誤：一位歌手的試聽查詢失敗，不拖垮整份推薦
   const recommendations = await mapLimit(artists, CONCURRENCY, async (candidate): Promise<RecommendationCard> => {

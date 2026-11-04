@@ -4,16 +4,16 @@ import { getItunesClient, getLastfmClient } from "../services/clients";
 import { SeedNotFoundError, getRecommendations } from "../services/recommendations";
 import { recommendationsQuery } from "../services/recommendations-query";
 
-// GET /api/recommendations?seed=Tame%20Impala&seed=Kokoroko
+// GET /api/recommendations?seed=Tame%20Impala&seed=Kokoroko（往下挖時加 &exclude=…）
 // route 只做三件事：驗證輸入、呼叫 service、把錯誤轉成 HTTP 狀態碼
 export default defineEventHandler(async (event) => {
   // 格式不對時 h3 回 400
-  const { seeds } = await getValidatedQuery(event, (query) => recommendationsQuery.parse(query));
+  const { seeds, exclude } = await getValidatedQuery(event, (query) => recommendationsQuery.parse(query));
 
   try {
     return await getRecommendations(
       { db: getDb(), lastfm: getLastfmClient(), itunes: getItunesClient(), now: new Date() },
-      { seeds },
+      { seeds, exclude },
     );
   } catch (err) {
     // 種子找不到：404，附上相近的歌手名讓前端建議使用者
