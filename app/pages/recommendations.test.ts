@@ -9,6 +9,8 @@ import RecommendationsPage from "./recommendations.vue";
 // 種子是 Nowhere → 沒有新歌手。每次請求的 seed 和 exclude 都記下來
 let requests: { seeds: string[]; exclude: string[] }[] = [];
 let gate: Promise<void> | null = null;
+// true 時 API 回 429（太多請求）
+let throttled = false;
 const card = (artist: string) => ({
   artist,
   score: 0.2,
@@ -22,6 +24,7 @@ registerEndpoint("/api/recommendations", async (event) => {
   const seeds = query.getAll("seed");
   const exclude = query.getAll("exclude");
   requests.push({ seeds, exclude });
+  if (throttled) throw createError({ statusCode: 429, statusMessage: "Too many requests, try again in a minute" });
   if (seeds.includes("Kokoroco")) {
     throw createError({ statusCode: 404, data: { seed: "Kokoroco", suggestions: ["Kokoroko", "LocoRoco"] } });
   }
@@ -34,6 +37,7 @@ registerEndpoint("/api/recommendations", async (event) => {
 beforeEach(() => {
   requests = [];
   gate = null;
+  throttled = false;
   // 每個測試從乾淨的狀態開始：查過的層存在 useState，useAsyncData 的結果也會依 key 留在 Nuxt app 裡
   clearNuxtState();
   clearNuxtData();
@@ -187,5 +191,26 @@ describe("recommendations page", () => {
   it("shows the records right away on a direct visit", async () => {
     const page = await open(SEEDS);
     await vi.waitFor(() => expect(recordNames(page)).toHaveLength(2), { timeout: 300 });
+  });
+
+  // 速率限制（429）：不說「資料來源有問題」，說太多請求、等一下再試；等一下按 Try again 就好了
+  it("asks to wait when there are too many requests", async () => {
+    throttled = true;
+    const page = await open(SEEDS);
+    await vi.waitFor(() => expect(page.text()).toContain("Too many requests"));
+    expect(page.text()).not.toContain("Music data is unavailable");
+
+    throttled = false;
+    await page.findAll("button").find((b) => b.text() === "Try again")!.trigger("click");
+    await vi.waitFor(() => expect(recordNames(page)).toEqual(["Khruangbin", "Nowhere"]));
+  });
+
+  it("asks to wait when exploring hits the limit", async () => {
+    const page = await open(SEEDS);
+    await vi.waitFor(() => expect(recordNames(page)).toHaveLength(2));
+    throttled = true;
+    await button(page, "Explore artists like Khruangbin")!.trigger("click");
+    await vi.waitFor(() => expect(page.text()).toContain("Too many requests — try again in a minute"));
+    expect(currentQuery()).toEqual(SEEDS_QUERY);
   });
 });

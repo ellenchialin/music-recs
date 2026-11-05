@@ -10,6 +10,11 @@ const lastfmEnvSchema = z.object({
   LASTFM_API_KEY: z.string().regex(/^[0-9a-f]{32}$/),
 });
 
+// 速率限制把 IP 加鹽雜湊後才存（不存原始 IP）。鹽要夠長才難猜
+const rateLimitEnvSchema = z.object({
+  RATE_LIMIT_SALT: z.string().min(32),
+});
+
 export type DbEnv = z.infer<typeof dbEnvSchema>;
 export type LastfmEnv = z.infer<typeof lastfmEnvSchema>;
 
@@ -31,4 +36,8 @@ export function parseDbEnv(source: EnvSource = process.env): DbEnv {
 
 export function parseLastfmEnv(source: EnvSource = process.env): LastfmEnv {
   return parseEnv(lastfmEnvSchema, source);
+}
+
+export function parseRateLimitEnv(source: EnvSource = process.env): z.infer<typeof rateLimitEnvSchema> {
+  return parseEnv(rateLimitEnvSchema, source);
 }

@@ -87,7 +87,7 @@
 ## 成本與濫用
 
 - 外部資料快取在 Postgres，30 天過期
-- 速率限制存在 Postgres（Vercel 是 serverless，記憶體計數不可靠）：每個匿名 ID、每個 IP 每分鐘上限；超過回 429
+- 速率限制存在 Postgres（Vercel 是 serverless，記憶體計數不可靠）：每個 IP 每分鐘上限（推薦 20、自動完成 60），IP 只存加鹽雜湊；超過回 429 ＋ `Retry-After`
 - LLM：快取、每日全站上限、Anthropic 後台每月花費上限
 - 外部 API 回應只取需要的欄位，用 zod 驗證
 

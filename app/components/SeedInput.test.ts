@@ -1,12 +1,16 @@
 import { mountSuspended, registerEndpoint } from "@nuxt/test-utils/runtime";
+import { createError } from "h3";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useSeedsStore } from "~/stores/seeds";
 import SeedInput from "./SeedInput.vue";
 
 // 假的自動完成 API：不管打什麼都回這兩位，並記下每次查的字
 const searched: string[] = [];
+// 查「busy」開頭的字回 429（太多請求）
 registerEndpoint("/api/artists/search", (event) => {
-  searched.push(new URLSearchParams(event.path.split("?")[1]).get("q") ?? "");
+  const q = new URLSearchParams(event.path.split("?")[1]).get("q") ?? "";
+  searched.push(q);
+  if (q.startsWith("busy")) throw createError({ statusCode: 429, statusMessage: "Too many requests" });
   return [
     { name: "Tame Impala", listeners: 3_000_000 },
     { name: "Tame Impala, JENNIE", listeners: 50_000 },
@@ -94,5 +98,14 @@ describe("SeedInput", () => {
     await input.trigger("keydown", { key: "Enter" });
     expect(wrapper.text()).toContain("Already added");
     expect(store.seeds).toEqual(["Kokoroko"]);
+  });
+
+  // 自動完成被速率限制擋住：告訴使用者，但還是可以打完整的名字按 Enter
+  it("says so when there are too many searches", async () => {
+    const { wrapper, input, store } = await mountInput();
+    await input.setValue("busy signal");
+    await vi.waitFor(() => expect(wrapper.text()).toContain("Too many searches"), { timeout: 2000 });
+    await input.trigger("keydown", { key: "Enter" });
+    expect(store.seeds).toEqual(["busy signal"]);
   });
 });

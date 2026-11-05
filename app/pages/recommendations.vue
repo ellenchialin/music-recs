@@ -25,7 +25,11 @@ const viewing = useState<Record<string, number>>("recommendation-viewing", () =>
 const levelKey = (seeds: string[], path: string[]) =>
   JSON.stringify([seeds.map(normalizeArtistName), path.map(normalizeArtistName)]);
 
-type Loaded = { trail: Trail; notFound: SeedNotFoundData | null; failed: boolean };
+// failed：查詢失敗（Last.fm 出錯）；rateLimited：被速率限制擋住（429），等一下再試就好
+// SSR 時把使用者的 IP 帶給 API，速率限制才算得對（見 composables/useApiFetch.ts）
+const api = useApiFetch();
+
+type Loaded = { trail: Trail; notFound: SeedNotFoundData | null; failed: boolean; rateLimited: boolean };
 
 // 第 0 層用使用者的種子；往下挖的每一層只用那位歌手當種子，排除原本的種子和上面各層看過的唱片
 async function fetchLevel(seeds: string[], path: string[], above: Trail): Promise<RecommendationsResult> {
@@ -33,7 +37,7 @@ async function fetchLevel(seeds: string[], path: string[], above: Trail): Promis
   const cached = levels.value[key];
   if (cached) return cached;
   const artist = path.at(-1);
-  const result = await $fetch<RecommendationsResult>("/api/recommendations", {
+  const result = await api<RecommendationsResult>("/api/recommendations", {
     query: artist ? { seed: artist, exclude: excludedFor(above, seeds) } : { seed: seeds },
   });
   levels.value[key] = result;
@@ -51,11 +55,13 @@ async function load(q: NonNullable<typeof query.value>): Promise<Loaded> {
       if (depth > 0 && !result.recommendations.length) break;
       trail.push({ artist: path.at(-1) ?? null, result, index: 0 });
     }
-    return { trail, notFound: null, failed: false };
+    return { trail, notFound: null, failed: false, rateLimited: false };
   } catch (err) {
     const error = err as { statusCode?: number; data?: { data?: SeedNotFoundData } };
-    if (error.statusCode === 404 && error.data?.data) return { trail: [], notFound: error.data.data, failed: false };
-    return { trail, notFound: null, failed: true };
+    if (error.statusCode === 404 && error.data?.data) {
+      return { trail: [], notFound: error.data.data, failed: false, rateLimited: false };
+    }
+    return { trail, notFound: null, failed: true, rateLimited: error.statusCode === 429 };
   }
 }
 
@@ -118,8 +124,11 @@ async function explore(artist: string) {
     direction.value = 1;
     await nextTick();
     await router.push(recommendationsLocation(q.seeds, path));
-  } catch {
-    exploreMessage.value = "Couldn't load more artists — try again in a moment";
+  } catch (err) {
+    exploreMessage.value =
+      (err as { statusCode?: number }).statusCode === 429
+        ? "Too many requests — try again in a minute"
+        : "Couldn't load more artists — try again in a moment";
   } finally {
     exploring.value = false;
   }
@@ -236,8 +245,14 @@ useHead({ title: () => (currentLevel.value?.artist ? `More like ${currentLevel.v
       </section>
 
       <section v-else-if="data?.failed && !currentLevel" class="max-w-2xl border-3 border-ink bg-paper p-6 text-ink" role="alert">
-        <h1 class="font-wide text-2xl font-black">Music data is unavailable</h1>
-        <p class="mt-2 text-base">The data source may be busy. Try again in a moment.</p>
+        <template v-if="data.rateLimited">
+          <h1 class="font-wide text-2xl font-black">Too many requests</h1>
+          <p class="mt-2 text-base">Wait a minute, then try again.</p>
+        </template>
+        <template v-else>
+          <h1 class="font-wide text-2xl font-black">Music data is unavailable</h1>
+          <p class="mt-2 text-base">The data source may be busy. Try again in a moment.</p>
+        </template>
         <button type="button" class="mt-4 border-3 border-ink bg-teal px-4 py-2 font-bold" @click="refresh()">Try again</button>
       </section>
 

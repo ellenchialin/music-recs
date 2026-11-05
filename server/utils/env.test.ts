@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseDbEnv, parseLastfmEnv } from "./env";
+import { parseDbEnv, parseLastfmEnv, parseRateLimitEnv } from "./env";
 
 describe("parseDbEnv", () => {
   it("accepts a postgres URL", () => {
@@ -26,5 +26,18 @@ describe("parseLastfmEnv", () => {
   it("rejects a missing or malformed key without echoing it", () => {
     expect(() => parseLastfmEnv({})).toThrow(/LASTFM_API_KEY/);
     expect(() => parseLastfmEnv({ LASTFM_API_KEY: "secret-but-wrong" })).toThrow(/^(?!.*secret).*LASTFM_API_KEY/);
+  });
+});
+
+// IP 雜湊的鹽：夠長才難猜（openssl rand -hex 32 產生 64 個字元）
+describe("parseRateLimitEnv", () => {
+  it("accepts a salt of at least 32 characters", () => {
+    const env = parseRateLimitEnv({ RATE_LIMIT_SALT: "a".repeat(32) });
+    expect(env.RATE_LIMIT_SALT).toHaveLength(32);
+  });
+
+  it("rejects a missing or short salt without echoing it", () => {
+    expect(() => parseRateLimitEnv({})).toThrow(/RATE_LIMIT_SALT/);
+    expect(() => parseRateLimitEnv({ RATE_LIMIT_SALT: "short-secret" })).toThrow(/^(?!.*secret).*RATE_LIMIT_SALT/);
   });
 });

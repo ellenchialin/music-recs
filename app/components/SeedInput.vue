@@ -13,6 +13,8 @@ const suggestions = ref<Suggestion[]>([]);
 // 鍵盤選到第幾個建議；-1 = 沒有選，Enter 就加打的字
 const active = ref(-1);
 const message = ref("");
+// 自動完成被速率限制擋住（429）時的提示；下一次查成功就收起來
+const searchNotice = ref("");
 
 // 停止打字 400ms 後才查，不是每按一個鍵就打一次 API（像 lodash.debounce）
 // 250ms 太短：一般打字時字和字之間就常停超過 250ms，等於每打一兩個字查一次
@@ -44,10 +46,15 @@ watch(debouncedQuery, async (q) => {
     if (id === latestRequest) {
       suggestions.value = result;
       active.value = -1;
+      searchNotice.value = "";
     }
-  } catch {
+  } catch (err) {
     // 自動完成失敗不擋路：使用者還是可以打完整的名字按 Enter
-    if (id === latestRequest) suggestions.value = [];
+    if (id !== latestRequest) return;
+    suggestions.value = [];
+    if ((err as { statusCode?: number }).statusCode === 429) {
+      searchNotice.value = "Too many searches. Wait a moment, or press Enter to add the name.";
+    }
   }
 });
 
@@ -121,7 +128,7 @@ const optionId = (i: number) => `seed-suggestion-${i}`;
       @blur="suggestions = []"
     >
     <p id="seed-input-hint" class="mt-2 min-h-5 text-sm font-medium sm:min-h-6 sm:text-base" aria-live="polite">
-      {{ message || (store.isFull ? `You've picked ${MAX_SEEDS} artists` : "Type for suggestions, or press Enter") }}
+      {{ message || searchNotice || (store.isFull ? `You've picked ${MAX_SEEDS} artists` : "Type for suggestions, or press Enter") }}
     </p>
 
     <!-- 手機、直立平板：輸入框在畫面下半部，建議清單往上開（蓋住上面的唱盤，那只是裝飾）；

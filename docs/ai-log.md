@@ -317,3 +317,17 @@
 | 4 | 不支援的瀏覽器、開了「減少動態效果」 | Nuxt 自動跳過 View Transition；沒有 `startViewTransition` 的瀏覽器唱盤自己播進場 | 採用 | |
 
 實測（Chromium，375 寬）：按下後約 0.1 秒換頁，0.7 秒移動結束，1.3 秒唱片出現。
+
+## 2026-11-05 · 速率限制
+
+| # | 問題 | 決定 | 狀態 | 理由／替代方案 |
+|---|---|---|---|---|
+| 1 | 怎麼計數 | 固定時間窗（每分鐘一格），`rate_limits(key, window_start, count)`，upsert 原子 +1 | 採用 | 滑動時間窗、token bucket 比較平均，但這個流量用不到 |
+| 2 | 用什麼當 key | 只用 IP，存加鹽的 SHA-256（`RATE_LIMIT_SALT`）；匿名 ID 第 6 天才有，而且清 cookie 就換一個，擋不了濫用 | 採用 | SPEC 原本寫「匿名 ID 和 IP」 |
+| 3 | 限制哪些路由、多少 | 只限制會打外部 API 的：`/api/recommendations` 每分鐘 20 次、`/api/artists/search` 60 次 | 採用（數字試玩後再調） | |
+| 4 | 舊資料 | 每次寫入 1% 機會刪掉一小時前的列 | 採用 | Vercel Cron 每天清：多一個要設定的地方 |
+| 5 | 自動完成的快取 | 改成只快取打 Last.fm 那一步（`defineCachedFunction`），每個請求都經過限制 | 採用 | 整個 route 快取時，快取命中不經過限制，而且同時查同一個字的請求會被合併、只算一次 |
+| 6 | SSR 的請求被算成同一個 IP | `useApiFetch`：SSR 時把使用者的 IP 放進 `x-forwarded-for` | 採用 | 實測發現：SSR 查 API 不經過網路，API 拿到的 IP 是空的，所有人共用「unknown」那一格。部署後全站每分鐘 20 次 SSR 就全部 429 |
+| 7 | 前端怎麼說 | 推薦頁：「Too many requests / Wait a minute, then try again.」＋ Try again；Explore：一行提示；自動完成：提示「Too many searches」，Enter 照樣能加 | 採用 | 不說「資料來源有問題」，那是另一種錯 |
+
+實測：連打 22 次推薦，第 21 次起 429，`Retry-After` 是到下一分鐘的秒數；表裡只有雜湊；下一分鐘按 Try again 恢復。

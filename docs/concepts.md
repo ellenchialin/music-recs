@@ -244,3 +244,18 @@ Nuxt 預設先在伺服器把頁面渲染成 HTML，再到瀏覽器「接手」�
 - **往下挖＝改網址**：先查好下一層、確認有新歌手，才 `router.push`；網址一變，`useAsyncData` 重跑時直接從快取拿
 
 **SSR 的坑**：在 `setup` 裡用瀏覽器才有的東西（`Audio`、`window`、`localStorage`）會讓伺服器端渲染失敗。等真的要用時才建立（試聽播放器），或放在 `onMounted` 裡（種子的 localStorage）。
+
+## 13. 速率限制：固定時間窗＋資料庫原子計數
+
+> **前端類比**：按鈕的 throttle，只是放在伺服器、而且是對「每個人」各算一份。超過就回 `429 Too Many Requests`，`Retry-After` 告訴對方幾秒後再試。
+
+- **固定時間窗**：時間切成一分鐘一格，每格各自計數，下一分鐘重新算（`server/utils/rate-limit.ts` 的 `windowStart`）。缺點是格子交界可能短時間內通過兩倍（59 秒 20 次＋下一分鐘 0 秒 20 次）；要更平均可以用滑動時間窗或 token bucket，但要存更多狀態。這個專案用固定的就夠
+- **計數存在 Postgres**：Vercel 是 serverless，每個請求可能跑在不同機器，記憶體裡的計數不共用
+- **原子計數**：`INSERT … ON CONFLICT DO UPDATE SET count = count + 1 RETURNING count`。「+1」在資料庫裡一次做完，同時來的兩個請求不會都讀到 5、都寫回 6。測試：同時送 25 個、上限 20，剛好 20 個通過
+- **不存 IP**：存「IP ＋ 鹽」的 SHA-256。鹽是伺服器的祕密（`RATE_LIMIT_SALT`），沒有鹽就不能把所有 IP 算一遍來反查
+- **清理**：每次寫入有 1% 機會順便刪掉一小時前的列，不另外排程
+
+**兩個坑**：
+
+1. **整個 route 快取時**（`defineCachedEventHandler`），快取命中不會經過限制，還會把第一個人的回應 header 重播給別人。改成只快取「打 Last.fm」那一步（`defineCachedFunction`），限制寫在外面
+2. **SSR 看不到使用者的 IP**：頁面在伺服器上查自己的 API 不經過網路，API 拿不到 IP，所有人的 SSR 被算成同一個「unknown」。`useApiFetch` 在 SSR 時把使用者的 IP 放進 `x-forwarded-for` 帶過去（Vercel 會蓋掉使用者自己送的這個 header，不能假冒）

@@ -67,3 +67,16 @@ export const tracks = pgTable("tracks", {
   artworkUrl: text("artwork_url"),
   fetchedAt: timestamp("fetched_at", { withTimezone: true }).notNull().defaultNow(),
 });
+
+// 速率限制的計數：每個 key（「哪個 API：IP 的雜湊」）每一格時間窗一列。
+// 存在 Postgres 而不是記憶體：Vercel 是 serverless，每個請求可能跑在不同機器，記憶體不共用。
+// 不存原始 IP，只存加鹽的雜湊（server/utils/rate-limit.ts 的 hashClientIp）
+export const rateLimits = pgTable(
+  "rate_limits",
+  {
+    key: text("key").notNull(),
+    windowStart: timestamp("window_start", { withTimezone: true }).notNull(),
+    count: integer("count").notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.key, t.windowStart] }), check("rate_limits_count_positive", sql`${t.count} > 0`)],
+);
