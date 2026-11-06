@@ -11,7 +11,7 @@ const route = useRoute()
 const router = useRouter()
 
 const hint = computed(() =>
-  store.seeds.length < MIN_SEEDS ? 'Pick an artist first' : ''
+  store.seeds.length < MIN_SEEDS ? 'Add an artist first' : ''
 )
 
 // Entrance delays in seconds

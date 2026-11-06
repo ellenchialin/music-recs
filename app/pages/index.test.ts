@@ -55,11 +55,11 @@ describe("index page", () => {
   it("asks for a seed before recommending", async () => {
     const page = await open();
     expect(recommendButton(page).attributes("disabled")).toBeDefined();
-    expect(page.text()).toContain("Pick an artist first");
+    expect(page.text()).toContain("Add an artist first");
     useSeedsStore().add("Tame Impala");
     await nextTick();
     expect(recommendButton(page).attributes("disabled")).toBeUndefined();
-    expect(page.text()).not.toContain("Pick an artist first");
+    expect(page.text()).not.toContain("Add an artist first");
   });
 
   it("removes a seed from the list", async () => {
