@@ -36,6 +36,16 @@
    桌機視窗也是橫向，但夠高，維持直排 */
 @custom-variant short-landscape (@media (orientation: landscape) and (max-height: 600px));
 
+/* 首頁用：高度 520 以下（short，手機橫放）和以上（tall）剛好互補、不會同時成立。
+   兩邊都有的屬性（例如 gap、字級），一般的響應式寫法前面加 tall:、矮畫面的寫 short:，
+   兩條規則不會同時生效，就不必靠 CSS 的先後順序或 !important 決定誰贏 */
+@custom-variant short (@media (height <= 520px));
+@custom-variant tall (@media (height > 520px));
+
+/* 首頁用：左右兩欄的畫面＝橫放的平板（寬 768 以上、橫向）或桌機（寬 1024 以上）。
+   原本要寫兩次（md:landscape: 和 lg:），而且兩個同時成立時誰贏要看順序 */
+@custom-variant wide (@media (min-width: 48rem) and (orientation: landscape), (min-width: 64rem));
+
 @layer base {
   html {
     color-scheme: light;

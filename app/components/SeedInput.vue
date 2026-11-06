@@ -109,7 +109,7 @@ const optionId = (i: number) => `seed-suggestion-${i}`;
 <template>
   <div class="relative">
     <!-- 很矮的畫面（手機橫放）視覺上藏起來，螢幕閱讀器仍然念 -->
-    <label for="seed-input" class="block text-base font-bold sm:text-lg [@media(max-height:520px)]:sr-only">Add an artist you love</label>
+    <label for="seed-input" class="block text-base font-bold sm:text-lg short:sr-only">Add an artist you love</label>
     <!-- ARIA combobox：螢幕閱讀器會念出「有幾個建議、現在選到哪一個」 -->
     <input
       id="seed-input"
@@ -123,7 +123,7 @@ const optionId = (i: number) => `seed-suggestion-${i}`;
       aria-describedby="seed-input-hint"
       :disabled="store.isFull || locked"
       placeholder="e.g. Tame Impala"
-      class="mt-2 w-full border-3 border-ink bg-paper [@media(max-height:520px)]:mt-0 px-4 py-2.5 text-lg sm:py-3 text-ink placeholder:text-ink/50 focus:outline-none focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-ink disabled:opacity-60"
+      class="mt-2 w-full border-3 border-ink bg-paper short:mt-0 px-4 py-2.5 text-lg sm:py-3 text-ink placeholder:text-ink/50 focus:outline-none focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-ink disabled:opacity-60"
       @keydown="onKeydown"
       @blur="suggestions = []"
     >

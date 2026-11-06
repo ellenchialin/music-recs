@@ -25,9 +25,13 @@ afterEach(() => {
 });
 
 describe("index page", () => {
+  // 標題的兩個字用 CSS gap 隔開（不靠空白字元，格式化工具拆行也不會黏在一起），
+  // 所以「念出來的名字」由 aria-label 給：螢幕閱讀器念 "Music Recs"，不是 "MusicRecs"
   it("shows the app title", async () => {
     const page = await open();
-    expect(page.get("h1").text()).toContain("Music Recs");
+    const title = page.get("h1");
+    expect(title.attributes("aria-label")).toBe("Music Recs");
+    expect(title.findAll("span").map((s) => s.text())).toEqual(["Music", "Recs"]);
   });
 
   // 黑膠唱盤一直在太陽圓上；加入的歌手是唱盤下方的標籤，不會蓋住或換掉唱盤
