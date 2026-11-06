@@ -4,28 +4,24 @@ import { MAX_SEEDS, type AddResult } from "~/stores/seeds";
 
 type Suggestion = { name: string; listeners: number };
 
-// locked：推薦中時由頁面傳 true，暫時不能加種子（查詢用的是按下按鈕那一刻的種子）
 const props = defineProps<{ locked?: boolean }>();
 
 const store = useSeedsStore();
 const query = ref("");
 const suggestions = ref<Suggestion[]>([]);
-// 鍵盤選到第幾個建議；-1 = 沒有選，Enter 就加打的字
+// Highlighted suggestion; -1 means Enter adds the typed text
 const active = ref(-1);
 const message = ref("");
-// 自動完成被速率限制擋住（429）時的提示；下一次查成功就收起來
 const searchNotice = ref("");
 
-// 停止打字 400ms 後才查，不是每按一個鍵就打一次 API（像 lodash.debounce）
-// 250ms 太短：一般打字時字和字之間就常停超過 250ms，等於每打一兩個字查一次
+// 250ms was too short: normal typing often pauses that long between keys
 const DEBOUNCE_MS = 400;
 const debouncedQuery = refDebounced(query, DEBOUNCE_MS);
 
-// 查過的字記住結果：刪掉幾個字再打回來時直接用，不再打 API
 const cache = new Map<string, Suggestion[]>();
 const cacheKey = (text: string) => text.trim().toLowerCase().replace(/\s+/g, " ");
 
-// 打字很快時，舊的請求可能比新的晚回來；只採用最後一次送出的結果
+// An older request can resolve after a newer one; only the latest is used
 let latestRequest = 0;
 watch(debouncedQuery, async (q) => {
   const key = cacheKey(q);
@@ -49,7 +45,7 @@ watch(debouncedQuery, async (q) => {
       searchNotice.value = "";
     }
   } catch (err) {
-    // 自動完成失敗不擋路：使用者還是可以打完整的名字按 Enter
+    // Failure doesn't block: Enter still adds the typed name
     if (id !== latestRequest) return;
     suggestions.value = [];
     if ((err as { statusCode?: number }).statusCode === 429) {
@@ -95,7 +91,7 @@ function onKeydown(event: KeyboardEvent) {
   }
 }
 
-// 建議清單有最大高度、超過會在裡面捲動；用方向鍵選的時候，把選到的那一個捲進看得到的範圍
+// The list scrolls inside a max height; keep the highlighted option in view
 async function revealActive() {
   await nextTick();
   document.getElementById(optionId(active.value))?.scrollIntoView?.({ block: "nearest" });
@@ -108,9 +104,7 @@ const optionId = (i: number) => `seed-suggestion-${i}`;
 
 <template>
   <div class="relative">
-    <!-- 很矮的畫面（手機橫放）視覺上藏起來，螢幕閱讀器仍然念 -->
     <label for="seed-input" class="block text-base font-bold sm:text-lg short:sr-only">Add an artist you love</label>
-    <!-- ARIA combobox：螢幕閱讀器會念出「有幾個建議、現在選到哪一個」 -->
     <input
       id="seed-input"
       v-model="query"
@@ -131,8 +125,7 @@ const optionId = (i: number) => `seed-suggestion-${i}`;
       {{ message || searchNotice || (store.isFull ? `You've picked ${MAX_SEEDS} artists` : "Type for suggestions, or press Enter") }}
     </p>
 
-    <!-- 手機、直立平板：輸入框在畫面下半部，建議清單往上開（蓋住上面的唱盤，那只是裝飾）；
-         桌機和橫放：輸入框在上面，往下開。清單有最大高度，超過在裡面捲動 -->
+    <!-- Opens upward on one-column layouts, where the input sits low (over the decorative turntable) -->
     <AnimatePresence>
       <motion.ul
         v-if="suggestions.length"
@@ -144,7 +137,7 @@ const optionId = (i: number) => `seed-suggestion-${i}`;
         :exit="{ opacity: 0, y: -6 }"
         :transition="spring.snappy"
       >
-        <!-- mousedown 而不是 click：click 前 input 會先 blur，選單已經關掉 -->
+        <!-- mousedown, not click: the input blurs and closes the list before click fires -->
         <li
           v-for="(s, i) in suggestions"
           :id="optionId(i)"

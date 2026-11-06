@@ -6,7 +6,7 @@ import { toArtistSuggestions } from "./artist-suggestions";
 const result = (name: string, listeners: number): ArtistSearchResult => ({ name, mbid: null, listeners });
 
 describe("toArtistSuggestions", () => {
-  // 真實資料：搜尋 radiohead 的第二筆是拼錯的分身「radıohead」（117 位聽眾），不該出現在自動完成
+  // Real data: the second hit for "radiohead" is the misspelled "radıohead" (117 listeners)
   it("drops lookalikes with few listeners", () => {
     const names = toArtistSuggestions(artistSearchResponse.parse(search.body)).map((s) => s.name);
     expect(names[0]).toBe("Radiohead");
@@ -20,14 +20,12 @@ describe("toArtistSuggestions", () => {
     ]);
   });
 
-  // 同一位歌手只差大小寫時只留第一個，自動完成不重複
   it("keeps one entry per normalized name", () => {
     const names = toArtistSuggestions([result("Kokoroko", 200_000), result("KOKOROKO", 3_000)]).map((s) => s.name);
     expect(names).toEqual(["Kokoroko"]);
   });
 
-  // 真實資料：搜尋 tame impala 的第二筆是「Tame \u0130mpala」（土耳其文有點的大寫 I），聽眾 1965 人，過得了聽眾門檻。
-  // 去掉重音、把各種 i 當成一樣來比，就認得出是分身；留聽眾多的那位（分身排在前面時也一樣），位置照第一次出現的
+  // Real data: "Tame \u0130mpala" (Turkish dotted I) has 1,965 listeners, above the threshold
   it("drops lookalikes that differ only by accents or dotted letters", () => {
     const names = toArtistSuggestions([
       result("Tame Impala", 4_697_353),

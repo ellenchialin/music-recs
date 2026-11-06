@@ -1,16 +1,16 @@
 import { z } from "zod";
 
-// 依用途分開驗證：只用到 DB 的指令不必先設好 Last.fm、Anthropic 的 key
+// One schema per concern, so DB-only scripts don't need the API keys
 const dbEnvSchema = z.object({
   DATABASE_URL: z.url({ protocol: /^postgres(ql)?$/ }),
 });
 
-// Last.fm 的 API key 是 32 個小寫十六進位字元；shared secret 只有登入才用，這裡不需要
+// 32 lowercase hex characters. The shared secret is only for user auth, which we don't use
 const lastfmEnvSchema = z.object({
   LASTFM_API_KEY: z.string().regex(/^[0-9a-f]{32}$/),
 });
 
-// 速率限制把 IP 加鹽雜湊後才存（不存原始 IP）。鹽要夠長才難猜
+// Salt for hashing client IPs in rate limiting; long enough not to be guessed
 const rateLimitEnvSchema = z.object({
   RATE_LIMIT_SALT: z.string().min(32),
 });
@@ -23,7 +23,7 @@ type EnvSource = Record<string, string | undefined>;
 function parseEnv<T extends z.ZodType>(schema: T, source: EnvSource): z.infer<T> {
   const result = schema.safeParse(source);
   if (!result.success) {
-    // 只列欄位名稱，不印值：錯誤訊息可能進 log，值可能是密鑰
+    // Names only, never values: the message may be logged and values may be secrets
     const fields = result.error.issues.map((i) => i.path.join(".")).join(", ");
     throw new Error(`Invalid environment variables: ${fields}. See .env.example.`);
   }

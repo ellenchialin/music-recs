@@ -1,19 +1,17 @@
 import { z } from "zod";
 
-// Last.fm 回應的 zod schema。每個 schema 同時做兩件事：
-// 1. 驗證：格式不對就丟錯，不讓壞資料流進推薦演算法
-// 2. 轉換：只留需要的欄位、字串數字轉成 number、"" 轉成 null
+// Validates Last.fm responses and reshapes them: only the fields we use, numeric strings to numbers, "" to null
 
-// Last.fm 的數字幾乎都是字串（"8500398"），偶爾是 number（tag 的 count）
+// Numbers are usually strings ("8500398"), sometimes numbers
 const count = z.coerce.number().int().nonnegative();
 
-// 沒有 MBID 時是空字串
+// A missing MBID is ""
 const mbid = z
   .string()
   .optional()
   .transform((s) => (s ? s : null));
 
-// JSON 是從 XML 轉來的：只有一筆時陣列會變成單一物件，沒有資料時可能整個不見
+// The JSON comes from XML: one item becomes an object instead of an array, and none may drop the key
 function list<T extends z.ZodType>(item: T) {
   return z
     .union([z.array(item), item])
@@ -69,7 +67,7 @@ export const artistInfoResponse = z
     tags: (artist.tags?.tag ?? []).map((t) => t.name),
   }));
 
-// 錯誤回應：{ "error": 6, "message": "The artist you supplied could not be found" }
+// e.g. { "error": 6, "message": "The artist you supplied could not be found" }
 export const errorResponse = z.object({ error: z.number().int(), message: z.string() });
 
 export type ArtistSearchResult = z.output<typeof artistSearchResponse>[number];

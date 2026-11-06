@@ -6,7 +6,7 @@ services:
       POSTGRES_USER: app
       POSTGRES_PASSWORD: app
       POSTGRES_DB: music
-    # 用 5434：5433 已經給 job-alert-triage，兩個專案可以同時開
+    # 5433 is taken by another local project
     ports:
       - "5434:5432"
     volumes:

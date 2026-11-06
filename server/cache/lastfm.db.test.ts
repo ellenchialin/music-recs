@@ -16,7 +16,7 @@ const day = 24 * 60 * 60 * 1000;
 const now = new Date("2026-11-03T12:00:00Z");
 const later = (days: number) => new Date(now.getTime() + days * day);
 
-// 假的 Last.fm client：回傳錄好的資料，並記錄被呼叫幾次。快取有沒有用，就看次數
+// Fake client returning recorded data; the call count shows whether the cache was used
 function fakeLastfm({ info = radioheadInfo, similar = radioheadSimilar }: { info?: ArtistInfo; similar?: SimilarArtist[] } = {}) {
   const calls = { getInfo: 0, getSimilar: 0 };
   const lastfm: Pick<LastfmClient, "getInfo" | "getSimilar"> = {
@@ -48,7 +48,6 @@ describe("getArtist", () => {
     expect(await db.select().from(artists)).toHaveLength(1);
   });
 
-  // 快取的重點：第二次不打 API。寫法不同（大小寫、空白）也算同一位
   it("serves a cached artist without calling Last.fm", async () => {
     const { lastfm, calls } = fakeLastfm();
     await getArtist({ db, lastfm, now }, "Radiohead");
@@ -59,7 +58,6 @@ describe("getArtist", () => {
     expect(artist.name).toBe("Radiohead");
   });
 
-  // 過期就重抓，而且是更新同一列（id 不變），不是新增一列
   it("refetches after 30 days and updates the same row", async () => {
     const first = await getArtist({ db, lastfm: fakeLastfm().lastfm, now }, "Radiohead");
     const { lastfm, calls } = fakeLastfm({ info: { ...radioheadInfo, listeners: 9000000 } });
@@ -71,7 +69,6 @@ describe("getArtist", () => {
     expect(await db.select().from(artists)).toHaveLength(1);
   });
 
-  // 找不到的歌手：錯誤往上丟，資料庫不留東西
   it("stores nothing when Last.fm does not know the artist", async () => {
     const lastfm = fakeLastfm().lastfm;
     lastfm.getInfo = async () => {
@@ -102,7 +99,6 @@ describe("getSimilarArtists", () => {
     const radiohead = await getArtist({ db, lastfm, now }, "Radiohead");
     await getSimilarArtists({ db, lastfm, now }, radiohead);
 
-    // 重新讀一次歌手：這時 similarFetchedAt 已經有值
     const cached = await getArtist({ db, lastfm, now: later(1) }, "Radiohead");
     const list = await getSimilarArtists({ db, lastfm, now: later(1) }, cached);
 
@@ -110,7 +106,6 @@ describe("getSimilarArtists", () => {
     expect(list.map((a) => a.name)).toEqual(radioheadSimilar.map((a) => a.name));
   });
 
-  // 過期時整份換新：舊清單裡、新清單沒有的歌手要消失
   it("replaces the whole list when it is stale", async () => {
     const radiohead = await getArtist({ db, lastfm: fakeLastfm().lastfm, now }, "Radiohead");
     await getSimilarArtists({ db, lastfm: fakeLastfm().lastfm, now }, radiohead);
@@ -123,7 +118,7 @@ describe("getSimilarArtists", () => {
     expect(await db.select().from(artistSimilar)).toHaveLength(1);
   });
 
-  // Last.fm 偶爾會回兩個只差大小寫的名字；正規化後重複，只留 match 高的那個，不要整批失敗
+  // Last.fm sometimes returns two names differing only in case
   it("keeps one entry when two names normalize to the same thing", async () => {
     const { lastfm } = fakeLastfm({
       similar: [

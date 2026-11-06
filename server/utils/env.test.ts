@@ -29,7 +29,6 @@ describe("parseLastfmEnv", () => {
   });
 });
 
-// IP 雜湊的鹽：夠長才難猜（openssl rand -hex 32 產生 64 個字元）
 describe("parseRateLimitEnv", () => {
   it("accepts a salt of at least 32 characters", () => {
     const env = parseRateLimitEnv({ RATE_LIMIT_SALT: "a".repeat(32) });

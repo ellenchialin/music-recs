@@ -1,9 +1,8 @@
 import { z } from "zod";
 
-// iTunes Search API 回應的 zod schema：驗證 + 只留需要的欄位
-// 和 Last.fm 不同：數字就是 number、陣列一定是陣列，不用額外處理
+// Validates iTunes Search API responses and keeps only the fields we use
 
-// 只給 30/60/100px 的封面，但網址最後的「100x100bb」可以改成想要的尺寸
+// iTunes only lists 30/60/100px covers, but the size in the URL can be changed
 const COVER_SIZE = "600x600bb";
 const cover = z
   .url()
@@ -24,7 +23,7 @@ export const searchResponse = z
   .object({ results: z.array(z.looseObject({ kind: z.string().optional() })) })
   .transform((r) =>
     r.results
-      // 先過濾再驗證：MV、Podcast 等欄位不同，不該讓整個回應失敗
+      // Filter before validating: music videos have other fields and shouldn't fail the response
       .filter((item) => item.kind === "song")
       .map((item) => {
         const t = result.parse(item);
@@ -39,7 +38,7 @@ export const searchResponse = z
       }),
   );
 
-// 錯誤回應：{ "errorMessage": "Invalid value(s) for key(s): [resultEntity]", ... }
+// e.g. { "errorMessage": "Invalid value(s) for key(s): [resultEntity]" }
 export const errorResponse = z.object({ errorMessage: z.string() });
 
 export type ItunesTrack = z.output<typeof searchResponse>[number];

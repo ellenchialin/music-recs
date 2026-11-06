@@ -5,7 +5,7 @@ import { normalizeArtistName } from "../../../shared/utils/normalize-artist-name
 import { ALGO_VERSION, recommend } from "./recommend";
 import type { SeedSimilarity } from "./types";
 
-// 種子用錄好的真實相似清單：Radiohead 的前 10 位相似歌手
+// Recorded data: Radiohead's top 10 similar artists
 const radiohead: SeedSimilarity = {
   seed: "Radiohead",
   seedMbid: "a74b1b7f-71a5-4011-9441-d0b5e4122711",
@@ -15,7 +15,6 @@ const radiohead: SeedSimilarity = {
     .map((a) => ({ name: a.name, nameNorm: normalizeArtistName(a.name), mbid: a.mbid, match: a.match })),
 };
 
-// 手做的種子：similar 只給名字和 match
 function seed(name: string, list: [string, number][], seedMbid: string | null = null): SeedSimilarity {
   return {
     seed: name,
@@ -26,13 +25,11 @@ function seed(name: string, list: [string, number][], seedMbid: string | null = 
 }
 
 describe("recommend", () => {
-  // 每次結果都標上演算法版本，盲聽測驗的評分才知道是哪一版的推薦
   it("labels the result with the algorithm version", () => {
     expect(ALGO_VERSION).toBe("v2");
     expect(recommend({ seeds: [radiohead] }).algoVersion).toBe(ALGO_VERSION);
   });
 
-  // 真實資料：Radiohead 的相似清單第一名是 Thom Yorke
   it("returns the best-scored similar artists up to the limit", () => {
     const { artists } = recommend({ seeds: [radiohead], limit: 3 });
     expect(artists.map((a) => a.name)).toEqual(
@@ -45,7 +42,6 @@ describe("recommend", () => {
     expect(recommend({ seeds: [many] }).artists).toHaveLength(10);
   });
 
-  // 選了 Radiohead 和 Thom Yorke：兩位互相出現在對方的相似清單裡，都不該被推薦
   it("never recommends a seed", () => {
     const thom = seed("Thom Yorke", [["Radiohead", 1], ["Atoms for Peace", 0.9]]);
     const { artists } = recommend({ seeds: [radiohead, thom] });
@@ -55,7 +51,6 @@ describe("recommend", () => {
     expect(names).toContain("Atoms for Peace");
   });
 
-  // 種子換個名字出現在相似清單，但 MBID 一樣：也是種子本身
   it("never recommends a seed under another name with the same MBID", () => {
     const utada = seed("宇多田ヒカル", [["Boa", 0.3]], "b539e453");
     const other = seed("浜崎あゆみ", [["Hikaru Utada", 0.9], ["Boa", 0.2]]);
@@ -74,7 +69,6 @@ describe("recommend", () => {
     expect(artists).toHaveLength(3);
   });
 
-  // 排除之後才取前 10：不能先取 10 再排除，那樣會不足 10 位
   it("fills the list after removing excluded artists", () => {
     const list = seed("A", [["B", 0.9], ["C", 0.8], ["D", 0.7]]);
     const { artists } = recommend({ seeds: [list], exclude: [{ nameNorm: "b", mbid: null }], limit: 2 });

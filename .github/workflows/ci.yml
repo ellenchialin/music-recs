@@ -8,7 +8,7 @@ on:
 jobs:
   check:
     runs-on: ubuntu-latest
-    # DB 測試（*.db.test.ts）需要真的 Postgres；設定和本機 docker-compose.yml 一致
+    # DB tests need a real Postgres, configured like docker-compose.yml
     services:
       db:
         image: postgres:17

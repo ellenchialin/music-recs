@@ -1,103 +1,103 @@
-# 練習 1：歌手名稱正規化
+# Exercise 1: Normalizing artist names
 
-預計 30 分鐘。新概念只有一個：**Unicode 正規化**。看起來一樣的字，在電腦裡可能是不同的字元。
+About 30 minutes. One new concept: **Unicode normalization**. Characters that look the same can be different characters to the computer.
 
-## 為什麼需要這個函式
+## Why this function exists
 
-`artists.name_norm` 有 unique 約束（上一步的 schema 測試驗證過）。這個欄位要放什麼，由 `normalizeArtistName` 決定：
+`artists.name_norm` has a unique constraint (checked by the previous step's schema tests). What goes in that column is decided by `normalizeArtistName`:
 
-- 太寬鬆（只做 `toLowerCase()`）：`ＲＡＤＷＩＭＰＳ` 和 `RADWIMPS` 會被當成兩位歌手，快取存兩份、推薦出現兩次
-- 太嚴格（把重音拿掉）：`Sigur Rós` 會變成 `sigur ros`，可能撞到另一位真的叫 Sigur Ros 的歌手
+- Too loose (only `toLowerCase()`): `ＲＡＤＷＩＭＰＳ` and `RADWIMPS` become two artists, cached twice and recommended twice.
+- Too strict (stripping accents): `Sigur Rós` becomes `sigur ros` and might collide with a different artist actually called Sigur Ros.
 
-> **前端類比**：做搜尋框時你一定寫過 `input.trim().toLowerCase()`。這題是同一件事，只是多處理「長得一樣、字元不同」的情況。
+> **Frontend analogy**: you've surely written `input.trim().toLowerCase()` for a search box. This is the same thing, plus handling characters that look identical but aren't.
 
-## 怎麼開始
+## Getting started
 
 ```bash
 pnpm test:unit
 ```
 
-會看到 `normalize-artist-name.test.ts` 的 5 個測試是紅的，錯誤訊息是 `TODO: 練習 1`。其他測試都是綠的。
+The 5 tests in `normalize-artist-name.test.ts` are red with the message `TODO: exercise 1`. Everything else is green.
 
-邊寫邊跑可以用 watch 模式，存檔就自動重跑：
+To rerun on every save while you work, use watch mode:
 
 ```bash
 pnpm vitest --project unit normalize-artist-name
 ```
 
-要寫的檔案：`shared/utils/normalize-artist-name.ts`（原本在 `server/utils/`，之後前端也要用，搬到 `shared/`）。測試在旁邊的 `normalize-artist-name.test.ts`，**先讀一遍測試**，每個 `it` 上面的註解說明了它在檢查什麼。
+The file to write is `shared/utils/normalize-artist-name.ts` (it started in `server/utils/` and moved to `shared/` because the client needs it too). The tests are next to it in `normalize-artist-name.test.ts`. **Read the tests first**: each `it` names the rule it checks.
 
-## 第 1 步：先做實驗（5 分鐘）
+## Step 1: Experiment first (5 minutes)
 
-**每一條執行之前，先寫下你的預測**，再執行對照。
+**Before running each line, write down your prediction**, then run it and compare.
 
 ```bash
-node -e 'console.log("Bjo\u0308rk" === "Bj\u00F6rk")'
+node -e 'console.log("Björk" === "Björk")'
 ```
 
-**預測**：`true` 還是 `false`？
+**Prediction**: `true` or `false`?
 
 ```bash
-node -e 'console.log("Bjo\u0308rk".length, "Bj\u00F6rk".length)'
+node -e 'console.log("Björk".length, "Björk".length)'
 ```
 
-**預測**：兩個長度各是多少？
+**Prediction**: what are the two lengths?
 
 ```bash
-node -e 'console.log("Bjo\u0308rk".normalize("NFC") === "Bj\u00F6rk")'
+node -e 'console.log("Björk".normalize("NFC") === "Björk")'
 ```
 
 ```bash
 node -e 'console.log("ＲＡＤＷＩＭＰＳ".normalize("NFC"), "ＲＡＤＷＩＭＰＳ".normalize("NFKC"))'
 ```
 
-**預測**：NFC 和 NFKC 對全形字母的處理一樣嗎？
+**Prediction**: do NFC and NFKC treat full-width letters the same way?
 
 ```bash
 node -e 'console.log("Sigur Rós".normalize("NFKC"))'
 ```
 
-**預測**：NFKC 會不會把 `ó` 變成 `o`？
+**Prediction**: does NFKC turn `ó` into `o`?
 
-## 第 2 步：寫實作
+## Step 2: Implement it
 
-讓 5 個測試全部變綠。卡住的話，依序打開提示，**一次只看一個**。
+Make all 5 tests green. If you get stuck, open the hints in order, **one at a time**.
 
 <details>
-<summary>提示 1：要用到哪些方法</summary>
+<summary>Hint 1: Which methods you need</summary>
 
-全部都是字串的內建方法，不需要套件：`normalize()`、`trim()`、`toLowerCase()`、`replace()`。
+All built-in string methods, no packages: `normalize()`, `trim()`, `toLowerCase()`, `replace()`.
 
 </details>
 
 <details>
-<summary>提示 2：NFC 還是 NFKC</summary>
+<summary>Hint 2: NFC or NFKC</summary>
 
-回去看第 1 步最後兩個實驗。哪一個能同時處理「ö 的兩種存法」和「全形字母」，而且不會拿掉重音？
-
-</details>
-
-<details>
-<summary>提示 3：連續空白</summary>
-
-正規表示式 `\s` 符合任何空白字元（空格、Tab、換行），`+` 代表「一個以上」。`/\s+/g` 的 `g` 代表全部取代，不只第一個。
+Look back at the last two experiments in step 1. Which one handles both ways of storing ö and full-width letters, without removing accents?
 
 </details>
 
 <details>
-<summary>提示 4：還有一個紅的，看不出差在哪</summary>
+<summary>Hint 3: Repeated whitespace</summary>
 
-Vitest 的錯誤會列出 `Expected`（測試要的）和 `Received`（你回傳的）。看起來一樣但還是紅的，通常是看不見的字元。把結果的每個字元碼印出來比對：
+The regex `\s` matches any whitespace (space, tab, newline), and `+` means "one or more". The `g` in `/\s+/g` replaces every match, not just the first.
+
+</details>
+
+<details>
+<summary>Hint 4: One test is still red and the values look identical</summary>
+
+Vitest's error shows `Expected` (what the test wants) and `Received` (what you returned). When they look the same but the test is red, there's usually an invisible character. Print each character's code to compare:
 
 ```bash
-node -e 'console.log([..."Bjo\u0308rk"].map((c) => c.codePointAt(0).toString(16)))'
+node -e 'console.log([..."Björk"].map((c) => c.codePointAt(0).toString(16)))'
 ```
 
 </details>
 
-## 第 3 步：親眼看結果
+## Step 3: See the result
 
-測試全綠之後，跑一下 lint 和型別檢查：
+Once the tests are green, run lint and the type check:
 
 ```bash
 pnpm lint
@@ -107,11 +107,11 @@ pnpm lint
 pnpm typecheck
 ```
 
-## 做完之後
+## When you're done
 
-貼給我：
+Send me:
 
-1. 第 1 步你**預測錯的地方**
-2. 你的實作
+1. Where your **predictions in step 1 were wrong**
+2. Your implementation
 
-我會問你幾個「如果……會怎樣」，再請你補一個測試案例。
+I'll ask a few "what if…" questions, then have you add a test case.

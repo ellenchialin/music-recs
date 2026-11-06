@@ -10,28 +10,25 @@ import {
   seedsLabel,
 } from "~/utils/recommendations-route";
 
-// /recommendations?seed=…&explore=…：推薦結果和 Explore from here 的路徑都由網址決定，
-// 所以上一頁＝回上一層，重新整理、分享連結都看到同一個畫面
+// /recommendations?seed=…&explore=…: the URL decides everything, so Back goes up a level
 
 const route = useRoute();
 const router = useRouter();
 const query = computed(() => parseRecommendationsQuery(route.query));
 
-// 查過的每一層存起來（key 是「種子 ＋ 路徑」）：回上一層、按上一頁都不用重新查詢。
-// useState：伺服器端查好的結果會跟著頁面送到瀏覽器，打開就不必再查一次
+// Every level fetched so far, keyed by seeds + path, so going back never refetches.
+// useState also carries server-fetched results to the browser
 const levels = useState<Record<string, RecommendationsResult>>("recommendation-levels", () => ({}));
-// 每一層看到第幾張：回到那一層時從那一張開始
+// The record being viewed on each level
 const viewing = useState<Record<string, number>>("recommendation-viewing", () => ({}));
 const levelKey = (seeds: string[], path: string[]) =>
   JSON.stringify([seeds.map(normalizeArtistName), path.map(normalizeArtistName)]);
 
-// failed：查詢失敗（Last.fm 出錯）；rateLimited：被速率限制擋住（429），等一下再試就好
-// SSR 時把使用者的 IP 帶給 API，速率限制才算得對（見 composables/useApiFetch.ts）
 const api = useApiFetch();
 
 type Loaded = { trail: Trail; notFound: SeedNotFoundData | null; failed: boolean; rateLimited: boolean };
 
-// 第 0 層用使用者的種子；往下挖的每一層只用那位歌手當種子，排除原本的種子和上面各層看過的唱片
+// Level 0 uses the user's seeds; deeper levels use one artist and exclude everything shown above
 async function fetchLevel(seeds: string[], path: string[], above: Trail): Promise<RecommendationsResult> {
   const key = levelKey(seeds, path);
   const cached = levels.value[key];
@@ -44,14 +41,14 @@ async function fetchLevel(seeds: string[], path: string[], above: Trail): Promis
   return result;
 }
 
-// 依網址一層一層查。錯誤不往外丟，轉成狀態：404 給建議的名字，其他顯示「暫時拿不到」
+// Fetches level by level. Errors become state instead of being thrown
 async function load(q: NonNullable<typeof query.value>): Promise<Loaded> {
   const trail: Trail = [];
   try {
     for (let depth = 0; depth <= q.explore.length; depth++) {
       const path = q.explore.slice(0, depth);
       const result = await fetchLevel(q.seeds, path, trail);
-      // 分享連結裡某一層已經沒有新歌手（資料變了）：停在上一層
+      // A shared link whose level has nothing new anymore: stop at the level above
       if (depth > 0 && !result.recommendations.length) break;
       trail.push({ artist: path.at(-1) ?? null, result, index: 0 });
     }
@@ -65,7 +62,7 @@ async function load(q: NonNullable<typeof query.value>): Promise<Loaded> {
   }
 }
 
-// lazy：從首頁換過來時先顯示唱盤，不等查完才換頁。網址變了（往下挖、回上一層）就重新跑 load，查過的層直接從 levels 拿
+// lazy: navigate immediately and show the turntable while loading. Reruns when the URL changes
 const { data, status, refresh } = useAsyncData(
   "recommendations",
   () => (query.value ? load(query.value) : Promise.resolve(null)),
@@ -79,15 +76,14 @@ const currentKey = computed(() =>
 );
 const loadingFirst = computed(() => status.value === "pending" && !data.value);
 
-// 從首頁按 Recommend 進來（旗標由首頁設定）：資料就算馬上回來，唱盤也先停在中央 NEEDLE_DROP_MS，
-// 讓 View Transition 把唱盤移過來、看清楚它在轉，再換成唱片，才不會像一閃而過的殘影。
-// 直接打開網址（重新整理、分享連結）沒有旗標，結果直接出現
+// Coming from home, hold the turntable even if data is instant, so it doesn't flash past like an
+// afterimage. Direct visits (reload, shared link) show results right away
 const NEEDLE_DROP_MS = 1100;
 const needleDrop = useState("needle-drop", () => false);
-// 換頁是在瀏覽器裡發生的，setup 這時就讀得到旗標；第一次畫面就要用對的值，不能等 onMounted
+// Read in setup, not onMounted: the first render must already be right
 const fromHome = import.meta.client && needleDrop.value;
 const holding = ref(fromHome);
-// 從首頁移過來的唱盤不重播進場；沒有 View Transition 的瀏覽器才自己播
+// A turntable that morphed in from home skips its own entrance animation
 const morphed = fromHome && "startViewTransition" in document;
 onMounted(() => {
   if (!fromHome) return;
@@ -96,7 +92,7 @@ onMounted(() => {
 });
 const showTurntable = computed(() => loadingFirst.value || holding.value);
 
-// 換層的動畫方向：往下挖從右邊滑進來（1），回上一層（麵包屑、上一頁）從左邊（-1）
+// Slide in from the right when exploring (1), from the left when going back (-1)
 const direction = ref(1);
 watch(
   () => query.value?.explore.length ?? 0,
@@ -104,11 +100,10 @@ watch(
 );
 
 const exploring = ref(false);
-// 往下挖沒有新歌手、或查詢失敗時，唱片箱下方的一行提示
 const exploreMessage = ref("");
 watch(currentKey, () => (exploreMessage.value = ""));
 
-// Explore from here：先查下一層，有新歌手才改網址；沒有就停在這層並提示
+// Fetch the next level first and only change the URL if it has new artists
 async function explore(artist: string) {
   const q = query.value;
   if (!q || !canExplore(trail.value) || exploring.value) return;
@@ -134,20 +129,18 @@ async function explore(artist: string) {
   }
 }
 
-// 換到別張唱片：記住看到第幾張，提示（例如沒有新歌手）收起來
 function onIndexChange(index: number) {
   viewing.value[currentKey.value] = index;
   exploreMessage.value = "";
 }
 
-// 試聽載入失敗時的重試：丟掉這一層的結果重查
+// Preview errors aren't cached, so refetching this level retries iTunes
 function retryLevel() {
   const { [currentKey.value]: _, ...rest } = levels.value;
   levels.value = rest;
   void refresh();
 }
 
-// 種子找不到時點了建議的名字：換掉網址裡那一位
 function useSuggestion(seed: string, suggestion: string) {
   const seeds = query.value?.seeds.map((s) => (s === seed ? suggestion : s)) ?? [suggestion];
   void router.replace(recommendationsLocation(seeds));
@@ -158,7 +151,7 @@ function removeMissing(seed: string) {
   void router.replace(seeds.length ? recommendationsLocation(seeds) : homeLocation([]));
 }
 
-// 麵包屑：Home › Tame Impala + Kokoroko › Pond › GUM。最後一個是目前所在，其他是連結
+// Home › Tame Impala + Kokoroko › Pond › GUM
 const crumbs = computed(() => {
   const q = query.value;
   if (!q) return [];
@@ -171,7 +164,7 @@ const crumbs = computed(() => {
   ];
 });
 
-// 換層之後把焦點移到標題：螢幕閱讀器使用者知道內容換了（不捲動，路由換頁時已經回到頂端）
+// Move focus to the heading on level change so screen reader users know the content changed
 const heading = ref<HTMLElement | null>(null);
 watch(currentKey, async () => {
   await nextTick();
@@ -183,9 +176,9 @@ useHead({ title: () => (currentLevel.value?.artist ? `More like ${currentLevel.v
 
 <template>
   <div class="flex h-dvh flex-col">
-    <!-- 整頁剛好一個螢幕高，不能捲動：麵包屑、標題、唱片箱的資訊和操作高度固定，封面佔剩下的空間 -->
+    <!-- One screen tall: everything has a fixed height except the covers, which take the rest -->
     <header class="mx-auto w-full max-w-7xl shrink-0 px-4 pt-4 sm:px-8 sm:pt-6">
-      <!-- 麵包屑：Home 帶著種子回首頁重新輸入；後面是 Explore 的路徑。手機上只有一行，太長就左右捲 -->
+      <!-- One line; scrolls sideways when too long -->
       <nav aria-label="Breadcrumb" class="overflow-x-auto">
         <ol class="flex items-center gap-2 text-base whitespace-nowrap">
           <li class="flex items-center gap-2">
@@ -203,7 +196,6 @@ useHead({ title: () => (currentLevel.value?.artist ? `More like ${currentLevel.v
     </header>
 
     <main class="mx-auto flex min-h-0 w-full max-w-7xl flex-1 flex-col overflow-x-clip px-4 pt-4 pb-4 sm:px-8 sm:pt-6 sm:pb-6">
-      <!-- 網址沒有種子 -->
       <section v-if="!query" class="max-w-2xl">
         <h1 class="font-wide text-4xl font-black sm:text-5xl">Pick an artist first</h1>
         <p class="mt-3 text-lg">Choose 1–3 artists you love, then come back for recommendations.</p>
@@ -212,16 +204,14 @@ useHead({ title: () => (currentLevel.value?.artist ? `More like ${currentLevel.v
         </NuxtLink>
       </section>
 
-      <!-- 查詢中、或剛從首頁換過來：置中的唱盤 -->
       <div v-else-if="showTurntable" role="status" class="flex flex-1 items-center justify-center py-10">
         <span class="sr-only">Finding recommendations…</span>
-        <!-- 和首頁的唱盤同一個 view-transition-name：換頁時從首頁的位置、大小移過來 -->
+        <!-- Same view-transition-name as the home turntable -->
         <div class="size-[min(70vw,22rem)] [view-transition-name:turntable]">
           <SunTurntable :record-delay="0.1" :entrance="!morphed" />
         </div>
       </div>
 
-      <!-- 種子找不到（404）：說是哪一位，給建議的名字 -->
       <section v-else-if="data?.notFound" class="max-w-2xl border-3 border-ink bg-paper p-6 text-ink" role="alert">
         <h1 class="font-wide text-2xl font-black">Can&apos;t find "{{ data.notFound.seed }}"</h1>
         <template v-if="data.notFound.suggestions.length">
@@ -265,8 +255,7 @@ useHead({ title: () => (currentLevel.value?.artist ? `More like ${currentLevel.v
           {{ currentLevel.artist ? `More like ${currentLevel.artist}` : "Recommended for you" }}
         </h1>
 
-        <!-- 唱片箱：左右疊的封面會超出內容寬度，由 main 的 overflow-x-clip 裁掉，頁面不會左右捲。
-             每一層是一個唱片箱（key 不同）：往下挖時舊的往左滑出、新的從右邊滑進來，回上一層相反 -->
+        <!-- Side covers overflow and are clipped by main's overflow-x-clip. One crate per level (key) -->
         <motion.div v-bind="fadeUp" :transition="spring.smooth" class="mt-4 min-h-0 flex-1 sm:mt-6">
           <AnimatePresence mode="wait" :initial="false">
             <motion.div

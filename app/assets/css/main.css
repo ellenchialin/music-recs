@@ -1,49 +1,44 @@
 @import "tailwindcss";
 
 /*
- * Retro-Modern Futuristic 主題的設計 token。元件只用這裡的名字（bg-pink、text-ink…），
- * 不直接寫色碼；之後 polish 時改這裡就好。
- * 配色取自參考插畫：平塗的桃紅底、青綠色的太陽圓、深海軍藍的粗墨線與裝備、
- * 灰青色的外套、梅紫與珊瑚橘的小面積點綴。沒有漸層、沒有光暈，靠大塊平塗和粗墨線。
+ * Design tokens for the retro-modern futuristic theme. Components use these names (bg-pink,
+ * text-ink…), never raw colors. Flat fills and thick ink lines: no gradients, glows or shadows.
  */
 @theme {
-  /* 地：整頁的桃紅底 */
+  /* Page background */
   --color-pink: #f8527e;
 
-  /* 墨：文字、粗墨線、深色面板 */
+  /* Text, ink lines, dark panels */
   --color-ink: #131f39;
-  --color-ink-raised: #1e243d;    /* 深色面板裡再高一階（例：卡片裡的試聽列） */
-  --color-ink-soft: #29374d;      /* 深色面板上的次要區塊 */
+  --color-ink-raised: #1e243d;    /* One step up inside a dark panel */
+  --color-ink-soft: #29374d;      /* Secondary areas on dark panels */
 
-  /* 紙：深色面板上的文字 */
+  /* Text on dark panels */
   --color-paper: #f2efe9;
-  --color-paper-muted: #b7bccb;   /* 深色面板上的次要文字 */
+  --color-paper-muted: #b7bccb;   /* Secondary text on dark panels */
 
-  /* 強調色 */
-  --color-teal: #1ec8bc;          /* 主要動作、播放、太陽圓 */
-  --color-teal-deep: #43797c;     /* 次要面板、喜歡 */
-  --color-plum: #533852;          /* 次要強調面 */
-  --color-coral: #d6665c;         /* 不喜歡、警示 */
+  /* Accents */
+  --color-teal: #1ec8bc;          /* Primary actions, play, the sun */
+  --color-teal-deep: #43797c;
+  --color-plum: #533852;          /* Missing-cover placeholder */
+  --color-coral: #d6665c;
 
-  /* 標題：寬體無襯線，像海報上的字；內文：思源黑體 */
+  /* Headings: wide Archivo; body: Noto Sans TC */
   --font-display: "Archivo", "Noto Sans TC", ui-sans-serif, system-ui, sans-serif;
-  /* 首頁大標：極粗、極窄的襯線字（參考新世紀福音戰士標題卡的字體處理，不用它的 logo） */
+  /* Home title: an ultra-condensed black serif */
   --font-title: "Noto Serif", ui-serif, Georgia, serif;
   --font-sans: "Noto Sans TC", ui-sans-serif, system-ui, sans-serif;
 }
 
-/* 很矮的橫向畫面（手機橫放）：寬，但高度不到 600px，直排放不下，要改左右兩欄。
-   桌機視窗也是橫向，但夠高，維持直排 */
+/* Phones in landscape: too short for a single column. Desktop windows are landscape too but tall enough */
 @custom-variant short-landscape (@media (orientation: landscape) and (max-height: 600px));
 
-/* 首頁用：高度 520 以下（short，手機橫放）和以上（tall）剛好互補、不會同時成立。
-   兩邊都有的屬性（例如 gap、字級），一般的響應式寫法前面加 tall:、矮畫面的寫 short:，
-   兩條規則不會同時生效，就不必靠 CSS 的先後順序或 !important 決定誰贏 */
+/* Complementary height variants: when a property is set for both, prefix the responsive rule with
+   tall: and the short-screen rule with short:, so they never compete and need no !important */
 @custom-variant short (@media (height <= 520px));
 @custom-variant tall (@media (height > 520px));
 
-/* 首頁用：左右兩欄的畫面＝橫放的平板（寬 768 以上、橫向）或桌機（寬 1024 以上）。
-   原本要寫兩次（md:landscape: 和 lg:），而且兩個同時成立時誰贏要看順序 */
+/* Two-column home layout: landscape tablets or desktops */
 @custom-variant wide (@media (min-width: 48rem) and (orientation: landscape), (min-width: 64rem));
 
 @layer base {
@@ -55,28 +50,25 @@
     @apply bg-pink font-sans text-ink antialiased;
   }
 
-  /* Tailwind v4 把按鈕的游標改回預設箭頭；可以按的按鈕一律顯示手指，停用的不顯示 */
+  /* Tailwind v4 resets the button cursor to the default arrow */
   button:not(:disabled),
   [role="button"]:not([aria-disabled="true"]) {
     cursor: pointer;
   }
 
-  /* 鍵盤焦點：粗墨線外框，和插畫的描邊一致 */
   :focus-visible {
     outline: 3px solid var(--color-ink);
     outline-offset: 3px;
   }
 }
 
-/* 寬體標題：Archivo 的 wdth 軸拉寬到 125，字距收緊 */
 @utility font-wide {
   font-family: var(--font-display);
   font-stretch: 125%;
   letter-spacing: -0.03em;
 }
 
-/* 首頁大標：Noto Serif 的 wdth 軸壓到最窄（62.5%）、字重 900，大寫、行距壓緊；
-   再用 scale-y 拉高（加在每一行的 span 上，h1 本身的 transform 留給進場動畫） */
+/* Stretched further with scale-y on each line's span; the h1's own transform is the entrance animation */
 @utility font-title {
   font-family: var(--font-title);
   font-stretch: 62.5%;
@@ -85,8 +77,7 @@
   letter-spacing: -0.01em;
 }
 
-/* 換頁的 View Transition（nuxt.config 的 experimental.viewTransition）：
-   整頁淡入淡出要快，唱盤從首頁移到推薦頁中央慢一點、減速停下，看得清楚它是「同一台」 */
+/* Page view transition: a quick crossfade, and a slower move for the shared turntable */
 ::view-transition-old(root),
 ::view-transition-new(root) {
   animation-duration: 0.25s;

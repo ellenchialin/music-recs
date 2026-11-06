@@ -14,7 +14,7 @@ const result = (...artists: string[]): RecommendationsResult => ({
   })),
 });
 
-// 第一層：使用者選的種子推出來的；artist 是 null
+// Level 0 comes from the user's seeds, so artist is null
 const root: Trail = [{ artist: null, result: result("Pond", "GUM", "Khruangbin"), index: 0 }];
 
 describe("explore trail", () => {
@@ -29,7 +29,6 @@ describe("explore trail", () => {
     expect(canExplore(trail)).toBe(false);
   });
 
-  // 往下挖：新的一層從第一張開始，前面各層記住當時看到第幾張；不改原本的陣列
   it("adds a level without changing the earlier ones", () => {
     const viewing: Trail = [{ ...root[0]!, index: 2 }];
     const trail = exploreFrom(viewing, "Khruangbin", result("Bonobo", "Thievery Corporation"));
@@ -40,7 +39,6 @@ describe("explore trail", () => {
     expect(viewing).toHaveLength(1);
   });
 
-  // 排除名單：原本的種子 ＋ 每一層顯示過的唱片（往下挖的那位本來就在上一層的唱片裡），不重複
   it("excludes the seeds and every record shown so far", () => {
     const trail = exploreFrom(root, "Pond", result("Temples", "GUM", "Mink Mussel Creek"));
     expect(excludedFor(trail, ["Tame Impala", "Kokoroko"])).toEqual([
@@ -54,7 +52,6 @@ describe("explore trail", () => {
     ]);
   });
 
-  // 點路徑回到某一層：後面的層丟掉，那一層看到第幾張保留
   it("goes back to a level and keeps where the visitor was", () => {
     const viewing: Trail = [{ ...root[0]!, index: 1 }];
     const deep = exploreFrom(exploreFrom(viewing, "GUM", result("A")), "A", result("B"));

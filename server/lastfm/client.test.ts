@@ -5,7 +5,6 @@ import { LastfmError, createLastfmClient } from "./client";
 
 const apiKey = "0123456789abcdef0123456789abcdef";
 
-// 假的 fetch：記下被呼叫的網址，回傳指定的內容。測試因此不碰網路
 function fakeFetch(status: number, body: unknown) {
   const calls: URL[] = [];
   const fetch = async (input: string | URL | Request) => {
@@ -35,7 +34,6 @@ describe("createLastfmClient", () => {
     });
   });
 
-  // Last.fm 找不到歌手時回 HTTP 200，錯誤放在 body 裡；只看 res.ok 會漏掉
   it("throws LastfmError for an error body even with HTTP 200", async () => {
     const { fetch } = fakeFetch(200, notFound.body);
     const client = createLastfmClient({ apiKey, fetch });

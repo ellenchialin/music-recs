@@ -16,7 +16,6 @@ describe("useSeedsStore", () => {
     expect(store.seeds).toEqual(["Tame Impala", "Kokoroko"]);
   });
 
-  // 和後端同一套正規化規則：大小寫、空白不同也算同一位
   it("refuses the same artist twice", () => {
     const store = useSeedsStore();
     store.add("Tame Impala");
@@ -30,7 +29,6 @@ describe("useSeedsStore", () => {
     expect(store.seeds).toEqual([]);
   });
 
-  // 種子 1–3 位（docs/ai-log.md：原本 SPEC 是 3–5 位）
   it("holds at most three seeds and is ready from one", () => {
     const store = useSeedsStore();
     expect([MIN_SEEDS, MAX_SEEDS]).toEqual([1, 3]);
@@ -50,7 +48,6 @@ describe("useSeedsStore", () => {
     expect(store.seeds).toEqual(["Kokoroko"]);
   });
 
-  // 404 時前端建議「你是不是要找 Kokoroko」，點了就換掉打錯的那位，位置不變
   it("replaces a misspelled seed in place", () => {
     const store = useSeedsStore();
     ["Tame Impala", "Kokoroco", "Justin Bieber"].forEach((n) => store.add(n));
@@ -58,7 +55,6 @@ describe("useSeedsStore", () => {
     expect(store.seeds).toEqual(["Tame Impala", "Kokoroko", "Justin Bieber"]);
   });
 
-  // 建議的名字已經在清單裡：只拿掉打錯的那位，不要重複
   it("drops the misspelled seed when the suggestion is already a seed", () => {
     const store = useSeedsStore();
     ["Kokoroko", "Kokoroco"].forEach((n) => store.add(n));
@@ -66,17 +62,15 @@ describe("useSeedsStore", () => {
     expect(store.seeds).toEqual(["Kokoroko"]);
   });
 
-  // SPEC：種子同步到 localStorage，重新整理頁面還在
   it("keeps the seeds across page reloads", async () => {
     useSeedsStore().add("Tame Impala");
-    // useLocalStorage 在下一個 tick 才寫進 localStorage（和 Vue 的 watch 一樣）
+    // useLocalStorage writes on the next tick
     await nextTick();
     setActivePinia(createPinia());
     expect(useSeedsStore().seeds).toEqual(["Tame Impala"]);
   });
 
-  // 真實情況：伺服器端沒有 localStorage，渲染出空清單；Pinia 把這份空狀態帶到瀏覽器（SSR hydration）。
-  // 不能讓它蓋掉瀏覽器 localStorage 裡的種子，否則重新整理後種子全不見
+  // Real bug: the server renders an empty list (no localStorage) and Pinia hydrates it into the browser
   it("keeps the browser's seeds when the server sent an empty state", () => {
     localStorage.setItem("music-recs:seeds", JSON.stringify(["Tame Impala"]));
     const pinia = createPinia();
@@ -87,7 +81,7 @@ describe("useSeedsStore", () => {
     expect(JSON.parse(localStorage.getItem("music-recs:seeds")!)).toEqual(["Tame Impala"]);
   });
 
-  // 以前最多可以選 5 位；舊的 localStorage 讀進來時只留前 3 位，不然 API 會回 400
+  // The limit used to be 5; the API rejects more than 3
   it("trims seeds saved under the old limit", async () => {
     localStorage.setItem("music-recs:seeds", JSON.stringify(["A", "B", "C", "D", "E"]));
     setActivePinia(createPinia());

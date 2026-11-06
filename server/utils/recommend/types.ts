@@ -1,12 +1,10 @@
-// 推薦演算法的資料形狀。演算法只吃這些普通物件，不碰資料庫和 API：
-// 呼叫的人（之後的 /api/recommendations）負責從快取把資料拿出來，轉成這個形狀
+// Plain data for the algorithm. It never touches the database or APIs; the caller loads and maps the cache
 
-// 一位種子歌手和他的相似清單（來自 artist_similar）
 export type SeedSimilarity = {
   seed: string;
-  // 種子本身的 MBID（來自 artists）：用來排除換個名字出現的種子
+  // Used to exclude the seed when it appears under another name
   seedMbid: string | null;
-  // 使用者直接選的種子是 1；之後「喜歡」加進來的種子權重比較低（SPEC：回饋）
+  // 1 for seeds the user picked
   weight: number;
   similar: SimilarArtistInput[];
 };
@@ -15,22 +13,21 @@ export type SimilarArtistInput = {
   name: string;
   nameNorm: string;
   mbid: string | null;
-  // Last.fm 的相似度，0～1
+  // Last.fm similarity, 0–1
   match: number;
 };
 
-// 合併後的候選歌手
 export type Candidate = {
   name: string;
   nameNorm: string;
   mbid: string | null;
-  // 分數：每位種子依名次給的分數加總（見 merge-candidates.ts），越高越前面
+  // Sum of rank scores across seeds (see merge-candidates.ts)
   score: number;
-  // 跟哪幾位種子相似，依種子的順序；推薦理由沒做時顯示「和 A、B 相似」
+  // Seeds this artist came from, in seed order
   sources: string[];
 };
 
-// 要從結果排除的歌手：種子本身、按過不喜歡的
+// Artists to leave out: the seeds and, when exploring, artists already shown
 export type ExcludedArtist = {
   nameNorm: string;
   mbid: string | null;

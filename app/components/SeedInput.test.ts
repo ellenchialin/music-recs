@@ -4,9 +4,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useSeedsStore } from "~/stores/seeds";
 import SeedInput from "./SeedInput.vue";
 
-// 假的自動完成 API：不管打什麼都回這兩位，並記下每次查的字
 const searched: string[] = [];
-// 查「busy」開頭的字回 429（太多請求）
+// Fake search API: the same two artists for any query, 429 for queries starting with "busy"
 registerEndpoint("/api/artists/search", (event) => {
   const q = new URLSearchParams(event.path.split("?")[1]).get("q") ?? "";
   searched.push(q);
@@ -17,7 +16,7 @@ registerEndpoint("/api/artists/search", (event) => {
   ];
 });
 
-// 元件用的是 Nuxt app 自己的 Pinia（測試之間共用），所以每個測試前把種子清空
+// The Nuxt app's Pinia is shared between tests
 beforeEach(() => {
   localStorage.clear();
   useSeedsStore().seeds = [];
@@ -31,14 +30,12 @@ async function mountInput() {
   return { wrapper, input: wrapper.get("input"), store: useSeedsStore() };
 }
 
-// 打字後等 debounce 和 API 回來，直到選項出現
 async function typeAndWaitForOptions(wrapper: Awaited<ReturnType<typeof mountInput>>["wrapper"], text: string) {
   await wrapper.get("input").setValue(text);
   await vi.waitFor(() => expect(wrapper.findAll('[role="option"]').length).toBeGreaterThan(0), { timeout: 2000 });
 }
 
 describe("SeedInput", () => {
-  // 自動完成找不到也沒關係：Enter 直接加打的字，後端的 autocorrect 會修正
   it("adds the typed name on Enter and clears the box", async () => {
     const { input, store } = await mountInput();
     await input.setValue("Kokoroko");
@@ -58,7 +55,6 @@ describe("SeedInput", () => {
     expect(store.seeds).toEqual(["Tame Impala"]);
   });
 
-  // 鍵盤也能選：↓ 移到第一個建議，Enter 加入
   it("adds the highlighted suggestion with the arrow keys and Enter", async () => {
     const { wrapper, input, store } = await mountInput();
     await typeAndWaitForOptions(wrapper, "tame");
@@ -68,7 +64,7 @@ describe("SeedInput", () => {
     expect(store.seeds).toEqual(["Tame Impala"]);
   });
 
-  // 一般打字速度（每個字間隔約 150–300ms）不該每停一下就查一次：只在停下來之後查最後打的字
+  // Typical typing leaves 150–300ms between keys
   it("searches once for words typed at a normal pace", async () => {
     const { wrapper, input } = await mountInput();
     for (const text of ["d", "da", "dan", "dani", "danie", "daniel", "daniel c", "daniel ca"]) {
@@ -79,7 +75,6 @@ describe("SeedInput", () => {
     expect(searched).toEqual(["daniel ca"]);
   });
 
-  // 刪掉幾個字再打回來，查過的字不再打 API
   it("does not search the same words twice", async () => {
     const { wrapper, input } = await mountInput();
     await typeAndWaitForOptions(wrapper, "daniel");
@@ -100,7 +95,6 @@ describe("SeedInput", () => {
     expect(store.seeds).toEqual(["Kokoroko"]);
   });
 
-  // 自動完成被速率限制擋住：告訴使用者，但還是可以打完整的名字按 Enter
   it("says so when there are too many searches", async () => {
     const { wrapper, input, store } = await mountInput();
     await input.setValue("busy signal");

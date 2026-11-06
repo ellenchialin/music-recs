@@ -1,348 +1,355 @@
-# AI 協作紀錄
+# AI collaboration log
 
-和 Claude Code 討論後拍板的決策。「Claude 建議」是它提出的，「決定」是我拍板的。
+Decisions settled after discussing them with Claude Code. "Claude's suggestion" is what Claude proposed; "Decision" is what I settled on.
 
-## 2026-11-02 · 題目
+## 2026-11-02 · The project
 
-上一個專案（職缺篩選系統）做到後來覺得不有趣、也不適合公開，換題目做作品集。
+The previous project (a job-listing filter) stopped being interesting and wasn't a good fit to show publicly, so I switched to a new portfolio project.
 
-| # | 問題 | Claude 建議 | 決定 | 理由 |
+| # | Question | Claude's suggestion | Decision | Reason |
 |---|---|---|---|---|
-| 1 | 做什麼 | 音樂或動漫推薦器，選自己每天接觸的 | 音樂 | 每天都在聽，判斷得出推薦準不準 |
-| 2 | 資料來源 | 不建在 Spotify API 上（2026 年 2 月起開發模式要 Premium、只允許少數使用者、停用多個 endpoint）；改用 Last.fm（相似歌手、標籤）＋ Deezer（試聽、封面） | 採用 | |
-| 3 | 給誰用 | 人人都能用的互動平台，不是只給自己的工具 | 採用 | 面試官能直接試用 |
-| 4 | 怎麼讓別人不用帳號就能用 | 輸入 3–5 個喜歡的歌手當起點；匿名 ID 存 cookie | 採用 | |
-| 5 | 互動與 eval | 喜歡／不喜歡重新排序、冷門滑桿、盲聽測驗；盲聽的評分就是 eval 資料 | 採用 | 別人玩就是在幫忙標記 |
-| 6 | 隱私 | 不收集個資；收聽紀錄只公開彙總，原始匯出檔不進 repo | 採用 | |
+| 1 | What to build | A music or anime recommender, something I use every day | Music | I listen every day, so I can tell whether recommendations are good |
+| 2 | Data source | Don't build on the Spotify API (from February 2026 development mode requires Premium, allows only a few users and disables several endpoints); use Last.fm (similar artists, tags) + Deezer (previews, covers) | Adopted | |
+| 3 | Who it's for | An interactive platform anyone can use, not a personal tool | Adopted | Interviewers can try it directly |
+| 4 | How others can use it without an account | Enter 3–5 favorite artists as a starting point; anonymous ID in a cookie | Adopted | |
+| 5 | Interaction and eval | Like/dislike re-sorting, a popularity slider, a blind test; blind-test ratings are the eval data | Adopted | People playing it are labeling data |
+| 6 | Privacy | No personal data; listening history only published as aggregates; raw exports never go in the repo | Adopted | |
 
-## 2026-11-02 · 技術棧
+## 2026-11-02 · Stack
 
-| # | 問題 | Claude 建議 | 決定 | 理由 |
+| # | Question | Claude's suggestion | Decision | Reason |
 |---|---|---|---|---|
-| 1 | 前端框架 | — | Vue 3（我提出） | |
-| 2 | 前後端要不要分開 | Nuxt 4 一個專案包含頁面和 API；前後端分離（Vite SPA＋Hono）較接近一般公司架構，但工作量多兩到三成 | Nuxt 4 | 一週內要完成 MVP |
-| 3 | 資料庫與 ORM | Postgres＋Drizzle，沿用上一個專案學到的；正式環境 Neon | 採用 | Postgres 是業界主流；ORM 可替換，觀念帶得走 |
-| 4 | 速率限制存哪裡 | Postgres：Vercel 是 serverless，記憶體計數不可靠；不另外加 Redis | 採用 | |
+| 1 | Frontend framework | — | Vue 3 (my call) | |
+| 2 | Separate frontend and backend? | Nuxt 4 holds pages and API in one project; a split (Vite SPA + Hono) is closer to typical company setups but 20–30% more work | Nuxt 4 | The MVP has to be done in a week |
+| 3 | Database and ORM | Postgres + Drizzle, reusing what I learned last time; Neon in production | Adopted | Postgres is the industry standard; ORMs are swappable but the concepts carry over |
+| 4 | Where to store rate limits | Postgres: Vercel is serverless, so in-memory counts are unreliable; no extra Redis | Adopted | |
 
-## 2026-11-03 · 協作方式與時程
+## 2026-11-03 · Way of working and schedule
 
-| # | 問題 | Claude 建議 | 決定 | 理由 |
+| # | Question | Claude's suggestion | Decision | Reason |
 |---|---|---|---|---|
-| 1 | 協作方式 | 沿用上一個專案的模式 | 沿用，加上 TDD（我提出） | |
-| 2 | TDD 和「不用測試輸出當主要回饋」怎麼並存 | 測試由 Claude 先寫並白話說明在檢查什麼；變綠之後仍要看頁面或 JSON。我的練習是「讓紅燈變綠」，比從零寫更聚焦 | 採用 | 上一個專案讀測試錯誤訊息很吃力 |
-| 3 | 時程 | 原估兩週 | 一週完成 MVP | |
-| 4 | 一週不夠時砍什麼 | 依序砍：冷門滑桿 → LLM 理由（改用規則理由）→ Playwright | 採用 | |
-| 5 | 專案位置 | `~/dev/music-recs` | 採用 | |
+| 1 | Way of working | Same as the previous project | Same, plus TDD (my call) | |
+| 2 | How TDD fits with "test output isn't the main feedback" | Claude writes the tests first and explains in plain words what they check; after they pass, still look at the page or JSON. My exercises are "make the red test green", more focused than starting from scratch | Adopted | Reading test failures was hard on the last project |
+| 3 | Schedule | Originally estimated two weeks | MVP in one week | |
+| 4 | What to cut if a week isn't enough | In order: popularity slider → LLM reasons (use rule-based reasons) → Playwright | Adopted | |
+| 5 | Project location | `~/dev/music-recs` | Adopted | |
 
-## 2026-11-03 · 專案骨架
+## 2026-11-03 · Project skeleton
 
-| # | 問題 | Claude 建議 | 決定 | 理由 |
+| # | Question | Claude's suggestion | Decision | Reason |
 |---|---|---|---|---|
-| 1 | TypeScript 版本 | 固定 5.9：TypeScript 7 剛出，typescript-eslint、vue-tsc 還不支援 | 採用 | |
-| 2 | Postgres port | 5434：5433 已經給 job-alert-triage，兩個專案可同時開 | 採用 | |
-| 3 | Tailwind 怎麼接 | Tailwind v4 官方的 `@tailwindcss/vite` 外掛，不用 `@nuxtjs/tailwindcss` 模組 | 採用 | 少一層包裝，設定只有一行 `@import` |
-| 4 | 測試怎麼分 | Vitest 分兩個 project：`unit`（純函式，Node）、`nuxt`（元件，happy-dom）；DB 測試等第一張表出現再加 | 採用 | 純函式測試不必啟動 Nuxt，快很多 |
-| 5 | UI 動態用什麼 | Motion for Vue（`motion-v`）：宣告式的 spring、`layout` 重新排序動畫、`AnimatePresence` 離場動畫，CSS transition 做不到 layout 動畫；`MotionConfig reduced-motion="user"` 統一尊重減少動態設定 | 採用（我提出要用 motion 類工具） | 回饋後重新排序、盲聽揭曉都是作品集要展示的互動 |
-| 6 | UI 主題 | — | Cyberpunk（我提出） | |
-| 7 | 先做功能還是先 polish | 現在只定設計 token（顏色、字型、光暈）並套到骨架；glitch、掃描線等特效留到第 7 天。token 先定好，第 3–6 天寫的元件一出生就是對的風格，polish 只要調 token 和加特效，不必回頭改每個元件 | 採用 | |
-| 8 | 主題配色依據 | 從我給的 Edgerunners key art 取色：紫黑 `#120c24`、青 `#11c4e9`、紅 `#fc1636`、酸黃 `#ffe428`、橘、薰衣草；造型改成切角、斜紋、斜切，字型換成斜體的 Chakra Petch。只取氛圍，不仿 logo 和角色 | 採用 | |
+| 1 | TypeScript version | Pin 5.9: TypeScript 7 just came out and typescript-eslint and vue-tsc don't support it yet | Adopted | |
+| 2 | Postgres port | 5434: 5433 is taken by job-alert-triage, so both projects can run at once | Adopted | |
+| 3 | How to add Tailwind | Tailwind v4's official `@tailwindcss/vite` plugin, not the `@nuxtjs/tailwindcss` module | Adopted | One less wrapper; setup is a single `@import` |
+| 4 | How to split tests | Two Vitest projects: `unit` (pure functions, Node) and `nuxt` (components, happy-dom); add DB tests when the first table appears | Adopted | Pure-function tests don't need to boot Nuxt, which is much faster |
+| 5 | What to use for UI motion | Motion for Vue (`motion-v`): declarative springs, `layout` reorder animations, `AnimatePresence` exit animations (CSS transitions can't do layout animations); `MotionConfig reduced-motion="user"` respects reduced motion everywhere | Adopted (I asked for a motion library) | Re-sorting after feedback and the blind-test reveal are interactions the portfolio should show |
+| 6 | UI theme | — | Cyberpunk (my call) | |
+| 7 | Features first or polish first | Only define design tokens now (colors, fonts, glow) and apply them to the skeleton; effects like glitches and scanlines wait for day 7. With tokens set, components written on days 3–6 are on-theme from the start, and polish only means adjusting tokens and adding effects | Adopted | |
+| 8 | Where the theme colors come from | From the Edgerunners key art I provided: purple-black `#120c24`, cyan `#11c4e9`, red `#fc1636`, acid yellow `#ffe428`, orange, lavender; shapes with cut corners, diagonal stripes and bevels; italic Chakra Petch. Only the mood, no logo or characters | Adopted | |
 
 ## 2026-11-03 · Last.fm client
 
-| # | 問題 | Claude 建議 | 決定 | 理由 |
+| # | Question | Claude's suggestion | Decision | Reason |
 |---|---|---|---|---|
-| 1 | 錯誤怎麼判斷 | 看 body 的 `error` 欄位，不只看 HTTP 狀態：找不到歌手時回 HTTP 200 + `{ error: 6 }` | 採用 | 錄 fixture 時發現的 |
-| 2 | 封面從哪來 | Last.fm 的歌手圖片全是同一張預設圖，封面從試聽來源拿（見下方 iTunes） | 採用 | |
-| 3 | 測試資料 | `pnpm record:lastfm` 錄真實回應；fetch 由外部注入，測試不打網路 | 採用 | |
+| 1 | How to detect errors | Check the body's `error` field, not just the HTTP status: an unknown artist returns HTTP 200 + `{ error: 6 }` | Adopted | Found while recording fixtures |
+| 2 | Where covers come from | Last.fm's artist images are all the same placeholder; take covers from the preview source (see iTunes below) | Adopted | |
+| 3 | Test data | Record real responses with `pnpm record:lastfm`; fetch is injected, so tests never hit the network | Adopted | |
 
-## 2026-11-03 · 試聽來源：iTunes 取代 Deezer
+## 2026-11-03 · Preview source: iTunes instead of Deezer
 
-| # | 問題 | Claude 建議 | 決定 | 理由 |
+| # | Question | Claude's suggestion | Decision | Reason |
 |---|---|---|---|---|
-| 1 | 試聽和封面用哪個 API | 改用 iTunes Search API 為主，不做 Deezer。Deezer 在台灣沒開放（`/infos` 回 `open: false`）：搜尋全是空陣列、試聽網址是空字串，本機看不到試聽、fixture 也錄不到真資料 | 採用 | iTunes 在台灣可用、不需要 key、試聽網址不會過期（規格裡「只快取 Deezer ID」的顧慮跟著消失，`tracks` 可以直接存網址） |
-| 2 | 查哪一國的商店 | 預設 `country=TW`，client 可換 | 採用 | 使用者在台灣；部署在美國區也一樣查台灣商店 |
-| 3 | 封面尺寸 | 把網址裡的 `100x100bb` 換成 `600x600bb` | 採用 | API 只給到 100px |
+| 1 | Which API for previews and covers | Use the iTunes Search API, not Deezer. Deezer isn't available in Taiwan (`/infos` returns `open: false`): searches return empty arrays and preview URLs are empty strings, so there are no previews locally and no real fixtures to record | Adopted | iTunes works in Taiwan, needs no key, and its preview URLs don't expire (so the spec's "cache only the Deezer ID" concern goes away and `tracks` can store URLs directly) |
+| 2 | Which store to query | Default `country=TW`, configurable in the client | Adopted | Users are in Taiwan; a US deployment still queries the Taiwan store |
+| 3 | Cover size | Replace `100x100bb` in the URL with `600x600bb` | Adopted | The API only lists up to 100px |
 
-代價：iTunes 的速率限制比 Deezer 嚴（官方說大約每分鐘 20 次），所以快取更重要。
+The cost: iTunes' rate limit is stricter than Deezer's (officially about 20 a minute), so caching matters more.
 
-為什麼不直接用 Last.fm：查過 `track.getInfo`，**沒有試聽**（`streamable` 是 `0`，回應裡沒有任何音訊網址）。封面倒是有：只有「歌手圖片」是預設圖，`track.getInfo` 的專輯封面是真的（Creep 回的是原版 Pablo Honey，300px）。試聽本來就要打 iTunes，同一個回應已經有封面，所以封面也用 iTunes；Last.fm 的專輯封面可以當 iTunes 挑不到歌時的備援（要多打一次 API，先不做）。
+Why not just Last.fm: `track.getInfo` has **no previews** (`streamable` is `0` and there's no audio URL in the response). It does have covers: only the artist images are placeholders, and `track.getInfo`'s album art is real (Creep returns the original Pablo Honey at 300px). Previews need iTunes anyway and the same response includes a cover, so covers come from iTunes too. Last.fm's album art could be a fallback when iTunes finds no song (one more API call; not done for now).
 
-## 2026-11-03 · pickTrack（練習 2）
+## 2026-11-03 · pickTrack (exercise 2)
 
-| # | 問題 | Claude 建議 | 決定 | 理由 |
+| # | Question | Claude's suggestion | Decision | Reason |
 |---|---|---|---|---|
-| 1 | 要的歌名帶版本（`Creep (Acoustic)`）、iTunes 只有原版時 | 回 `null`，不退回原版 | 採用 | 推薦寫 Acoustic 版、播出來是原版，使用者會覺得不對；規則少一級、行為好預測 |
+| 1 | The wanted title has a version (`Creep (Acoustic)`) but iTunes only has the original | Return `null`; don't fall back to the original | Adopted | Recommending the acoustic version and then playing the original would feel wrong; one less tier makes behavior predictable |
 
-## 2026-11-03 · Last.fm 快取
+## 2026-11-03 · Last.fm cache
 
-| # | 問題 | Claude 建議 | 決定 | 理由 |
+| # | Question | Claude's suggestion | Decision | Reason |
 |---|---|---|---|---|
-| 1 | 相似歌手怎麼存 | 新表 `artist_similar`（歌手 id + 名字 + match），**不**指向 `artists`。相似的那一方要用到聽眾數、標籤時才另外抓 | 採用 | 指向 `artists` 就得先對 50 位相似歌手各打一次 `getInfo` |
-| 2 | 相似清單的新鮮度 | `artists.similar_fetched_at` 另外記，null = 還沒抓；過期時整份清單在一個 transaction 裡換新 | 採用 | 歌手資訊和相似清單是兩個 API，不一定一起抓 |
-| 3 | 相似清單抓幾筆 | 50 | 採用 | 扣掉種子、不喜歡的歌手後，還要剩 10 位以上 |
-| 4 | 快取的 key | Last.fm autocorrect 後的正式名字 | 採用 | 已知限制：輸入的寫法和正式名字不同時（例如別名），每次都會 miss。自動完成會選到正式名字，所以大多數情況沒問題 |
+| 1 | How to store similar artists | A new `artist_similar` table (artist id + name + match) that does **not** reference `artists`. Listener counts and tags for the similar side are fetched only when needed | Adopted | Referencing `artists` would require one `getInfo` call for each of 50 similar artists first |
+| 2 | Freshness of the similar list | Track `artists.similar_fetched_at` separately (null = never fetched); when stale, replace the whole list in one transaction | Adopted | Artist info and the similar list are two APIs, not always fetched together |
+| 3 | How many similar artists to fetch | 50 | Adopted | Still 10+ left after excluding seeds and disliked artists |
+| 4 | Cache key | Last.fm's autocorrected official name | Adopted | Known limitation: input that differs from the official name (an alias, say) misses every time. Autocomplete picks the official name, so it's fine in most cases |
 
-## 2026-11-03 · 歌曲快取
+## 2026-11-03 · Track cache
 
-| # | 問題 | Claude 建議 | 決定 | 理由 |
+| # | Question | Claude's suggestion | Decision | Reason |
 |---|---|---|---|---|
-| 1 | 代表歌怎麼存 | `tracks` 表用歌手名字（正規化）當 key，每位歌手一首；不指向 `artists` | 採用 | 推薦的是相似歌手，他們不在 `artists` 裡 |
-| 2 | iTunes 挑不到時 | 存一列，試聽是 `null`（negative cache）；iTunes 出錯則什麼都不存 | 採用 | 速率限制；錯誤是暫時的，不該記 30 天 |
-| 3 | Last.fm 沒有熱門歌時 | 回 `null`，不存 | 採用 | 很少見，下次再問 Last.fm 成本低 |
-| 4 | 台灣商店挑不到時 | 依序試台灣 → 日本 → 美國，挑到就停 | 台灣 → **美國** → 日本（我調整順序） | 宇多田ヒカル 前 8 位相似歌手的試聽從 3 位提高到 7 位；iTunes 呼叫 8 → 16 次，結果快取 30 天 |
-| 5 | 沒有試聽要不要當錯誤 | 不當錯誤。第 3 天的 `/api/recommendations` 分三種：三個商店都沒有 → 卡片 `preview: { status: "unavailable" }`（顯示「暫無試聽」＋到 Apple Music 搜尋的連結）；iTunes 暫時出錯 → 卡片 `preview: { status: "error" }`、不快取（顯示重試）；種子歌手找不到（Last.fm 錯誤碼 6）→ 回 404 附 `artist.search` 的相近歌手，前端建議換個搜尋 | 採用（我提出要讓前端顯示錯誤與建議） | 一張卡片沒有試聽，推薦還是成功的；每張卡片各自接住 iTunes 錯誤，不讓一張卡片拖垮整個推薦 |
+| 1 | How to store each artist's track | A `tracks` table keyed by normalized artist name, one track per artist, not referencing `artists` | Adopted | Recommendations are similar artists, who aren't in `artists` |
+| 2 | When iTunes finds nothing | Store a row with a `null` preview (negative cache); store nothing when iTunes errors | Adopted | Rate limits; errors are temporary and shouldn't be remembered for 30 days |
+| 3 | When Last.fm has no top track | Return `null` and store nothing | Adopted | Rare, and asking Last.fm again is cheap |
+| 4 | When the Taiwan store has nothing | Try Taiwan → Japan → US in order, stopping at the first match | Taiwan → **US** → Japan (I changed the order) | Previews for 宇多田ヒカル's top 8 similar artists went from 3 to 7; iTunes calls went from 8 to 16, cached for 30 days |
+| 5 | Is a missing preview an error? | No. Day 3's `/api/recommendations` distinguishes three cases: no store has it → the card's `preview: { status: "unavailable" }` ("No preview" plus an Apple Music search link); iTunes errors temporarily → `preview: { status: "error" }`, not cached (shows retry); a seed isn't found (Last.fm error 6) → 404 with similar artists from `artist.search`, and the page suggests another search | Adopted (I asked for the page to show errors and suggestions) | A card without a preview is still a successful recommendation; each card catches its own iTunes error so one card can't break the list |
 
-**資料問題（寫推薦演算法時處理，不需要先決定）**
+**Data issues (to handle when writing the algorithm; no decision needed yet)**
 
-- 相似歌手會出現同一人的別名：宇多田ヒカル 的第一名是 `Utada`（match 1）
-- 標籤寫法不一：`j-pop` 和 `JPop` 同時出現；盲聽對照組用標籤挑歌前要正規化
-- 搜尋會出現拼錯的分身：`radıohead`（無點的 ı）有 117 位聽眾；自動完成可能要用聽眾數過濾
-- iTunes 搜尋第一筆常不是原版：「Radiohead Creep」第一筆是 Acoustic 版（原版不在台灣商店），後面還有 TLC 的同名歌。要寫純函式從結果挑歌：歌手要對、優先原版標題，找不到原版才接受其他版本
-- iTunes 台灣商店的歌手名和 Last.fm 寫法不同：`宇多田ヒカル` vs `Hikaru Utada`。比對歌手時不能只比字串
-- 試聽命中率低：宇多田ヒカル 的前 8 位相似歌手只有 3 位挑到試聽。原因幾乎都是 iTunes 各國商店把歌手名在地化：台灣商店 BoA → `寶兒`、Crystal Kay → `克莉絲朵凱兒`、Perfume 的〈エレクトロ・ワールド〉→ `Electro World`；日本商店 Radiohead → `レディオヘッド`。沒有一個商店能全部對上；安室奈美恵 三個商店都只有翻唱。已用商店備援處理（見「歌曲快取」#4），剩安室奈美恵 挑不到
+- Similar artists include aliases of the same person: 宇多田ヒカル's #1 is `Utada` (match 1).
+- Tag spellings vary: `j-pop` and `JPop` both appear; normalize tags before picking control songs for the blind test.
+- Search returns misspelled duplicates: `radıohead` (dotless ı) has 117 listeners; autocomplete may need a listener threshold.
+- iTunes' first result often isn't the original: for "Radiohead Creep" the first hit is the acoustic version (the original isn't in the Taiwan store), followed by TLC's song of the same name. Picking needs a pure function: right artist, original title first, other versions only if there's no original.
+- The iTunes Taiwan store spells artists differently from Last.fm: `宇多田ヒカル` vs `Hikaru Utada`. Artist matching can't be plain string comparison.
+- Low preview hit rate: only 3 of 宇多田ヒカル's top 8 similar artists got a preview. Almost always because stores localize artist names: in the Taiwan store BoA → `寶兒`, Crystal Kay → `克莉絲朵凱兒`, Perfume's 「エレクトロ・ワールド」 → `Electro World`; in the Japan store Radiohead → `レディオヘッド`. No single store matches everyone, and 安室奈美恵 only has covers in all three stores. Handled with store fallback (see "Track cache" #4); only 安室奈美恵 still has no match.
 
-## 2026-11-03 · 主題改版：Retro-Modern Futuristic
+## 2026-11-03 · Theme redesign: retro-modern futuristic
 
-| # | 問題 | Claude 建議 | 決定 | 理由 |
+| # | Question | Claude's suggestion | Decision | Reason |
 |---|---|---|---|---|
-| 1 | 原本的霓虹 Cyberpunk 太幼稚 | — | 改成 Retro-Modern Futuristic，參考我給的插畫（我提出） | |
-| 2 | 配色 | 從插畫取色：桃紅 `#f8527e` 當整頁的地、海軍藍 `#131f39` 當墨（文字、粗墨線、深色面板）、青綠 `#1ec8bc` 當主要動作和太陽圓；灰青 `#43797c`、梅紫 `#533852`、珊瑚橘 `#d6665c` 小面積點綴 | 採用 | 墨對桃紅的對比約 5:1，內文可讀 |
-| 3 | 造型 | 拿掉光暈、斜線條紋、斜切、切角、等寬字；改用大塊平塗和粗墨線，太陽圓是唯一的圓 | 採用 | 光暈和斜切是「幼稚」感的主要來源；插畫本身就是平塗加描邊 |
-| 4 | 字型 | 標題 Chakra Petch 斜體 → Archivo 寬體（`font-stretch: 125%`），內文維持思源黑體 | 採用 | 斜體科幻字像遊戲介面；寬體無襯線像復古海報 |
+| 1 | The neon cyberpunk look is too childish | — | Retro-modern futuristic, based on the illustration I provided (my call) | |
+| 2 | Colors | From the illustration: pink `#f8527e` as the page background, navy `#131f39` as ink (text, thick lines, dark panels), teal `#1ec8bc` for primary actions and the sun; slate `#43797c`, plum `#533852` and coral `#d6665c` as small accents | Adopted | Ink on pink is about 5:1 contrast, readable for body text |
+| 3 | Shapes | Drop glows, diagonal stripes, bevels, cut corners and monospace; use flat fills and thick ink lines, with the sun as the only circle | Adopted | Glows and bevels were the main source of the childish feel; the illustration itself is flat fills with outlines |
+| 4 | Fonts | Headings from italic Chakra Petch → wide Archivo (`font-stretch: 125%`); body stays Noto Sans TC | Adopted | Italic sci-fi fonts look like a game UI; a wide sans looks like a retro poster |
 
-## 2026-11-04 · 推薦演算法
+## 2026-11-04 · Recommendation algorithm
 
-| # | 問題 | Claude 建議 | 決定 | 理由 |
+| # | Question | Claude's suggestion | Decision | Reason |
 |---|---|---|---|---|
-| 1 | 演算法的輸入 | 普通物件（`types.ts`：種子 + 相似清單 + weight），不碰資料庫和 API；資料由 `/api/recommendations` 從快取拿 | 採用 | 純函式好測；SPEC 規定 |
-| 2 | 分數怎麼算 | 每位種子的 `weight × match` 加總；種子 weight 先都是 1，之後「喜歡」加進來的種子權重較低 | 採用 | 跟越多種子相似、相似度越高，分數越高（SPEC） |
-| 3 | 分數一樣時 | 依 `nameNorm` 排 | 採用 | 同樣的輸入每次同樣的順序，盲聽測驗才能重現 |
-| 4 | 別名怎麼排除 | 名字（正規化後）一樣，或 MBID 一樣，都算同一位；沒有 MBID 的不比 | 採用 | 已知限制：`Utada` 在 Last.fm 沒有 MBID，抓不到，還是會被推薦給宇多田ヒカル 的歌迷。之後可以靠「不喜歡」排除，或加一小份手動別名表 |
-| 5 | 種子本身怎麼排除 | `recommend()` 自己把種子（名字＋`seedMbid`）加進排除清單，不靠呼叫的人記得傳 | 採用 | 選了 Radiohead 和 Thom Yorke 時，兩位互相在對方的清單裡 |
-| 6 | 先排除還是先取前 10 | 先排除再取，名額由後面的候選補上 | 採用 | 先取再排除會不足 10 位 |
-| 7 | 版本號 | `ALGO_VERSION = "v1"`，規則一改就換 | 採用 | 盲聽評分連同版本存，才比得出哪版好 |
+| 1 | The algorithm's input | Plain objects (`types.ts`: seed + similar list + weight), no database or API access; `/api/recommendations` loads the data from the cache | Adopted | Pure functions are easy to test; the spec requires it |
+| 2 | Scoring | Sum `weight × match` across seeds; every seed's weight is 1 for now, with seeds added by "like" weighted lower later | Adopted | Similar to more seeds and more similar scores higher (spec) |
+| 3 | Ties | Sort by `nameNorm` | Adopted | The same input gives the same order every time, so the blind test is reproducible |
+| 4 | Excluding aliases | Same normalized name or same MBID counts as the same artist; artists without an MBID aren't compared by it | Adopted | Known limitation: `Utada` has no MBID on Last.fm, so it still gets recommended to 宇多田ヒカル fans. Could later be excluded by "dislike" or a small manual alias list |
+| 5 | Excluding the seeds | `recommend()` adds the seeds (name + `seedMbid`) to the exclusion list itself instead of relying on the caller | Adopted | With Radiohead and Thom Yorke as seeds, each is in the other's list |
+| 6 | Exclude first or take the top 10 first | Exclude first, so later candidates fill the spots | Adopted | Taking first then excluding leaves fewer than 10 |
+| 7 | Version | `ALGO_VERSION = "v1"`, bumped whenever the rules change | Adopted | Blind-test ratings are stored with the version, so versions can be compared |
 
-**v1 用真實資料試的發現**
+**What v1 showed with real data**
 
-- v1 用真實資料試（種子：宇多田ヒカル、椎名林檎）看到三個問題，留給 v2：
-  - **一位種子的清單蓋過另一位**：前 10 名有 8 位只來自宇多田ヒカル。可以考慮每位種子的分數先各自正規化，或每位種子保底幾個名額
-  - **合作名義**：`椎名林檎×斎藤ネコ` 是種子本人的合作作品，名字裡含種子名字就該排除
-  - **樂團與本人**：`東京事変` 是椎名林檎 的樂團，兩邊都推所以排第一。算不算重複要再決定
+- Trying v1 with real data (seeds 宇多田ヒカル and 椎名林檎) showed three problems, left for v2:
+  - **One seed's list drowns out another's**: 8 of the top 10 came from 宇多田ヒカル alone. Options: normalize each seed's scores separately, or guarantee each seed some spots.
+  - **Collaboration credits**: `椎名林檎×斎藤ネコ` is the seed's own collaboration; a name containing a seed's name should be excluded.
+  - **Bands and members**: `東京事変` is 椎名林檎's band, and both seeds recommend it, so it ranks first. Whether that's a duplicate is still undecided.
 
 ## 2026-11-04 · /api/recommendations
 
-| # | 問題 | Claude 建議 | 決定 | 理由 |
+| # | Question | Claude's suggestion | Decision | Reason |
 |---|---|---|---|---|
-| 1 | GET 還是 POST | `GET /api/recommendations?seed=A&seed=B`，回應 `{ algoVersion, seeds, recommendations }` | 採用 | 只讀不寫；網址可以直接分享、用 curl 測 |
-| 2 | 幾位種子 | API 接受 1–5 位；SPEC 的「至少 3 位」由前端要求 | 採用（後來改成 1–3 位，見「種子人數」） | 開發時用 1 位種子測比較方便 |
-| 3 | 同時打幾個外部 API | 最多 3 個（`mapLimit`） | 採用 | Last.fm 每秒約 5 次、iTunes 每分鐘約 20 次 |
-| 4 | 找不到種子時的建議 | `artist.search` 前 5 位、聽眾 1000 人以上 | 採用 | 擋掉 radıohead 這種拼錯的分身 |
-| 5 | Last.fm 當機 | 502，不轉傳原始訊息 | 採用 | |
-| 6 | 測試用的歌手 | 之後試真實資料改用歐美歌手（Tame Impala、Justin Bieber、Kokoroko…） | 採用（我提出） | |
+| 1 | GET or POST | `GET /api/recommendations?seed=A&seed=B`, responding `{ algoVersion, seeds, recommendations }` | Adopted | Read-only; URLs can be shared and tested with curl |
+| 2 | How many seeds | The API accepts 1–5; the spec's "at least 3" is enforced by the page | Adopted (later changed to 1–3; see "Number of seeds") | Testing with one seed is easier during development |
+| 3 | Concurrent external API calls | At most 3 (`mapLimit`) | Adopted | Last.fm allows about 5 a second, iTunes about 20 a minute |
+| 4 | Suggestions when a seed isn't found | Top 5 from `artist.search` with at least 1,000 listeners | Adopted | Filters out misspelled duplicates like radıohead |
+| 5 | Last.fm down | 502, without passing on the original message | Adopted | |
+| 6 | Artists for testing | Use Western artists for real-data trials from now on (Tame Impala, Justin Bieber, Kokoroko…) | Adopted (my call) | |
 
-**用真實資料試（Tame Impala、Justin Bieber、Kokoroko）**
+**Trying it with real data (Tame Impala, Justin Bieber, Kokoroko)**
 
-- 第一次 6.4 秒，第二次 0.03 秒（全部從快取）；10 張卡片 8 張有試聽
-- Last.fm 的 autocorrect 會自己修好小拼錯（`Tame Impalla` → Tame Impala），修不好的（`Kokoroco`）才回 404，建議是 Kokoroko、LocoRoco
-- **種子分數蓋過的問題又出現**：Kokoroko 5 位、Justin Bieber 4 位，Tame Impala 只有 Pond 1 位。原因是各種子的相似清單第一名都接近 1，誰的清單「前段比較密」誰就佔比較多名額。v2 優先處理
-- 400 的錯誤訊息是 zod 的原始 JSON，前端不要直接顯示
+- First request 6.4 seconds, second 0.03 seconds (all from cache); 8 of 10 cards had previews.
+- Last.fm's autocorrect fixes small typos itself (`Tame Impalla` → Tame Impala); what it can't fix (`Kokoroco`) returns 404 with suggestions Kokoroko and LocoRoco.
+- **One seed drowning out others again**: 5 from Kokoroko, 4 from Justin Bieber, and only Pond from Tame Impala. Every seed's #1 is close to 1, so whichever seed's list is denser at the top takes more spots. Top priority for v2.
+- The 400 error message is zod's raw JSON; the page shouldn't show it directly.
 
-## 2026-11-04 · 推薦演算法 v2：種子平衡
+## 2026-11-04 · Algorithm v2: seed balance
 
-| # | 問題 | Claude 建議 | 決定 | 理由 |
+| # | Question | Claude's suggestion | Decision | Reason |
 |---|---|---|---|---|
-| 1 | 一位種子蓋過其他種子 | 分數改成看名次：第 rank 名得 `weight / (5 + rank)`，加總（Reciprocal Rank Fusion）；`ALGO_VERSION` 換成 `v2` | 採用（我要求先修這個） | 每位種子的第 1 名一樣重，結果輪流來自各種子；被多位種子推薦的仍然排前面 |
-| 2 | `RANK_K` 用多少 | 5：兩位種子各排第 5 名贏過單一種子的第 1 名；各排第 10 名落在第 2、3 名之間 | 採用 | 太小（1）名次差距太大，太大（60，常見的預設）共同推薦會壓過一切 |
+| 1 | One seed drowning out the others | Score by rank: rank `rank` gets `weight / (5 + rank)`, summed (Reciprocal Rank Fusion); `ALGO_VERSION` becomes `v2` | Adopted (I asked to fix this first) | Every seed's #1 counts the same, so results alternate between seeds; artists recommended by several seeds still rank high |
+| 2 | Value of `RANK_K` | 5: #5 for two seeds beats #1 for one; #10 for two lands between #2 and #3 | Adopted | Too small (1) makes rank gaps huge; too large (60, a common default) lets shared recommendations dominate |
 
-同一組種子（Tame Impala、Justin Bieber、Kokoroko）：
+Same seeds (Tame Impala, Justin Bieber, Kokoroko):
 
-| | Kokoroko | Justin Bieber | Tame Impala | 有試聽 |
+| | Kokoroko | Justin Bieber | Tame Impala | With preview |
 |---|---|---|---|---|
 | v1 | 5 | 4 | 1 | 8 / 10 |
 | v2 | 3 | 4 | 3 | 9 / 10 |
 
-代價：丟掉 `match` 的大小，相似清單整體很弱的種子也拿到一樣多名額。
+The cost: the size of `match` is lost, so a seed with a weak list overall gets as many spots as any other.
 
-## 2026-11-04 · 首頁：種子輸入與推薦卡片
+## 2026-11-04 · Home page: seed input and recommendation cards
 
-| # | 問題 | Claude 建議 | 決定 | 理由 |
+| # | Question | Claude's suggestion | Decision | Reason |
 |---|---|---|---|---|
-| 1 | 自動完成的後端快取 | `GET /api/artists/search?q=` 用 Nitro 的 `defineCachedEventHandler`，一天；key 是正規化後的字 | 採用 | 不必為搜尋開資料表。已知限制：部署到 Vercel 後快取在每個 serverless 實例的記憶體裡，命中率較低 |
-| 2 | 自動完成找不到時 | 也能直接按 Enter 加打的字 | 採用 | Last.fm 搜尋很模糊（「kokoro」找不到 Kokoroko）；推薦 API 會 autocorrect，修不好就回 404 給建議 |
-| 3 | 已選的種子放哪 | 貼在太陽圓上，像插畫裡貼在裝備上的標籤；手機版順序是標題 → 輸入 → 種子 → 按鈕 | 採用 | 主題的唯一圓形有實際用途；手機上加完種子就看得到 |
-| 4 | 正規化函式放哪 | 從 `server/utils/` 搬到 `shared/utils/`，前端判斷重複也用同一套 | 採用 | 前後端對「同一位歌手」的判斷一致 |
-| 5 | 沒有試聽的卡片 | 「暫無試聽 · 到 Apple Music 找找看」，連到 `music.apple.com/tw/search` | 採用 | 對應「歌曲快取」#5 的 unavailable |
-| 6 | 元件測試的動畫 | `tests/setup/nuxt-setup.ts` 設 `MotionGlobalConfig.skipAnimations = true` | 採用 | happy-dom 取消動畫時丟 AbortError；測試只檢查行為 |
+| 1 | Server-side cache for autocomplete | `GET /api/artists/search?q=` with Nitro's `defineCachedEventHandler` for a day, keyed by the normalized query | Adopted | No table needed for search. Known limitation: on Vercel the cache lives in each serverless instance's memory, so the hit rate is lower |
+| 2 | When autocomplete finds nothing | Enter still adds the typed text | Adopted | Last.fm search is fuzzy ("kokoro" doesn't find Kokoroko); the recommendations API autocorrects and returns 404 with suggestions if it can't |
+| 3 | Where chosen seeds go | On the sun, like the stickers on the gear in the illustration; on phones the order is title → input → seeds → button | Adopted | Gives the theme's only circle a real job; on phones the seeds are visible right after adding them |
+| 4 | Where the normalization function lives | Moved from `server/utils/` to `shared/utils/` so the page uses the same rules for duplicates | Adopted | Server and client agree on what "the same artist" means |
+| 5 | Cards without a preview | "No preview · Find it on Apple Music", linking to `music.apple.com/tw/search` | Adopted | Matches "Track cache" #5's unavailable state |
+| 6 | Animations in component tests | Set `MotionGlobalConfig.skipAnimations = true` in `tests/setup/nuxt-setup.ts` | Adopted | happy-dom throws AbortError when cancelling animations; tests only check behavior |
 
-**在瀏覽器裡發現的 bug**：重新整理後種子消失。原因是 SSR：伺服器沒有 localStorage，Pinia 把空狀態送到瀏覽器蓋掉 localStorage。用 `skipHydrate` ＋ `initOnMounted` 修好，補了一個重現的測試（`docs/concepts.md` 第 10 節）。
+**A bug found in the browser**: seeds disappeared on reload. The cause was SSR: the server has no localStorage, and Pinia sent the empty state to the browser, overwriting localStorage. Fixed with `skipHydrate` + `initOnMounted`, with a test that reproduces it (`docs/concepts.md` section 10).
 
-## 2026-11-04 · 首頁 RWD 與空狀態
+## 2026-11-04 · Home page responsiveness and empty state
 
-| # | 問題 | Claude 建議 | 決定 | 理由 |
+| # | Question | Claude's suggestion | Decision | Reason |
 |---|---|---|---|---|
-| 1 | 搜尋框 debounce | 已經有（250ms）；在瀏覽器實測快速打「tame impala」11 個字只送出 1 個請求 | 不改 | 實測確認已經生效（後來改成 400ms，見下一節） |
-| 2 | 還沒選歌手時 | 太陽圓上放音浪動畫（5 根直條輪流跳），取代「還沒有選歌手」文字；螢幕閱讀器仍念這句 | 採用（我提出，附參考圖） | |
-| 3 | 1024px 以下首頁不能捲動 | 第一個畫面用 `h-dvh`，太陽圓用 container query（`min(100cqw, 100cqh)`）縮到剩下的空間；橫放（寬 768 以上）改左右兩欄；高 520 以下縮標題、拿掉副標 | 採用（我提出）。推薦結果出現後才需要往下捲 | 實測 375×667、390×844、768×1024、1023×768、812×375 都剛好一個畫面 |
-| 4 | 自動完成出現「Tame İmpala」 | 判斷重複時去掉重音、把各種 i 當成一樣；看起來一樣的只留聽眾最多的 | 採用 | 和 radıohead 同一類的分身，聽眾 1965 人過得了門檻 |
+| 1 | Search box debounce | Already there (250ms); typing "tame impala" (11 characters) quickly in the browser sent only 1 request | No change | Confirmed working (later changed to 400ms; see the next section) |
+| 2 | Before any artist is picked | A sound-wave animation on the sun (5 bars bouncing in turn) instead of the "no artists yet" text; screen readers still read the text | Adopted (my call, with a reference image) | |
+| 3 | No scrolling on the home page below 1024px | The first screen uses `h-dvh`, and the sun shrinks to the remaining space with a container query (`min(100cqw, 100cqh)`); landscape (768+ wide) switches to two columns; below 520px tall the title shrinks and the subtitle goes | Adopted (my call). Scrolling is only needed once recommendations appear | Verified at 375×667, 390×844, 768×1024, 1023×768 and 812×375: exactly one screen each |
+| 4 | Autocomplete shows "Tame İmpala" | Ignore accents and treat every kind of i as the same when checking duplicates; among lookalikes keep the one with the most listeners | Adopted | Same kind of duplicate as radıohead, but with 1,965 listeners it passes the threshold |
 
-**踩到的坑**：Nitro 的快取 key 會去掉空白和標點，「tame impala」「tame impala?」「tameimpala」共用同一筆快取（`.nuxt/cache/nitro/handlers/`）。改了建議規則後要清掉這個資料夾才看得到新結果；正式環境部署時快取自然是空的。
+**A pitfall**: Nitro's cache keys drop spaces and punctuation, so "tame impala", "tame impala?" and "tameimpala" share one cache entry (`.nuxt/cache/nitro/handlers/`). After changing the suggestion rules, that folder must be cleared to see new results; in production the cache starts empty after a deploy.
 
-## 2026-11-04 · 搜尋請求次數、推薦卡片版面
+## 2026-11-04 · Search request count, card layout
 
-| # | 問題 | Claude 建議 | 決定 | 理由 |
+| # | Question | Claude's suggestion | Decision | Reason |
 |---|---|---|---|---|
-| 1 | 搜尋還是太常打 API | debounce 250ms → 400ms；查過的字在元件裡記住結果，刪掉再打回來不再請求 | 採用（我提出，附 Network 截圖） | 一般打字時字和字之間常停超過 250ms，等於每一兩個字查一次；截圖裡「daniel」也被查了兩次。之前用工具打字測不出來，因為工具打字太快 |
-| 2 | 卡片封面沒填滿 | 卡片固定高度（手機 128px、桌機 160px），封面是正方形、高度等於卡片，貼齊左邊（參考 Spotify） | 採用（我提出） | |
-| 3 | 格線裡卡片高度不一 | 同上，固定高度；歌名、歌手、「和…相似」太長就截斷（滑鼠移上去看全文） | 採用（我提出） | 「暫無試聽」那張多一行字就會比較高 |
+| 1 | Search still calls the API too often | Debounce 250ms → 400ms; remember results in the component so deleting and retyping doesn't request again | Adopted (my call, with a Network screenshot) | Normal typing often pauses more than 250ms between keys, which means a search every character or two; in the screenshot "daniel" was searched twice. Earlier tests with tool-typed input missed it because tools type too fast |
+| 2 | Card covers don't fill the card | Fixed card height (128px on phones, 160px on desktop) with a square cover as tall as the card, flush left (like Spotify) | Adopted (my call) | |
+| 3 | Cards in the grid have different heights | As above, fixed height; long titles, artists and "Similar to…" are truncated (full text on hover) | Adopted (my call) | The "No preview" card was taller by one line |
 
-## 2026-11-04 · 種子人數
+## 2026-11-04 · Number of seeds
 
-| # | 問題 | Claude 建議 | 決定 | 理由 |
+| # | Question | Claude's suggestion | Decision | Reason |
 |---|---|---|---|---|
-| 1 | 要選幾位種子 | — | 1–3 位（我提出，原本 SPEC 是 3–5 位） | 不需要那麼多；前端 store 和 API 的檢查一起改，SPEC 跟著更新 |
+| 1 | How many seeds to pick | — | 1–3 (my call; the spec said 3–5) | More aren't needed; the client store and the API check change together, and the spec is updated |
 
-影響：推薦理由「和 A、B 相似」最多列 3 位；種子少時，v2 的名次分數讓每位種子分到的名額更多（1 位種子 = 10 個名額全給它）。
+Effects: "Similar to A and B" lists at most 3 seeds; with fewer seeds, v2's rank scores give each seed more spots (1 seed = all 10 spots).
 
-## 2026-11-04 · 空狀態改成黑膠唱盤
+## 2026-11-04 · Empty state becomes a turntable
 
-| # | 問題 | Claude 建議 | 決定 | 理由 |
+| # | Question | Claude's suggestion | Decision | Reason |
 |---|---|---|---|---|
-| 1 | 還沒選歌手時太陽圓上放什麼 | 黑膠唱盤（`VinylRecord.vue`，inline SVG）：墨色唱片、粗溝紋、兩塊扇形反光，桃紅＋珊瑚橘標籤，中心孔露出青綠；紙色唱臂＋墨色粗描邊、珊瑚橘唱頭。唱片約 4 秒轉一圈，唱臂在唱片出現後擺進來；減少動態效果時都不動 | 採用（我提出，取代音浪） | 比等化器更有「音樂」的具體形象；顏色只用主題 token，維持平塗＋粗墨線 |
+| 1 | What goes on the sun before any artist is picked | A turntable (`VinylRecord.vue`, inline SVG): an ink record with thick grooves and two sector highlights, a pink + coral label, the center hole showing teal; a paper tonearm with a thick ink outline and a coral head. The record spins once about every 4 seconds and the tonearm swings in after the record appears; nothing moves with reduced motion | Adopted (my call, replacing the sound wave) | A more concrete image of music than an equalizer; only theme tokens, keeping flat fills and thick lines |
 
-## 2026-11-04 · 首頁大標與左欄置中
+## 2026-11-04 · Home title and centering the left column
 
-| # | 問題 | Claude 建議 | 決定 | 理由 |
+| # | Question | Claude's suggestion | Decision | Reason |
 |---|---|---|---|---|
-| 1 | 左欄要和黑膠唱盤一樣上下置中 | 桌機和橫放平板的 grid 上下各加一列 `1fr` 空白，標題、輸入、按鈕整組置中 | 採用（我提出） | 實測 1440×900：左欄和太陽圓的中心都在 y=448 |
-| 2 | 大標風格 | 參考新世紀福音戰士標題卡的字體處理（不用它的 logo）：Noto Serif 字重 900、寬度軸壓到 62.5%、大寫、行距 0.8，每個字再拉高 1.18 倍；手機一行、桌機兩行 | 試做一版（我提出） | Google Fonts 裡最接近「極粗、極窄的襯線字」的免費字型；`font-title` utility 只給首頁大標用 |
+| 1 | Center the left column vertically like the turntable | Add a `1fr` row above and below in the desktop and landscape grid so title, input and button are centered as a group | Adopted (my call) | At 1440×900 the left column's center and the sun's are both at y=448 |
+| 2 | Title style | Inspired by how Neon Genesis Evangelion's title cards treat type (not its logo): Noto Serif at weight 900, width axis at 62.5%, uppercase, line height 0.8, each word stretched 1.18× taller; one line on phones, two on desktop | Try a version (my call) | The closest free Google Font to an ultra-bold, ultra-condensed serif; the `font-title` utility is only for the home title |
 
-## 2026-11-04 · UI 文案改成英文
+## 2026-11-04 · UI copy in English
 
-| # | 問題 | Claude 建議 | 決定 | 理由 |
+| # | Question | Claude's suggestion | Decision | Reason |
 |---|---|---|---|---|
-| 1 | UI 用什麼語言 | — | 全部英文（我提出）；`<html lang="en">`，聽眾數用英文的縮寫（4.7M listeners） | |
-| 2 | 英文比中文長，手機版塞不下 | 縮短：輸入提示「Type for suggestions, or press Enter」、按鈕旁「Pick an artist first」；手機上按鈕字縮小一級；卡片的連結只寫「Apple Music」（`aria-label` 念完整的「Find … on Apple Music」） | 採用 | 實測 375×667 仍是一個畫面不捲動 |
-| 3 | 卡片在手機上超出右邊 | 推薦清單改 `grid-cols-1`（`minmax(0, 1fr)`） | 採用 | 只有一欄時欄寬是 `auto`，會被卡片裡不換行的英文撐開；中文短所以之前沒發生 |
+| 1 | UI language | — | All English (my call); `<html lang="en">`, listener counts abbreviated in English (4.7M listeners) | |
+| 2 | English is longer than Chinese and doesn't fit on phones | Shorten: input hint "Type for suggestions, or press Enter", next to the button "Pick an artist first"; one size smaller button text on phones; card links say only "Apple Music" (`aria-label` reads the full "Find … on Apple Music") | Adopted | Still one screen with no scrolling at 375×667 |
+| 3 | Cards overflow on the right on phones | Use `grid-cols-1` (`minmax(0, 1fr)`) for the list | Adopted | With a single column the track is `auto` and gets stretched by unbreakable English text inside cards; the shorter Chinese never triggered it |
 
-## 2026-11-04 · 已選歌手改成唱盤下方的標籤
+## 2026-11-04 · Chosen artists become tags under the turntable
 
-| # | 問題 | Claude 建議 | 決定 | 理由 |
+| # | Question | Claude's suggestion | Decision | Reason |
 |---|---|---|---|---|
-| 1 | 加了歌手後唱盤被換掉／蓋住，畫面跳動 | 唱盤一直在太陽圓上轉；已選歌手是太陽圓下方的一排標籤，沒有歌手時顯示「Your artists will appear here」 | 採用（我提出） | 加減歌手只動標籤列 |
-| 2 | 標籤折行時太陽圓會縮 | 標籤列的高度事先留好：手機（640 以下）和橫放畫面留兩行，其他留一行；標籤不縮（放不下就換行），不用 layout 動畫 | 採用 | 實測加第 1～3 位歌手時太陽圓大小不變：375×667 都是 188px、812×375 都是 219px、1440×900 都是 512px |
-| 3 | 桌機上標籤離太陽圓太遠 | 桌機時太陽圓的區塊固定高度，太陽圓和標籤整組上下置中 | 採用 | 標籤緊貼太陽圓下方 17px；整組和左欄中心同高 |
+| 1 | Adding an artist replaces or covers the turntable, and the layout jumps | The turntable always spins on the sun; chosen artists are a row of tags under it, with "Your artists will appear here" when empty | Adopted (my call) | Adding or removing artists only touches the tag row |
+| 2 | The sun shrinks when tags wrap | Reserve the tag row's height: two rows on phones (under 640) and in landscape, one row elsewhere; tags don't shrink (they wrap), no layout animation | Adopted | Adding the 1st to 3rd artist keeps the sun the same size: 188px at 375×667, 219px at 812×375, 512px at 1440×900 |
+| 3 | On desktop the tags are far from the sun | Fix the sun area's height on desktop and center the sun and tags vertically as a group | Adopted | The tags sit 17px under the sun, and the group is level with the left column's center |
 
-## 2026-11-04 · 標籤移到輸入框下、推薦按鈕置左下
+## 2026-11-04 · Tags under the input, Recommend at the bottom left
 
-| # | 問題 | Claude 建議 | 決定 | 理由 |
+| # | Question | Claude's suggestion | Decision | Reason |
 |---|---|---|---|---|
-| 1 | 已選歌手的標籤放哪 | 從太陽圓下方移到輸入框和推薦按鈕中間 | 採用（我提出，Claude 同意） | 打字 → 看到加了誰 → 按推薦，由上往下讀；按 Enter 後回饋就在輸入框旁邊；太陽圓變成純裝飾，大小自然不變 |
-| 2 | 推薦按鈕的位置 | 桌機和橫放：左欄最下面（左下角，貼近深藍地面）；標題、輸入、標籤整組在左欄上下置中。手機本來就在最下面 | 採用（我提出） | |
-| 3 | 很矮的畫面塞不下 | 高 520 以下：標題一行、輸入框的標籤文字只給螢幕閱讀器、歌手標籤用小尺寸 | 採用 | 812×375 原本 417px 會捲動，改完剛好 375 |
+| 1 | Where the chosen-artist tags go | Move them from under the sun to between the input and the Recommend button | Adopted (my call; Claude agreed) | Reading top to bottom: type → see who was added → press Recommend; the feedback for Enter is right next to the input, and the sun becomes purely decorative, so its size stays put |
+| 2 | Where the Recommend button goes | Desktop and landscape: the bottom of the left column (bottom left, near the navy ground strip), with title, input and tags centered in the left column. On phones it was already at the bottom | Adopted (my call) | |
+| 3 | Very short screens don't fit | Below 520px tall: one-line title, input label for screen readers only, smaller tags | Adopted | 812×375 was 417px and scrolled; now exactly 375 |
 
-實測加第 1～3 位歌手：375×667 太陽圓都是 184px、768×1024 都是 441px、812×375 都是 327px、1440×900 都是 512px；四個尺寸都剛好一個畫面不捲動。桌機的按鈕和輸入框左緣對齊（x=112），距深藍地面 20px。
+Adding the 1st to 3rd artist: the sun stays 184px at 375×667, 441px at 768×1024, 327px at 812×375 and 512px at 1440×900; all four sizes are exactly one screen with no scrolling. On desktop the button lines up with the input's left edge (x=112), 20px above the navy ground strip.
 
-## 2026-11-04 · 1024 以下改成：標題 → 唱盤 → 輸入和標籤 → 按鈕
+## 2026-11-04 · Below 1024: title → turntable → input and tags → button
 
-| # | 問題 | Claude 建議 | 決定 | 理由 |
+| # | Question | Claude's suggestion | Decision | Reason |
 |---|---|---|---|---|
-| 1 | 手機、直立平板的順序 | — | 標題 → 黑膠唱盤 → 輸入框和已選標籤 → 推薦按鈕（我提出） | 輸入和按鈕在下半部，拇指搆得到 |
-| 2 | 橫放（寬 768 以上、橫向）也照這個順序嗎 | 不改，維持左右兩欄 | 採用 | 高度只有 375 左右，直排放不下 |
-| 3 | 輸入框在下半部，建議清單往下開會超出畫面 | 直排時清單往上開（蓋住唱盤，那只是裝飾）；兩欄時往下開；清單限高、裡面捲動；用方向鍵選時把選到的那一個捲進可見範圍 | 採用 | 375×667 原本清單底部到 710px、頁面變成可以捲；改完不超出。桌機限高 18rem 或 35% 畫面高，原本超出 4px |
+| 1 | Order on phones and portrait tablets | — | Title → turntable → input and chosen tags → Recommend button (my call) | The input and button sit in the lower half, within thumb reach |
+| 2 | Same order in landscape (768+ wide)? | No, keep two columns | Adopted | At around 375px tall, a single column doesn't fit |
+| 3 | With the input in the lower half, a list opening downward goes off screen | In one column the list opens upward (over the turntable, which is only decoration); in two columns it opens downward; the list has a max height and scrolls inside, and arrow-key selection scrolls the option into view | Adopted | At 375×667 the list used to reach 710px and made the page scrollable; now it stays inside. On desktop the max height is 18rem or 35% of the screen height (it overflowed by 4px before) |
 
-實測：375×667、390×844、768×1024 順序都正確，加第 1～3 位歌手時太陽圓大小不變（184、358、441px），都是剛好一個畫面。
+Verified: the order is right at 375×667, 390×844 and 768×1024; adding the 1st to 3rd artist keeps the sun the same size (184, 358, 441px), and each is exactly one screen.
 
-## 2026-11-04 · 推薦結果改成唱片箱
+## 2026-11-04 · Recommendations become a record crate
 
-| # | 問題 | Claude 建議 | 決定 | 理由 |
+| # | Question | Claude's suggestion | Decision | Reason |
 |---|---|---|---|---|
-| 1 | 推薦結果的呈現 | `RecordCrate.vue` 取代卡片格線：選到的封面在中間，其他往左右疊（越遠越小、往內轉 28°、蓋一層越來越深的墨色），選到那張後面滑出一張黑膠；封面下方是歌手、歌名、「Similar to …」，再來是圓形播放鍵 | 採用（我提出：像翻黑膠唱片、資訊在封面下、播放鍵改圓形） | |
-| 2 | 怎麼換上下一張 | 左右滑（motion-v 的 `drag="x"`，位移＋速度超過 60px 才換）、點旁邊的封面、圓形左右箭頭、鍵盤左右鍵；顯示「3 / 10」 | 採用 | 手機用滑的，桌機用點的，鍵盤也能用 |
-| 3 | 無障礙 | 整組 `aria-roledescription="carousel"`，每張是 `slide`、標「3 of 10: 歌手」；封面下的資訊 `aria-live`，換唱片時螢幕閱讀器念新的歌手 | 採用 | |
-| 4 | 進場 | 封面一出現就在最後的位置（`initial: false`），整組跟著外層淡入 | 採用 | 原本所有封面先疊在中間、蓋著深色再散開，看起來很亂 |
+| 1 | How recommendations are shown | `RecordCrate.vue` replaces the card grid: the selected cover in the middle, the rest stacked to the sides (smaller with distance, turned inward 28°, under an increasingly dark ink layer), with a record sliding out from behind the selected one; under the cover come the artist, title and "Similar to …", then a round play button | Adopted (my call: like flipping through records, info under the cover, a round play button) | |
+| 2 | How to move between records | Swipe (motion-v's `drag="x"`, changing records past 60px of offset plus velocity), click a side cover, round left/right arrows, or the arrow keys; shows "3 / 10" | Adopted | Swipe on phones, click on desktop, keyboard works too |
+| 3 | Accessibility | The group is `aria-roledescription="carousel"`, each record a `slide` labeled "3 of 10: Artist"; the info under the cover is `aria-live`, so screen readers announce the new artist | Adopted | |
+| 4 | Entrance | Covers start in their final positions (`initial: false`) and the group fades in with its parent | Adopted | Before, all covers stacked in the middle under dark overlays and then fanned out, which looked messy |
 
-舊的 `RecommendationCard.vue` 刪掉。實測：1440×900 和 375×812 都不會左右捲；在瀏覽器裡用滑鼠往左拖中間的封面，從第 1 張換到第 2 張。
+The old `RecommendationCard.vue` is gone. Verified: no horizontal scrolling at 1440×900 or 375×812; dragging the middle cover left with the mouse moves from record 1 to record 2.
 
-## 2026-11-04 · 回饋改成 Explore from here
+## 2026-11-04 · Feedback replaced by Explore from here
 
-| # | 問題 | Claude 建議 | 決定 | 理由 |
+| # | Question | Claude's suggestion | Decision | Reason |
 |---|---|---|---|---|
-| 1 | 喜歡／不喜歡 → 重新排序 | 做完後試用：按喜歡後順序瞬間改變，以為換了一批；加「Re-sort」按鈕又要使用者懂評分機制 | 整個拿掉（我提出：使用者不會知道評分系統）。還沒 commit 的回饋程式、`feedback` 表和 migration 0003 一起刪掉，本機兩個資料庫的表和 migration 紀錄也清掉 | |
-| 2 | 拿掉回饋後，展示演算法和互動的功能 | 三個選項：A. Skip 換掉這張、B. 從這張往下挖、C. 熟悉 ↔ 探索滑桿 | B，命名「Explore from here」（我選） | 最符合翻唱片箱的意象，展示效果最好 |
-| 3 | 最多挖幾層 | 5 層；到最深時按鈕停用並說明 | 3 層，到最深時直接不顯示 Explore（我決定） | 停用的按鈕只會多一個要理解的東西；想換方向可以點路徑回去 |
-| 4 | 排除規則 | 排除原本的種子和前面各層顯示過的全部唱片 | 採用 | 每層都是新面孔 |
-| 5 | API | 沿用 `GET /api/recommendations`，多一個 `exclude`（最多 60 位）；演算法不變，仍是 v2 | 採用 | 排除名單只是多一份輸入 |
-| 6 | 回上一層 | 每層的結果和看到第幾張存在前端，回去不重新查詢 | 採用 | |
-| 7 | 往下挖要好幾秒 | 按鈕顯示「Finding more…」並停用 | 採用 | 實測沒有快取的歌手要 1.8–5.2 秒 |
+| 1 | Like/dislike → re-sort | Tried after building it: after a like, the order changed instantly and looked like a new batch; a "Re-sort" button would require users to understand the scoring | Removed entirely (my call: users won't know about the scoring). The uncommitted feedback code, the `feedback` table and migration 0003 were deleted, and the table and migration records were removed from both local databases | |
+| 2 | Without feedback, what shows off the algorithm and interaction | Three options: A. Skip to replace a record; B. dig deeper from a record; C. a familiar ↔ discover slider | B, named "Explore from here" (my choice) | Fits the record-crate idea best and demos well |
+| 3 | How many levels | 5, with a disabled button and explanation at the deepest level | 3, and Explore is simply hidden at the deepest level (my call) | A disabled button is one more thing to understand; to change direction, go back along the path |
+| 4 | Exclusion rule | Exclude the original seeds and every record shown on earlier levels | Adopted | Every level shows new artists |
+| 5 | API | Keep `GET /api/recommendations` with an added `exclude` (up to 60); the algorithm is unchanged, still v2 | Adopted | The exclusion list is just one more input |
+| 6 | Going back a level | Keep each level's result and viewed record on the client, so going back doesn't refetch | Adopted | |
+| 7 | Exploring takes several seconds | The button shows "Finding more…" and is disabled | Adopted | Uncached artists took 1.8–5.2 seconds |
 
-實測（Tame Impala、Kokoroko → Pond → Mink Mussel Creek → Levitation Room）：4 層各 10 張，跨層 0 重複，第 3 層排除 32 位。瀏覽器窗格被隱藏，換層的動畫和按鈕流程沒能用畫面確認，由元件和頁面測試涵蓋。
+Verified (Tame Impala, Kokoroko → Pond → Mink Mussel Creek → Levitation Room): 4 levels of 10 records each, no repeats across levels, 32 artists excluded on level 3. The browser pane was hidden, so the level-change animation and button flow couldn't be checked visually; component and page tests cover them.
 
-## 2026-11-04 · 推薦拆成獨立頁面 /recommendations
+## 2026-11-04 · Recommendations move to their own page, /recommendations
 
-| # | 問題 | Claude 建議 | 決定 | 理由 |
+| # | Question | Claude's suggestion | Decision | Reason |
 |---|---|---|---|---|
-| 1 | 推薦結果放首頁下方，還是獨立頁面 | 獨立頁面，網址是推薦結果的唯一來源：`/recommendations?seed=…&explore=…` | 採用（我提出拆頁） | 首頁只負責輸入；上一頁、重新整理、分享連結都能用；伺服器可以先把結果算好 |
-| 2 | Explore 的路徑放網址嗎 | 放：每往下挖一層網址多一個 `explore` | 採用 | 上一頁＝回上一層，分享也包含往下挖的位置 |
-| 3 | 麵包屑 | 一條：`Home › Tame Impala + Kokoroko › Pond › GUM` | 採用 | |
-| 4 | 網址和首頁 localStorage 的種子不同時 | 以網址為準；Home 連到 `/?seed=…`，首頁讀到就換成那組種子，網址清回 `/` | 採用 | 從分享連結進來的人也能接著改 |
-| 5 | 載入狀態 | 置中的太陽圓＋唱盤 | 保留唱盤即可，置中（我決定） | |
-| 6 | 時程 | 現在做（冷門滑桿往後） | 現在做（我決定） | 之後的盲聽測驗也是獨立頁面 |
-| 7 | 回上一層、上一頁要不要重查 | 查過的每一層存在 `useState`（key 是種子 ＋ 路徑），每層看到第幾張也記著 | 採用 | 實測按瀏覽器上一頁 0 個新請求 |
+| 1 | Recommendations under the home page or on their own page | Their own page, with the URL as the single source of truth: `/recommendations?seed=…&explore=…` | Adopted (I proposed splitting the page) | Home only handles input; Back, reload and shared links all work; the server can compute results up front |
+| 2 | Put the Explore path in the URL? | Yes: each level deeper adds an `explore` param | Adopted | Back = up a level, and shared links include the explore position |
+| 3 | Breadcrumb | One line: `Home › Tame Impala + Kokoroko › Pond › GUM` | Adopted | |
+| 4 | When the URL's seeds differ from the home page's localStorage | The URL wins; Home links to `/?seed=…`, which the home page loads into the input before cleaning the URL to `/` | Adopted | People arriving from a shared link can keep editing |
+| 5 | Loading state | The centered sun + turntable | Keep just the turntable, centered (my call) | |
+| 6 | Timing | Now (the popularity slider moves later) | Now (my call) | The blind test will be its own page too |
+| 7 | Refetch when going back a level or pressing Back? | Keep every fetched level in `useState` (keyed by seeds + path), along with each level's viewed record | Adopted | Pressing Back made 0 new requests |
 
-**拆頁時發現的 bug**：推薦頁改成伺服器端渲染後直接 500，因為試聽播放器一建立就 `new Audio()`，伺服器沒有 Audio。改成第一次按播放才建立，先補了重現的測試。以前推薦只在瀏覽器裡渲染，所以沒發現。
+**A bug found while splitting**: once the recommendations page rendered on the server it returned 500, because the preview player called `new Audio()` on creation and the server has no Audio. Now it's created on first play, with a test that reproduces the bug first. It went unnoticed before because recommendations only rendered in the browser.
 
-## 2026-11-04 · 推薦頁也是一個畫面
+## 2026-11-04 · The recommendations page is one screen too
 
-| # | 問題 | Claude 建議 | 決定 | 理由 |
+| # | Question | Claude's suggestion | Decision | Reason |
 |---|---|---|---|---|
-| 1 | 推薦頁要不要也不能上下捲 | 要：推薦頁像一台播放器，左右滑唱片時不會誤觸上下捲，和首頁一致 | 採用（我提出） | 原本 375×667 高 891px、1440×900 高 980px |
-| 2 | 怎麼放得下 | 封面依剩下的高度縮放（container query，最大 22rem）；三行資訊各一行截斷；上一張、播放、下一張合成一排 `‹ ▶ ›`；「沒有新歌手」的提示暫時佔 Explore 的位置 | 採用 | |
-| 3 | 「3 / 10」放哪 | 歌名那一行右邊 | 12px，放在最下面（我決定） | |
-| 4 | 手機橫放 | 很矮的橫向畫面（高 600 以下，`short-landscape`）改左右兩欄，旁邊疊出去的封面在左欄邊緣裁掉 | 採用 | 一開始用「寬 768 以上、橫向」判斷，結果桌機也變兩欄，旁邊的封面蓋到右邊的字 |
-| 5 | 手機上標題被截斷 | 字級跟著螢幕寬度（`clamp(1.375rem, 6vw, 3rem)`） | 採用 | Archivo 寬體在 375px 寬放不下 3xl |
-| 6 | 上一張、下一張和播放鍵長得像 | 改成播放器的「跳到上一首／下一首」圖示（直線＋三角形），沒有圓底；只有播放鍵是圓的 | 採用（我提出，附參考圖） | |
-| 7 | 底部的深藍地面 | 推薦頁、首頁都拿掉 | 採用（我提出） | |
+| 1 | Should the recommendations page also not scroll? | Yes: it works like a player, swiping records won't accidentally scroll, and it matches the home page | Adopted (my call) | It was 891px tall at 375×667 and 980px at 1440×900 |
+| 2 | How to make it fit | Covers scale with the remaining height (container query, max 22rem); the three info lines truncate to one line each; previous, play and next form one row `‹ ▶ ›`; the "No new artists" notice temporarily takes Explore's place | Adopted | |
+| 3 | Where "3 / 10" goes | To the right of the title line | 12px at the very bottom (my call) | |
+| 4 | Phones in landscape | Very short landscape screens (under 600px tall, `short-landscape`) switch to two columns, with side covers clipped at the left column's edge | Adopted | At first the check was "768+ wide and landscape", which made desktop two columns too, with side covers over the text on the right |
+| 5 | The heading is cut off on phones | Font size follows screen width (`clamp(1.375rem, 6vw, 3rem)`) | Adopted | Wide Archivo at 3xl doesn't fit 375px |
+| 6 | Previous/next look like the play button | Use a player's skip icons (bar + triangle) without a circle, so only Play is round | Adopted (my call, with a reference image) | |
+| 7 | The navy ground strip at the bottom | Removed from both the recommendations page and the home page | Adopted (my call) | |
 
-實測 375×667、390×844、768×1024、812×375、1023×768、1440×900：頁面高度都等於畫面高度，也都不會左右捲。封面分別是 233、243、352、201、352、352px。
+Verified at 375×667, 390×844, 768×1024, 812×375, 1023×768 and 1440×900: page height equals screen height and nothing scrolls sideways. Covers are 233, 243, 352, 201, 352 and 352px.
 
-### 首頁 → 推薦頁的轉場（2026-11-04）
+### Home → recommendations transition (2026-11-04)
 
-查詢有快取時推薦頁很快，載入中的唱盤只出現一瞬間，看起來像殘影。
+With cached queries the recommendations page is fast, so the loading turntable appears for an instant and looks like an afterimage.
 
-| # | 問題 | 決定 | 狀態 | 理由／替代方案 |
+| # | Question | Decision | Status | Reason / alternatives |
 |---|---|---|---|---|
-| 1 | 唱盤一閃而過 | 試 C：View Transitions（`experimental.viewTransition`），首頁和推薦頁的唱盤同一個 `view-transition-name: turntable`，按 Recommend 時唱盤從首頁的位置移到推薦頁中央 | 採用（我選 C，試過後保留） | A：每次都播「放唱針」進場約 0.8 秒；B：延遲才顯示＋最短顯示時間。C 讓兩頁看起來是同一台唱盤，最有轉場感 |
-| 2 | 資料很快回來時 | 從首頁按 Recommend 進來（`useState("needle-drop")` 旗標）時，唱盤至少停 1.1 秒（移動約 0.55 秒＋轉一下）才換成唱片；直接打開網址、Explore 不停 | 採用 | 不設最短時間，移到中央就馬上被唱片換掉，一樣像殘影 |
-| 3 | 移過來的唱盤又重播進場（從小放大） | 推薦頁的唱盤在換頁那一刻就是最終樣子（`entrance=false`）；旗標在 setup 讀，不等 onMounted | 採用 | 等 onMounted 才決定，第一次畫面已經開始播進場 |
-| 4 | 不支援的瀏覽器、開了「減少動態效果」 | Nuxt 自動跳過 View Transition；沒有 `startViewTransition` 的瀏覽器唱盤自己播進場 | 採用 | |
+| 1 | The turntable flashes past | Try C: View Transitions (`experimental.viewTransition`), with the same `view-transition-name: turntable` on both pages, so pressing Recommend moves the turntable from its home position to the center of the recommendations page | Adopted (I chose C and kept it after trying) | A: always play a "needle drop" entrance of about 0.8s; B: show only after a delay, with a minimum display time. C makes it look like the same turntable on both pages, the strongest sense of transition |
+| 2 | When data comes back very fast | Arriving from home via Recommend (the `useState("needle-drop")` flag), the turntable stays at least 1.1s (about 0.55s to move plus a short spin) before the records appear; direct visits and Explore don't wait | Adopted | Without a minimum, the records replace it the moment it reaches the center, which still looks like an afterimage |
+| 3 | The turntable that moved over replays its entrance (growing from small) | The recommendations turntable is in its final state at the moment of navigation (`entrance=false`); the flag is read in setup, not onMounted | Adopted | Deciding in onMounted was too late: the first render had already started the entrance |
+| 4 | Unsupported browsers and reduced motion | Nuxt skips the view transition; without `startViewTransition`, the turntable plays its own entrance | Adopted | |
 
-實測（Chromium，375 寬）：按下後約 0.1 秒換頁，0.7 秒移動結束，1.3 秒唱片出現。
+Verified (Chromium, 375 wide): the page changes about 0.1s after the press, the move ends at 0.7s, and the records appear at 1.3s.
 
-## 2026-11-05 · 速率限制
+## 2026-11-05 · Rate limiting
 
-| # | 問題 | 決定 | 狀態 | 理由／替代方案 |
+| # | Question | Decision | Status | Reason / alternatives |
 |---|---|---|---|---|
-| 1 | 怎麼計數 | 固定時間窗（每分鐘一格），`rate_limits(key, window_start, count)`，upsert 原子 +1 | 採用 | 滑動時間窗、token bucket 比較平均，但這個流量用不到 |
-| 2 | 用什麼當 key | 只用 IP，存加鹽的 SHA-256（`RATE_LIMIT_SALT`）；匿名 ID 第 6 天才有，而且清 cookie 就換一個，擋不了濫用 | 採用 | SPEC 原本寫「匿名 ID 和 IP」 |
-| 3 | 限制哪些路由、多少 | 只限制會打外部 API 的：`/api/recommendations` 每分鐘 20 次、`/api/artists/search` 60 次 | 採用（數字試玩後再調） | |
-| 4 | 舊資料 | 每次寫入 1% 機會刪掉一小時前的列 | 採用 | Vercel Cron 每天清：多一個要設定的地方 |
-| 5 | 自動完成的快取 | 改成只快取打 Last.fm 那一步（`defineCachedFunction`），每個請求都經過限制 | 採用 | 整個 route 快取時，快取命中不經過限制，而且同時查同一個字的請求會被合併、只算一次 |
-| 6 | SSR 的請求被算成同一個 IP | `useApiFetch`：SSR 時把使用者的 IP 放進 `x-forwarded-for` | 採用 | 實測發現：SSR 查 API 不經過網路，API 拿到的 IP 是空的，所有人共用「unknown」那一格。部署後全站每分鐘 20 次 SSR 就全部 429 |
-| 7 | 前端怎麼說 | 推薦頁：「Too many requests / Wait a minute, then try again.」＋ Try again；Explore：一行提示；自動完成：提示「Too many searches」，Enter 照樣能加 | 採用 | 不說「資料來源有問題」，那是另一種錯 |
+| 1 | How to count | Fixed windows (one per minute) in `rate_limits(key, window_start, count)`, with an atomic upsert increment | Adopted | Sliding windows and token buckets are smoother, but this traffic doesn't need them |
+| 2 | What the key is | IP only, stored as a salted SHA-256 (`RATE_LIMIT_SALT`); the anonymous ID only arrives on day 6, and clearing cookies gives a new one, so it can't stop abuse | Adopted | The spec originally said "anonymous ID and IP" |
+| 3 | Which routes, and how many | Only routes that call external APIs: `/api/recommendations` 20 a minute, `/api/artists/search` 60 | Adopted (tune after play-testing) | |
+| 4 | Old rows | Each write has a 1% chance to delete rows older than an hour | Adopted | A daily Vercel Cron cleanup is one more thing to configure |
+| 5 | The autocomplete cache | Cache only the Last.fm call (`defineCachedFunction`), so every request passes the limit | Adopted | Caching the whole route skips the limit on cache hits, and concurrent requests for the same query get merged and counted once |
+| 6 | SSR requests are counted as one IP | `useApiFetch` forwards the client IP in `x-forwarded-for` during SSR | Adopted | Found by testing: SSR calls the API without going over the network, so the API gets no IP and everyone shares the "unknown" bucket. Once deployed, 20 SSR page loads a minute site-wide would 429 everyone |
+| 7 | What the page says | Recommendations page: "Too many requests / Wait a minute, then try again." + Try again; Explore: a one-line notice; autocomplete: "Too many searches", and Enter still adds the name | Adopted | Don't say "the data source has a problem": that's a different error |
 
-實測：連打 22 次推薦，第 21 次起 429，`Retry-After` 是到下一分鐘的秒數；表裡只有雜湊；下一分鐘按 Try again 恢復。
+Verified: 22 recommendation requests in a row return 429 from the 21st on, with `Retry-After` counting down to the next minute; the table holds only hashes; Try again recovers in the next minute.
 
-## 2026-11-05 · 首頁版面：矮視窗、flex、標題
+## 2026-11-05 · Home layout: short windows, flex, title
 
-| # | 問題 | 決定 | 狀態 | 理由／替代方案 |
+| # | Question | Decision | Status | Reason / alternatives |
 |---|---|---|---|---|
-| 1 | 桌機視窗沒全螢幕（例如 1280×600、1024×620）時，Recommend 按鈕掉到畫面外 | 所有寬度都是 `h-dvh`：拿掉桌機的 `lg:h-auto lg:min-h-dvh` 和唱盤的 `lg:min-h-[28rem]`；標題字級加上高度 `min(11vw, 14dvh)`；橫向時行距 `min(…, 2dvh)` | 採用（我提出） | 允許捲動：按鈕還是要捲才看得到 |
-| 2 | `md:landscape:` 的規則在桌機蓋掉 `lg:`（Tailwind 的順序裡 landscape 在 lg 後面），桌機的歌手標籤區多留一行、上方多 16px | 只給橫放平板的規則改成 `md:max-lg:landscape:` | 採用 | 這個 bug 早就在，視窗一矮才看出來 |
-| 3 | 矮畫面的規則用 `!` 蓋過響應式規則 | 不用 `!important`：`main.css` 加兩個互補的 variant，`short`（高 ≤ 520）和 `tall`（高 > 520）。兩邊都有的屬性，響應式的寫 `tall:`、矮畫面的寫 `short:`，不會同時成立，不必靠先後順序 | 採用（我提出：避免 !important） | |
-| 4 | 標題兩個字之間的空白被格式化工具拆行後消失（"MusicRecs"） | 用 `flex` 的 `gap` 隔開，不靠空白字元；`h1` 加 `aria-label="Music Recs"` 給螢幕閱讀器 | 採用（我要求不用空格） | 只給螢幕閱讀器的空白：還是空白字元，一樣會被拆行影響 |
-| 5 | 首頁版面用 grid（grid-template-areas、1fr 空白列）不好讀 | 改用 flex：手機一欄、`wide`（橫放平板或桌機，新的 custom variant）兩欄。手機上左欄是 `display: contents`，用 `order` 把太陽圓排到標題和輸入框中間 | 採用（我提出） | 太陽圓畫兩份、各自藏起來：view-transition-name 不能重複 |
-| 6 | 寬 768 以下標題時而一行時而兩行（650px 時兩行，太陽圓被擠成一個點） | 一欄時不折行，字級 `min(18.5cqw, 10dvh)`：「MUSIC RECS」寬度是字級的 5.31 倍，18.5cqw 佔標題區 98%，任何寬度都剛好一行 | 採用（我提出） | |
-| 6b | 標題要不要依畫面在一行、兩行之間切換 | 所有畫面都上下兩行（`flex-col`）；一欄時字級縮小成 `min(13cqw, 7dvh)`，矮畫面 `min(3rem, 8dvh)` | 採用（我提出，取代第 6 條的「一欄時一行」） | 代價：太陽圓在小手機上變小（375×667：220 → 190px，320×568 只剩 37px） |
-| 7 | 首頁標題要和推薦頁的麵包屑等高 | 上、左右、下的留白和推薦頁一樣；`margin-top: calc(0.4545rem + 0.057em)` 讓兩邊大寫字母的頂端對齊（兩個數字都在瀏覽器量出來） | 採用（我提出） | 把麵包屑裁到大寫高度（`text-box`）：麵包屑可以左右捲，比大寫高的字母（l、Å）會被裁掉 |
+| 1 | In a desktop window that isn't full screen (e.g. 1280×600, 1024×620), the Recommend button falls off screen | `h-dvh` at every width: drop desktop's `lg:h-auto lg:min-h-dvh` and the turntable's `lg:min-h-[28rem]`; the title size also depends on height, `min(11vw, 14dvh)`; landscape gaps are `min(…, 2dvh)` | Adopted (my call) | Allowing scroll: the button would still need scrolling to reach |
+| 2 | `md:landscape:` rules override `lg:` on desktop (in Tailwind's order landscape comes after lg), so desktop reserved an extra tag row and 16px more at the top | Rules meant only for landscape tablets become `md:max-lg:landscape:` | Adopted | A long-standing bug that only showed in short windows |
+| 3 | Short-screen rules used `!` to beat responsive rules | No `!important`: `main.css` adds two complementary variants, `short` (height ≤ 520) and `tall` (height > 520). For properties set on both sides, responsive rules use `tall:` and short-screen rules use `short:`, so they never apply together and order doesn't matter | Adopted (my call: avoid !important) | |
+| 4 | The space between the title's words disappears after a formatter splits the line ("MusicRecs") | Separate them with flex `gap` instead of a space character; the `h1` gets `aria-label="Music Recs"` for screen readers | Adopted (I asked for no space character) | A screen-reader-only space: still a space character, equally affected by line splitting |
+| 5 | The home layout's grid (grid-template-areas, 1fr spacer rows) is hard to read | Use flex: one column on phones, two columns for `wide` (landscape tablets or desktops, a new custom variant). On phones the left column is `display: contents`, and `order` puts the turntable between the title and the input | Adopted (my call) | Drawing the turntable twice and hiding one: view-transition-name can't be duplicated |
+| 6 | Below 768 wide the title flips between one and two lines (two lines at 650px, squeezing the sun to a dot) | No wrapping in one column, sized `min(18.5cqw, 10dvh)`: "MUSIC RECS" is 5.31 times its font size wide, so at 18.5cqw it fills 98% of the title area and always fits one line | Adopted (my call) | |
+| 6b | Should the title switch between one and two lines by screen? | Always stacked in two lines (`flex-col`); in one column the size drops to `min(13cqw, 7dvh)`, on short screens `min(3rem, 8dvh)` | Adopted (my call; replaces #6's "one line in one column") | The cost: the sun gets smaller on small phones (375×667: 220 → 190px; only 37px at 320×568) |
+| 7 | The home title should sit level with the recommendations breadcrumb | Same top, side and bottom padding as the recommendations page; `margin-top: calc(0.4545rem + 0.057em)` lines up the tops of both pages' capital letters (both values measured in the browser) | Adopted (my call) | Trimming the breadcrumb to cap height (`text-box`): the breadcrumb scrolls sideways, so letters taller than caps (l, Å) would be clipped |
 
-實測（按鈕下緣 ≤ 畫面高、頁面不捲動、一欄時標題一行）：320×568、375×667、450×700、642×653、390×844、768×1024、812×375、900×620、1024×560、1024×620、1024×768、1280×500、1280×560、1280×600、1280×700、1366×600、1440×760、1440×900、1920×1080。
+Verified (button bottom ≤ screen height, no scrolling, one-line title in one column): 320×568, 375×667, 450×700, 642×653, 390×844, 768×1024, 812×375, 900×620, 1024×560, 1024×620, 1024×768, 1280×500, 1280×560, 1280×600, 1280×700, 1366×600, 1440×760, 1440×900, 1920×1080.
+
+## 2026-11-06 · English docs and lean comments
+
+| # | Question | Decision | Status | Reason / alternatives |
+|---|---|---|---|---|
+| 1 | Language of comments and docs | All English, like the UI; `CLAUDE.md` updated | Adopted (my call) | |
+| 2 | How many comments | Only where needed and short: why (background, pitfalls, trade-offs), not what the code says; test names describe behavior, so most comments above tests were removed | Adopted (my call) | |

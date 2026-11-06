@@ -1,93 +1,93 @@
-# 練習 3：合併候選歌手
+# Exercise 3: Merging candidate artists
 
-> 這題是 v1 的規則（分數 = match 加總）。之後的 v2 改成看名次（`docs/concepts.md` 第 9 節），程式和測試已經更新，這份題目留作紀錄。
+> This exercise uses v1's rule (score = sum of match). v2 later switched to ranks (`docs/concepts.md` section 9) and the code and tests were updated; this page is kept for the record.
 
-預計 30 分鐘。新概念只有一個：**用 Map 依 key 分組累加**。同一個 key 出現好幾次時，不新增一筆，而是更新原本那筆。
+About 30 minutes. One new concept: **grouping and summing with a Map**. When the same key appears several times, update the existing entry instead of adding a new one.
 
-## 為什麼需要這個函式
+## Why this function exists
 
-使用者選了 3–5 位種子歌手，每位種子在快取裡各有一份相似清單（`artist_similar`）。推薦要的是**一份**排好的清單，所以要把它們合併：
+The user picks seed artists, and each seed has a similar list in the cache (`artist_similar`). A recommendation needs **one** ranked list, so the lists have to be merged:
 
-| 種子 | 相似清單 |
+| Seed | Similar list |
 |---|---|
-| Radiohead | Blur 0.8、Muse 0.5 |
+| Radiohead | Blur 0.8, Muse 0.5 |
 | Coldplay | Muse 0.4 |
 
-合併後 Muse 只出現一次，分數 0.5 + 0.4 = 0.9，排在 Blur（0.8）前面。這就是 SPEC 說的「跟越多個種子相似，分數越高」。
+After merging, Muse appears once with 0.5 + 0.4 = 0.9, ahead of Blur (0.8). That's the spec's "similar to more seeds scores higher".
 
-> **前端類比**：後端回一個陣列，你把它轉成 `{ [id]: item }` 存進 store（Redux 的 `byId`），之後用 id 找、用 id 更新，不必每次掃整個陣列。這題是同一件事，只是遇到重複的 id 時要把分數加上去。
+> **Frontend analogy**: you get an array from an API and store it as `{ [id]: item }` (Redux's `byId`), then look items up and update them by id instead of scanning the array. Same thing here, except a repeated id adds to the score.
 
-## 怎麼開始
+## Getting started
 
 ```bash
 pnpm vitest --project unit merge-candidates
 ```
 
-6 個測試是紅的，錯誤訊息是 `TODO: 練習 3`。
+6 tests are red with the message `TODO: exercise 3`.
 
-要寫的檔案：`server/utils/recommend/merge-candidates.ts`。規則寫在函式上方的註解，型別在旁邊的 `types.ts`。**先讀一遍測試**，每個 `it` 上面的註解說明它檢查哪一條規則。
+The file to write is `server/utils/recommend/merge-candidates.ts`. The rules are in the comment above the function and the types are in `types.ts` next to it. **Read the tests first**: each `it` names the rule it checks.
 
-## 第 1 步：先做實驗（5 分鐘）
+## Step 1: Experiment first (5 minutes)
 
-**每一條執行之前，先寫下你的預測**，再執行對照。
+**Before running each line, write down your prediction**, then run it and compare.
 
 ```bash
 node -e 'const m = new Map(); m.set("muse", 1); console.log(m.get("muse"), m.get("blur"), m.get("blur") ?? 0)'
 ```
 
-**預測**：沒有的 key，`get` 回什麼？
+**Prediction**: what does `get` return for a missing key?
 
 ```bash
 node -e 'const m = new Map(); m.set("muse", 1); m.set("blur", 2); m.set("muse", 3); console.log([...m.values()], m.size)'
 ```
 
-**預測**：同一個 key `set` 兩次，會有幾筆？`values()` 的順序是什麼？
+**Prediction**: after setting the same key twice, how many entries are there? In what order does `values()` return them?
 
 ```bash
 node -e 'const box = { score: 1 }; const m = new Map([["muse", box]]); m.get("muse").score += 5; console.log(box.score)'
 ```
 
-**預測**：改 `get` 回來的物件，Map 裡的那個會跟著變嗎？
+**Prediction**: if you change the object `get` returns, does the one in the Map change too?
 
 ```bash
 node -e 'console.log(0 || "next", 0.1 || "next", [3, 1, 2].sort((a, b) => b - a))'
 ```
 
-**預測**：`||` 左邊是 0 時會怎樣？這和排序「分數一樣時改比名字」有什麼關係？
+**Prediction**: what happens when the left side of `||` is 0? How does that relate to sorting "by name when scores are equal"?
 
-## 第 2 步：寫實作
+## Step 2: Implement it
 
-讓 6 個測試全部變綠。卡住的話，依序打開提示，**一次只看一個**。
+Make all 6 tests green. If you get stuck, open the hints in order, **one at a time**.
 
 <details>
-<summary>提示 1：整體結構</summary>
+<summary>Hint 1: Overall structure</summary>
 
-兩層迴圈：外層跑每位種子，內層跑這位種子的相似清單。迴圈外面建一個 `Map<string, Candidate>`，key 用 `nameNorm`。
+Two loops: the outer one over seeds, the inner one over that seed's similar list. Create a `Map<string, Candidate>` outside the loops, keyed by `nameNorm`.
 
 </details>
 
 <details>
-<summary>提示 2：遇到一位歌手時做什麼</summary>
+<summary>Hint 2: What to do for each artist</summary>
 
-先用 `get` 找。找不到就建一個新的 `Candidate`（分數從 0 開始、`sources` 是空陣列）。然後把 `weight * match` 加到分數上，把種子名稱加進 `sources`，再 `set` 回去。第 1 步的第 1、3 個實驗是關鍵。
-
-</details>
-
-<details>
-<summary>提示 3：Map 怎麼變回陣列</summary>
-
-`[...map.values()]`，順序是第一次 `set` 的順序，所以最後還要排序。
+Look it up with `get` first. If it's missing, create a new `Candidate` (score starting at 0, `sources` an empty array). Then add `weight * match` to the score, add the seed's name to `sources`, and `set` it back. The first and third experiments in step 1 are the key.
 
 </details>
 
 <details>
-<summary>提示 4：排序的比較函式</summary>
+<summary>Hint 3: Turning the Map back into an array</summary>
 
-分數由高到低是 `b.score - a.score`。分數一樣時這個值是 `0`，可以用 `||` 接第二個比較：名字由小到大，`a.nameNorm.localeCompare(b.nameNorm)`。
+`[...map.values()]`, in the order of the first `set`, so it still needs sorting.
 
 </details>
 
-## 第 3 步：親眼看結果
+<details>
+<summary>Hint 4: The sort comparator</summary>
+
+Highest score first is `b.score - a.score`. When scores are equal that's `0`, so chain a second comparison with `||`: names ascending, `a.nameNorm.localeCompare(b.nameNorm)`.
+
+</details>
+
+## Step 3: See the result
 
 ```bash
 pnpm lint
@@ -97,13 +97,13 @@ pnpm lint
 pnpm typecheck
 ```
 
-再對照 Drizzle Studio 的 `artist_similar`：如果種子是宇多田ヒカル 和另一位 J-pop 歌手，你預期哪些歌手會因為「兩邊都有」而排到前面？
+Then compare with `artist_similar` in Drizzle Studio: if the seeds are 宇多田ヒカル and another J-pop artist, which artists do you expect to rank high because both lists have them?
 
-## 做完之後
+## When you're done
 
-貼給我：
+Send me:
 
-1. 第 1 步你**預測錯的地方**
-2. 你的實作
+1. Where your **predictions in step 1 were wrong**
+2. Your implementation
 
-我會問你幾個「如果……會怎樣」，再請你補一個測試案例。
+I'll ask a few "what if…" questions, then have you add a test case.

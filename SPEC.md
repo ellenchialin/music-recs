@@ -1,154 +1,154 @@
-# Music Recs 規格
+# Music Recs spec
 
-任何人輸入幾個喜歡的歌手，就能拿到附試聽和推薦理由的歌曲推薦；用盲聽測驗量出推薦是不是真的比隨機好。
+Anyone can enter a few artists they like and get song recommendations with previews and reasons, and a blind test measures whether the recommendations really beat random picks.
 
-已拍板的決策見 `docs/ai-log.md`（規格與決策衝突時以決策為準）。
+Decisions already made are in `docs/ai-log.md`. When the spec and a decision disagree, the decision wins.
 
-## 目標
+## Goals
 
-**作品集要展示的**：Vue 3 前端的互動設計、推薦演算法、公開服務的成本控制、可以量測的 eval。
+**What the portfolio should show**: interaction design in a Vue 3 frontend, a recommendation algorithm, cost control for a public service, and a measurable eval.
 
-**明確不做**：帳號系統、社群功能、歌單分享、匯出到 Spotify（Spotify API 開發模式只允許 5 個使用者）、手機 App。上傳 Spotify 匯出檔是 MVP 之後的功能。
+**Out of scope**: accounts, social features, playlist sharing, exporting to Spotify (Spotify's API development mode allows only 5 users), and a mobile app. Uploading a Spotify export comes after the MVP.
 
-## 技術棧
+## Stack
 
-| 層 | 選擇 |
+| Layer | Choice |
 |---|---|
-| 框架 | Nuxt 4（Vue 3 + TypeScript strict），頁面在 `app/pages/`，API 在 `server/api/` |
-| 狀態 | Pinia |
-| 資料抓取 | Nuxt 內建 `useFetch`／`useAsyncData` |
-| 樣式 | Tailwind CSS |
-| 工具 | VueUse |
-| 資料庫 | Postgres 17 + Drizzle ORM；本機 Docker，正式環境 Neon |
-| 驗證 | zod：API 輸入、外部 API 回應、LLM 輸出 |
-| LLM | Claude Haiku 5.5，結構化輸出，只用來寫推薦理由 |
-| 外部資料 | Last.fm API（搜尋、相似歌手、標籤、熱門歌曲）、iTunes Search API（試聽、封面）；都不需要使用者登入 |
-| 測試 | Vitest + `@nuxt/test-utils`；Playwright 跑主要流程 |
-| 部署 | Vercel + Neon |
-| CI | GitHub Actions：typecheck、lint、測試 |
+| Framework | Nuxt 4 (Vue 3 + strict TypeScript); pages in `app/pages/`, API in `server/api/` |
+| State | Pinia |
+| Data fetching | Nuxt's built-in `useFetch` / `useAsyncData` |
+| Styling | Tailwind CSS |
+| Utilities | VueUse |
+| Database | Postgres 17 + Drizzle ORM; Docker locally, Neon in production |
+| Validation | zod for API input, external API responses and LLM output |
+| LLM | Claude Haiku 5.5 with structured output, only for writing reasons |
+| External data | Last.fm API (search, similar artists, tags, top tracks) and iTunes Search API (previews, covers); neither needs user sign-in |
+| Tests | Vitest + `@nuxt/test-utils`; Playwright for the main flows |
+| Deployment | Vercel + Neon |
+| CI | GitHub Actions: typecheck, lint, tests |
 
-## 使用者流程
+## User flow
 
-1. 打開首頁（`/`），輸入 1–3 個喜歡的歌手（自動完成），按 Recommend
-2. 換到推薦頁（`/recommendations?seed=…`，整頁一個畫面、不捲動），看到 10 張推薦唱片：封面、歌名、30 秒試聽、一句推薦理由
-3. 從喜歡的那張「Explore from here」往下挖（網址多一層 `&explore=…`），最多 3 層；麵包屑 `Home › 種子 › Pond` 可以點回任一層，瀏覽器的上一頁也能用，Home 帶著種子回首頁重新輸入
-4. 拉「大眾 ↔ 冷門」滑桿，推薦跟著變
-5. 玩盲聽測驗：聽 3 首、各打 1–5 分、揭曉哪些是推薦的
+1. Open the home page (`/`), enter 1–3 artists you like (with autocomplete) and press Recommend.
+2. The recommendations page (`/recommendations?seed=…`, one screen, no scrolling) shows 10 records: cover, title, a 30-second preview and a one-line reason.
+3. "Explore from here" on a record digs one level deeper (the URL gains `&explore=…`), up to 3 levels. The breadcrumb `Home › seeds › Pond` goes back to any level, the browser's Back button works too, and Home returns with the seeds for editing.
+4. A mainstream ↔ obscure slider changes the recommendations.
+5. The blind test: listen to 3 songs, rate each 1–5, then see which ones were recommended.
 
-## 功能
+## Features
 
-標 **[必要]** 的是 MVP 一定要有的；標 **[可延後]** 的在時程不夠時先砍。
+**[Required]** is a must for the MVP; **[Deferrable]** gets cut first if time runs out.
 
-### 1. 種子歌手 [必要]
+### 1. Seed artists [Required]
 
-- 自動完成用 Last.fm `artist.search`，前端 debounce、後端快取
-- 選了的歌手存 Pinia，同步到 localStorage
+- Autocomplete uses Last.fm `artist.search`, debounced on the client and cached on the server.
+- Chosen artists live in Pinia, synced to localStorage.
 
-### 2. 推薦 [必要]
+### 2. Recommendations [Required]
 
-演算法放 `server/utils/recommend/`，全部是純函式：
+The algorithm lives in `server/utils/recommend/` as pure functions:
 
-1. 每個種子歌手取 Last.fm 相似歌手（附相似度 `match`）
-2. 合併候選：跟越多個種子相似、相似度越高，分數越高
-3. 排除種子本身（往下挖時也排除前面各層看過的歌手）
-4. 冷門程度：用聽眾人數的對數調整權重 [可延後]
-5. 每個歌手取一首代表歌，用 iTunes 補試聽與封面（依序試台灣、美國、日本商店）；找不到試聽就顯示「暫無試聽」，不顯示播放鈕
+1. Get Last.fm's similar artists (with a `match` score) for each seed.
+2. Merge candidates: similar to more seeds and more similar scores higher.
+3. Exclude the seeds themselves (and, when exploring, artists shown on earlier levels).
+4. Popularity: weight by the log of listener counts. [Deferrable]
+5. Take one track per artist and get its preview and cover from iTunes (trying the Taiwan, US and Japan stores in order). Without a preview, show "No preview" and no play button.
 
-每次結果標記演算法版本 `algo_version`。
+Every result is tagged with an `algo_version`.
 
-### 3. 推薦理由 [可延後：沒做時顯示「和 A、B 相似」]
+### 3. Recommendation reasons [Deferrable: falls back to "Similar to A and B"]
 
-- 10 張卡片的理由一次 LLM 呼叫產生
-- 以「種子組合 + 推薦歌手」為 key 快取
-- 每天全站呼叫上限，超過就退回規則產生的理由
+- One LLM call writes the reasons for all 10 cards.
+- Cached by seed set + recommended artist.
+- A daily site-wide call limit; past it, fall back to rule-based reasons.
 
-### 4. Explore from here [必要]
+### 4. Explore from here [Required]
 
-（取代原本的「回饋」：喜歡／不喜歡後重新排序，使用者不懂背後的評分，見 `docs/ai-log.md`）
+(Replaces the original feedback feature, where liking or disliking re-sorted the list: users couldn't follow the scoring behind it. See `docs/ai-log.md`.)
 
-- 每張推薦唱片下有「Explore from here →」：以這位歌手為唯一的種子，推薦下一層
-- 下一層排除原本的種子和前面各層顯示過的唱片，每層都是新面孔
-- 最多往下挖 3 層，到最深時不顯示 Explore；路徑 `Your artists › Pond › GUM` 可以點回任一層，不重新查詢，停在當時看的那張
-- 沒有新歌手時停在原層並提示
+- Every record has "Explore from here →": that artist becomes the only seed for the next level.
+- The next level excludes the original seeds and every record shown on earlier levels, so each level shows new artists.
+- Up to 3 levels; at the deepest level Explore is hidden. The breadcrumb goes back to any level without refetching, on the record that was being viewed.
+- When there are no new artists, stay on the current level and say so.
 
-### 5. 盲聽測驗 [必要]
+### 5. Blind test [Required]
 
-- 每輪 3 首：1–2 首來自推薦，其餘是對照組
-- 對照組：從使用者種子歌手最常見的風格標籤中，隨機挑熱門歌曲（同風格才公平）
-- 1–5 分；揭曉哪首是推薦
-- 每筆評分連同演算法版本存下來
+- Each round has 3 songs: 1–2 from the recommendations, the rest a control group.
+- Control group: random popular songs from the seeds' most common genre tags (same genre, so it's fair).
+- Rate 1–5, then reveal which were recommended.
+- Every rating is stored with the algorithm version.
 
-## 匿名身分與隱私
+## Anonymous identity and privacy
 
-- 第一次進來產生隨機 ID，存在 cookie
-- 不收集 email、名字或任何個資
-- 匯出檔功能（MVP 之後）：瀏覽器端解析，只送彙總結果到後端
+- A random ID is generated on the first visit and stored in a cookie.
+- No email, name or any other personal data.
+- Export upload (after the MVP): parsed in the browser; only aggregates go to the server.
 
-## 成本與濫用
+## Cost and abuse
 
-- 外部資料快取在 Postgres，30 天過期
-- 速率限制存在 Postgres（Vercel 是 serverless，記憶體計數不可靠）：每個 IP 每分鐘上限（推薦 20、自動完成 60），IP 只存加鹽雜湊；超過回 429 ＋ `Retry-After`
-- LLM：快取、每日全站上限、Anthropic 後台每月花費上限
-- 外部 API 回應只取需要的欄位，用 zod 驗證
+- External data is cached in Postgres for 30 days.
+- Rate limits are stored in Postgres (Vercel is serverless, so in-memory counts are unreliable): per IP per minute (20 for recommendations, 60 for autocomplete), storing only a salted hash of the IP. Over the limit returns 429 with `Retry-After`.
+- LLM: caching, a daily site-wide limit, and a monthly spend limit in the Anthropic console.
+- External API responses keep only the fields we need and are validated with zod.
 
-## 資料模型（初稿）
+## Data model (draft)
 
-| 表 | 內容 |
+| Table | Contents |
 |---|---|
-| `artists` | Last.fm 歌手：名稱、MusicBrainz ID、聽眾人數、標籤、抓取時間 |
-| `artist_similar` | 歌手之間的相似度 |
-| `tracks` | 每位歌手的代表歌、iTunes ID、試聽網址、封面 |
-| `visitors` | 匿名 ID、建立時間 |
-| `reason_cache` | 推薦理由快取 |
-| `blind_tests` | 每輪：歌曲、哪首是推薦、評分、演算法版本 |
-| `rate_limits` | 速率限制計數 |
+| `artists` | Last.fm artists: name, MusicBrainz ID, listeners, tags, fetch time |
+| `artist_similar` | Similarity between artists |
+| `tracks` | Each artist's track, iTunes ID, preview URL, cover |
+| `visitors` | Anonymous ID, creation time |
+| `reason_cache` | Cached recommendation reasons |
+| `blind_tests` | Each round: songs, which were recommended, ratings, algorithm version |
+| `rate_limits` | Rate-limit counts |
 
-## API（初稿）
+## API (draft)
 
-| Method | 路徑 | 用途 |
+| Method | Path | Purpose |
 |---|---|---|
-| GET | `/api/artists/search?q=` | 自動完成 |
-| GET | `/api/recommendations?seed=&exclude=` | 種子（＋往下挖時排除的歌手）→ 推薦清單 |
-| POST | `/api/blind-tests` | 開始一輪 |
-| POST | `/api/blind-tests/:id/ratings` | 送出評分 → 揭曉 |
-| GET | `/api/stats` | eval 數字 |
+| GET | `/api/artists/search?q=` | Autocomplete |
+| GET | `/api/recommendations?seed=&exclude=` | Seeds (plus artists to exclude when exploring) → recommendations |
+| POST | `/api/blind-tests` | Start a round |
+| POST | `/api/blind-tests/:id/ratings` | Submit ratings → reveal |
+| GET | `/api/stats` | Eval numbers |
 
 ## Eval
 
-- **主要指標**：盲聽測驗中，推薦歌曲平均分數減掉對照組平均分數，附信賴區間
-- 每位訪客只算一次平均，避免少數人玩很多輪扭曲結果
-- 次要：不同冷門設定、不同演算法版本的比較
-- 資料來源：自己、朋友、面試官試玩
+- **Main metric**: in the blind test, the average rating of recommended songs minus the control group's, with a confidence interval.
+- Each visitor counts once (their own average), so a few heavy players don't skew the result.
+- Secondary: comparisons across popularity settings and algorithm versions.
+- Data from: me, friends, and interviewers trying it out.
 
-## 時程（2026-11-03 起，一週）
+## Schedule (one week from 2026-11-03)
 
-| 天 | 內容 |
+| Day | Work |
 |---|---|
-| 1 | Nuxt 骨架、Docker Postgres、Drizzle schema、測試環境、CI |
-| 2 | Last.fm／iTunes client（zod 驗證）、快取；推薦演算法（純函式，TDD） |
-| 3 | `/api/recommendations`、首頁：種子輸入、推薦卡片、試聽 |
-| 4 | Explore from here、冷門滑桿 |
-| 5 | 速率限制、部署 Vercel + Neon；LLM 推薦理由 |
-| 6 | 盲聽測驗、`/api/stats` |
-| 7 | 緩衝、README、找人試玩 |
+| 1 | Nuxt skeleton, Docker Postgres, Drizzle schema, test setup, CI |
+| 2 | Last.fm / iTunes clients (zod), caching; recommendation algorithm (pure functions, TDD) |
+| 3 | `/api/recommendations`, home page: seed input, recommendation cards, previews |
+| 4 | Explore from here, popularity slider |
+| 5 | Rate limiting, deploy to Vercel + Neon; LLM reasons |
+| 6 | Blind test, `/api/stats` |
+| 7 | Buffer, README, play-testing |
 
-時程很緊，落後時依序砍：冷門滑桿 → LLM 理由（改用規則理由） → Playwright。
+The schedule is tight. If it slips, cut in this order: popularity slider → LLM reasons (use rule-based reasons) → Playwright.
 
-## 驗收標準
+## Acceptance criteria
 
-- [ ] 沒有帳號，30 秒內拿到推薦並聽到試聽
-- [ ] 同一組種子重複查詢，不再呼叫外部 API 或 LLM
-- [ ] 超過速率限制回 429，前端顯示提示
-- [ ] 線上 demo 可用
-- [ ] 盲聽測驗有評分資料，README 有推薦 vs 對照組的結果表（MVP 後持續累積到 30 位訪客以上）
-- [ ] CI 全部通過；README 有架構圖、demo 連結、eval 結果
+- [ ] Without an account, get recommendations and hear a preview within 30 seconds
+- [ ] Repeating a query with the same seeds calls no external API or LLM
+- [x] Over the rate limit returns 429 and the page says so
+- [ ] A live demo works
+- [ ] The blind test has ratings, and the README has a recommended-vs-control results table (growing past 30 visitors after the MVP)
+- [ ] CI passes; the README has an architecture diagram, demo link and eval results
 
-## 風險
+## Risks
 
-| 風險 | 備案 |
+| Risk | Fallback |
 |---|---|
-| 冷門歌手的 Last.fm 相似資料太少 | 改用標籤找候選 |
-| iTunes 台灣商店找不到試聽（各國商店把歌手名在地化） | 依序試美國、日本商店；都沒有就顯示「暫無試聽」 |
-| 盲聽人數太少 | 報告寫清楚樣本數；先找朋友 |
-| Last.fm 使用條款 | 非商業使用，標示資料來源 |
-| iTunes 速率限制（約每分鐘 20 次） | 結果快取 30 天，「查過、沒有」也快取 |
+| Too little Last.fm similarity data for obscure artists | Find candidates by tag instead |
+| No preview in the iTunes Taiwan store (stores localize artist names) | Try the US and Japan stores in order; otherwise show "No preview" |
+| Too few blind-test players | State the sample size clearly; start with friends |
+| Last.fm terms of use | Non-commercial use, with attribution |
+| iTunes rate limit (about 20 per minute) | Cache results for 30 days, including "checked, nothing found" |

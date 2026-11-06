@@ -10,7 +10,7 @@ function createDb() {
   return drizzle(postgres(DATABASE_URL), { schema });
 }
 
-// 延遲建立連線：import 時不需要 DATABASE_URL，方便測試純函式
+// Connect lazily, so importing this module doesn't require DATABASE_URL
 let db: Db | undefined;
 
 export function getDb(): Db {

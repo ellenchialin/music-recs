@@ -12,7 +12,7 @@ import {
   topTracksResponse,
 } from "./schemas";
 
-// fixture 是 pnpm record:lastfm 從真的 API 錄下來的；body 是 Last.fm 原封不動的回應
+// Fixtures are recorded from the real API with `pnpm record:lastfm`
 
 describe("artistSearchResponse", () => {
   it("turns string numbers into numbers and empty MBIDs into null", () => {
@@ -22,7 +22,6 @@ describe("artistSearchResponse", () => {
       mbid: "a74b1b7f-71a5-4011-9441-d0b5e4122711",
       listeners: 8500398,
     });
-    // 第二筆是 Last.fm 上拼錯的「radıohead」，沒有 MBID
     expect(artists[1]?.mbid).toBeNull();
   });
 
@@ -43,7 +42,7 @@ describe("similarArtistsResponse", () => {
     }
   });
 
-  // Last.fm 的 JSON 是從 XML 轉來的：只有一筆時，陣列會變成單一物件。這個案例是手做的
+  // Hand-made: Last.fm's XML-derived JSON turns a one-item array into an object
   it("accepts a single artist object instead of an array", () => {
     const one = { similarartists: { artist: { name: "Thom Yorke", mbid: "", match: "0.5" } } };
     expect(similarArtistsResponse.parse(one)).toEqual([{ name: "Thom Yorke", mbid: null, match: 0.5 }]);

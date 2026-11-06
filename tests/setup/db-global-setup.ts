@@ -2,7 +2,7 @@ import { drizzle } from "drizzle-orm/postgres-js";
 import { migrate } from "drizzle-orm/postgres-js/migrator";
 import postgres from "postgres";
 
-// 跑 DB 測試前：測試資料庫不存在就建立，再套用所有 migration
+// Creates the test database if needed and applies all migrations
 export default async function setup() {
   const url = process.env.TEST_DATABASE_URL;
   if (!url) throw new Error("TEST_DATABASE_URL is not set (see vitest.config.ts)");

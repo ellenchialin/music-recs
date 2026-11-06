@@ -3,7 +3,6 @@ import badRequest from "./fixtures/search-bad-request.json";
 import utada from "./fixtures/search-utada-first-love.json";
 import { ItunesError, createItunesClient } from "./client";
 
-// 假的 fetch：記下被呼叫的網址，回傳指定的內容。測試因此不碰網路
 function fakeFetch(status: number, body: unknown) {
   const calls: URL[] = [];
   const fetch = async (input: string | URL | Request) => {
@@ -40,7 +39,6 @@ describe("createItunesClient", () => {
     expect(calls[0]?.searchParams.get("country")).toBe("JP");
   });
 
-  // 歌曲快取會依序試好幾個商店，所以每次搜尋可以指定商店
   it("can override the store for a single search", async () => {
     const { fetch, calls } = fakeFetch(200, utada.body);
     const client = createItunesClient({ fetch });
@@ -62,7 +60,7 @@ describe("createItunesClient", () => {
     expect((err as Error).message).toContain("Invalid value(s)");
   });
 
-  // 速率限制時 iTunes 可能回 403/429 和一頁 HTML
+  // When rate-limited, iTunes may answer 403/429 with an HTML page
   it("throws ItunesError when the server returns something that is not JSON", async () => {
     const { fetch } = fakeFetch(403, "<html>Forbidden</html>");
     const client = createItunesClient({ fetch });

@@ -1,5 +1,5 @@
-// 像 Promise.all(items.map(fn))，但同時最多跑 limit 個。結果的順序跟輸入一樣
-// 用在打外部 API：推薦一次要查 10 位歌手，全部同時打會撞到 Last.fm、iTunes 的速率限制
+// Promise.all(items.map(fn)) with at most `limit` calls in flight, results in input order.
+// Keeps a 10-artist lookup under Last.fm's and iTunes' rate limits
 export async function mapLimit<T, R>(
   items: T[],
   limit: number,
@@ -8,8 +8,7 @@ export async function mapLimit<T, R>(
   const results = new Array<R>(items.length);
   let next = 0;
 
-  // 開 limit 個「工人」，每個做完一件就去拿下一件，直到沒有為止
-  // JavaScript 是單執行緒，next++ 不會有兩個工人拿到同一件
+  // `limit` workers each take the next item when free; next++ is safe on a single thread
   async function worker() {
     while (next < items.length) {
       const i = next++;

@@ -6,7 +6,7 @@ import { artistSimilar, artists, tracks, visitors } from "./schema";
 
 const db = getDb();
 
-// drizzle 把 Postgres 的錯誤包在 cause 裡；SQLSTATE 23505 = 違反 unique，23514 = 違反 check
+// Drizzle wraps the Postgres error in `cause`. SQLSTATE 23505 = unique, 23514 = check
 function pgCode(err: unknown): string | undefined {
   const cause = (err as { cause?: { code?: string } }).cause;
   return cause?.code;
@@ -56,7 +56,6 @@ describe("artist_similar", () => {
     return row!.id;
   }
 
-  // 相似歌手還沒抓過時是 null，和「抓過但已過期」分得開
   it("starts with similar_fetched_at empty", async () => {
     const [row] = await db.insert(artists).values({ name: "Radiohead", nameNorm: "radiohead" }).returning();
     expect(row?.similarFetchedAt).toBeNull();
@@ -81,7 +80,6 @@ describe("artist_similar", () => {
     expect(pgCode(err)).toBe("23514");
   });
 
-  // 刪掉歌手時，它的相似清單一起刪，不留孤兒資料
   it("is deleted with its artist", async () => {
     const artistId = await radiohead();
     await db.insert(artistSimilar).values({ artistId, name: "Thom Yorke", nameNorm: "thom yorke", match: 1 });
@@ -91,7 +89,6 @@ describe("artist_similar", () => {
 });
 
 describe("tracks", () => {
-  // 每位歌手只存一首代表歌
   it("stores one track per artist", async () => {
     await db.insert(tracks).values({ artistName: "Radiohead", artistNameNorm: "radiohead", title: "Creep" });
     const err = await db
@@ -101,7 +98,6 @@ describe("tracks", () => {
     expect(pgCode(err)).toBe("23505");
   });
 
-  // iTunes 挑不到時也存一列，試聽欄位是 null：記住「查過、沒有」，30 天內不再問 iTunes
   it("allows a track with no iTunes match", async () => {
     const [row] = await db
       .insert(tracks)
@@ -111,7 +107,7 @@ describe("tracks", () => {
     expect(row?.fetchedAt).toBeInstanceOf(Date);
   });
 
-  // iTunes 的 trackId 已經接近 int 的上限（2,147,483,647），要用 bigint
+  // iTunes trackIds are close to the int limit (2,147,483,647)
   it("stores iTunes ids beyond the int range", async () => {
     const [row] = await db
       .insert(tracks)

@@ -22,8 +22,8 @@ export default defineNuxtConfig({
   vite: {
     plugins: [tailwindcss()],
   },
-  // 換頁用瀏覽器的 View Transitions：首頁的唱盤「飛」到推薦頁中央（同名的 view-transition-name）。
-  // 不支援的瀏覽器、開了「減少動態效果」時 Nuxt 自動跳過，直接換頁
+  // The home turntable morphs into the recommendations page (shared view-transition-name).
+  // Nuxt skips it without browser support or with reduced motion
   experimental: {
     viewTransition: true,
   },

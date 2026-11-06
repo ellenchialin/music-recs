@@ -1,6 +1,5 @@
-// 打真的 Last.fm API，把回應存成測試用的 fixture。只在 API 格式可能變了、或需要新案例時手動跑：
-//   pnpm record:lastfm
-// 測試只讀這些檔案，不打網路。回應裡不含 API key（存檔前會檢查）
+// Records real Last.fm responses as test fixtures. Run by hand when the API may have changed or a
+// new case is needed: pnpm record:lastfm. Responses are checked for the API key before saving
 import { mkdir, writeFile } from "node:fs/promises";
 import { parseLastfmEnv } from "../server/utils/env";
 
@@ -13,7 +12,6 @@ const cases: { file: string; params: Record<string, string> }[] = [
   { file: "toptags-radiohead", params: { method: "artist.getTopTags", artist: "Radiohead", autocorrect: "1" } },
   { file: "toptracks-radiohead", params: { method: "artist.getTopTracks", artist: "Radiohead", limit: "5", autocorrect: "1" } },
   { file: "info-radiohead", params: { method: "artist.getInfo", artist: "Radiohead", autocorrect: "1" } },
-  // 找不到的歌手：確認錯誤長什麼樣
   { file: "similar-not-found", params: { method: "artist.getSimilar", artist: "zzqx no such artist 4821" } },
 ];
 
@@ -26,7 +24,7 @@ for (const { file, params } of cases) {
   const text = await res.text();
   if (text.includes(LASTFM_API_KEY)) throw new Error(`${file}: response contains the API key, not saving`);
 
-  // 連 HTTP 狀態一起存：錯誤的時候 Last.fm 可能回 4xx，也可能回 200 + error 欄位
+  // Keep the status: Last.fm errors can be 4xx or 200 with an `error` field
   const fixture = { status: res.status, body: JSON.parse(text) as unknown };
   await writeFile(new URL(`${file}.json`, outDir), JSON.stringify(fixture, null, 2) + "\n");
   console.log(`${file}: HTTP ${res.status}`);

@@ -3,8 +3,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { nextTick } from "vue";
 import IndexPage from "./index.vue";
 
-// 首頁只負責選種子：推薦結果在 /recommendations（app/pages/recommendations.test.ts）
-
 beforeEach(() => {
   localStorage.clear();
   useSeedsStore().seeds = [];
@@ -13,7 +11,7 @@ beforeEach(() => {
 type Page = Awaited<ReturnType<typeof mountSuspended<typeof IndexPage>>>;
 const recommendButton = (wrapper: Page) => wrapper.findAll("button").find((b) => b.text().includes("Recommend"))!;
 
-// 測試之間共用同一個 router，每個測試結束就卸載頁面
+// Tests share one router, so unmount pages after each test
 const mounted: Page[] = [];
 const open = async (route = "/") => {
   const page = await mountSuspended(IndexPage, { route });
@@ -25,8 +23,7 @@ afterEach(() => {
 });
 
 describe("index page", () => {
-  // 標題的兩個字用 CSS gap 隔開（不靠空白字元，格式化工具拆行也不會黏在一起），
-  // 所以「念出來的名字」由 aria-label 給：螢幕閱讀器念 "Music Recs"，不是 "MusicRecs"
+  // The words are separate elements with no space between them, so aria-label gives the name
   it("shows the app title", async () => {
     const page = await open();
     const title = page.get("h1");
@@ -34,8 +31,6 @@ describe("index page", () => {
     expect(title.findAll("span").map((s) => s.text())).toEqual(["Music", "Recs"]);
   });
 
-  // 黑膠唱盤一直在太陽圓上；加入的歌手是唱盤下方的標籤，不會蓋住或換掉唱盤
-  // 沒有歌手時標籤區是空的，不放提示文字（高度照樣留著，加第一位時版面不跳）
   it("shows no placeholder text before any artist is added", async () => {
     const page = await open();
     expect(page.text()).not.toContain("Your artists will appear here");
@@ -57,7 +52,6 @@ describe("index page", () => {
     expect(tags()).toEqual(["Tame Impala", "Kokoroko"]);
   });
 
-  // 至少 1 位種子才能推薦
   it("asks for a seed before recommending", async () => {
     const page = await open();
     expect(recommendButton(page).attributes("disabled")).toBeDefined();
@@ -76,7 +70,6 @@ describe("index page", () => {
     expect(store.seeds).toEqual(["Kokoroko"]);
   });
 
-  // 按 Recommend：換到推薦頁，種子放在網址裡
   it("goes to the recommendations page with the seeds", async () => {
     ["Tame Impala", "Kokoroko"].forEach((n) => useSeedsStore().add(n));
     const page = await open();
@@ -87,11 +80,9 @@ describe("index page", () => {
         query: { seed: ["Tame Impala", "Kokoroko"] },
       }),
     );
-    // 推薦頁會先播「放唱針」再出現唱片
     expect(useState("needle-drop").value).toBe(true);
   });
 
-  // 從推薦頁的麵包屑回來（/?seed=…）：輸入框換成那組種子，可以接著改；網址清回 /
   it("takes the seeds from the URL when coming back from recommendations", async () => {
     useSeedsStore().add("Radiohead");
     await open("/?seed=Tame+Impala&seed=Kokoroko");

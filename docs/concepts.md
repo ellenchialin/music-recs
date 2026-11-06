@@ -1,261 +1,261 @@
-# 概念筆記（給前端工程師）
+# Concept notes (for a frontend engineer)
 
-每個概念先用前端類比，再指出它在這個專案的哪裡、怎麼親眼看到。上一個專案學過的（資料表、migration、transaction、advisory lock……）見 job-alert-triage 的 `docs/concepts.md`，這裡只寫新的。
+Each concept starts with a frontend analogy, then points to where it lives in this project and how to see it for yourself. Things learned on the previous project (tables, migrations, transactions, advisory locks…) are in job-alert-triage's `docs/concepts.md`; this file covers only what's new.
 
-## 1. Nuxt：一個專案同時有前端和後端
+## 1. Nuxt: frontend and backend in one project
 
-> **前端類比**：像 Next.js 的 App Router + Route Handlers，只是換成 Vue。`app/` 是跑在瀏覽器（和 SSR）的 Vue 程式，`server/` 是跑在 Node 的 API。
+> **Frontend analogy**: like Next.js's App Router + Route Handlers, but with Vue. `app/` is Vue code that runs in the browser (and during SSR); `server/` is the API, running on Node.
 
-| 資料夾 | 跑在哪裡 | 放什麼 |
+| Folder | Runs on | Contains |
 |---|---|---|
-| `app/pages/` | 瀏覽器＋SSR | 頁面，檔名就是路由（`index.vue` → `/`） |
-| `app/components/`、`app/composables/` | 瀏覽器＋SSR | 元件、`useXxx()`，自動 import |
-| `server/api/` | Node（Nitro） | API，檔名就是路徑（`server/api/artists/search.get.ts` → `GET /api/artists/search`） |
-| `server/utils/` | Node | 後端共用函式，`server/` 裡自動 import；推薦演算法放這裡 |
+| `app/pages/` | Browser + SSR | Pages; the file name is the route (`index.vue` → `/`) |
+| `app/components/`, `app/composables/` | Browser + SSR | Components and `useXxx()`, auto-imported |
+| `server/api/` | Node (Nitro) | API routes; the file name is the path (`server/api/artists/search.get.ts` → `GET /api/artists/search`) |
+| `server/utils/` | Node | Shared server functions, auto-imported inside `server/`; the recommendation algorithm lives here |
 
-**界線**：`app/` 不能 import `server/` 的東西（不然 DB 連線字串會被打包進瀏覽器）。兩邊都要用的型別放 `shared/`。
+**The boundary**: `app/` must not import from `server/`, or things like the database connection string would end up in the browser bundle. Types both sides need go in `shared/`.
 
-**親眼看**：`pnpm dev` 後打開 http://localhost:3000 看頁面；之後有 API 時直接打開 http://localhost:3000/api/... 看 JSON。
+**See it**: run `pnpm dev`, open http://localhost:3000 for the page, and open http://localhost:3000/api/... directly to see an API's JSON.
 
-## 2. 兩種測試環境
+## 2. Two test environments
 
-> **前端類比**：就像 Jest 的 `testEnvironment: "node"` 和 `"jsdom"`。
+> **Frontend analogy**: like Jest's `testEnvironment: "node"` vs `"jsdom"`.
 
-`vitest.config.ts` 分兩個 project：
+`vitest.config.ts` has separate projects:
 
-- **`unit`**：`server/`、`shared/` 的 `*.test.ts`。純函式，不需要瀏覽器也不需要 Nuxt，一個測試幾毫秒
-- **`nuxt`**：`app/` 的 `*.test.ts`。會啟動 Nuxt runtime（auto-import、Pinia、router），DOM 用 happy-dom 模擬；用 `mountSuspended()` 掛元件
+- **`unit`**: `*.test.ts` in `server/` and `shared/`. Pure functions, no browser and no Nuxt; each test takes milliseconds.
+- **`nuxt`**: `*.test.ts` in `app/`. Starts the Nuxt runtime (auto-imports, Pinia, router) with happy-dom for the DOM; mount components with `mountSuspended()`.
 
-**為什麼分**：推薦演算法是這個專案的核心，測試會最多，讓它們跑在最快的環境。
+**Why split them**: the recommendation algorithm is the core of the project and has the most tests, so they run in the fastest environment.
 
-**親眼看**：`pnpm test` 的輸出每行前面有 `|unit|` 或 `|nuxt|`。
+**See it**: every line of `pnpm test` output starts with `|unit|`, `|db|` or `|nuxt|`.
 
-## 3. 這個專案的 schema 選擇
+## 3. This project's schema choices
 
-資料表、migration、unique 這些上一個專案學過了，這裡只記這次新的取捨。檔案在 `server/db/schema.ts`，對應的測試在 `server/db/schema.db.test.ts`。
+Tables, migrations and unique constraints came up on the last project; this section records only the new trade-offs. The file is `server/db/schema.ts`, tested in `server/db/schema.db.test.ts`.
 
-| 選擇 | 為什麼 | 替代做法 |
+| Choice | Why | Alternative |
 |---|---|---|
-| `visitors.id` 是 `uuid`，由伺服器產生 | 這個 ID 要放進 cookie。自動編號（1、2、3…）猜得到別人的 ID，隨機 uuid 猜不到 | `serial` 編號＋另一個隨機 token 欄位：多一個欄位，沒有好處 |
-| `artists` 用 `name_norm` 當唯一鍵，不用 `mbid` | 很多冷門歌手在 Last.fm 沒有 MusicBrainz ID；Last.fm 本身也是用名字找歌手 | 用 `mbid`：冷門歌手存不進來 |
-| `tags` 是 `text[]`（陣列欄位） | 標籤只會「整包讀出來」，不會單獨更新某個標籤 | 另開 `artist_tags` 表：要用標籤反查歌手時才值得 |
-| `listeners >= 0` 用 check constraint | 規則寫在資料庫，任何程式寫錯都進不去 | 只在 zod 檢查：別的寫入路徑可能漏掉 |
-| `fetched_at` 有預設值 | 30 天快取過期就是比較它和現在的時間 | — |
+| `visitors.id` is a server-generated `uuid` | The ID goes in a cookie. Sequential IDs (1, 2, 3…) let you guess other people's; a random uuid doesn't | A `serial` ID plus a random token column: one more column, no benefit |
+| `artists` is unique on `name_norm`, not `mbid` | Many lesser-known artists have no MusicBrainz ID on Last.fm, and Last.fm itself looks artists up by name | `mbid`: those artists couldn't be stored |
+| `tags` is a `text[]` array column | Tags are only ever read as a whole, never updated one at a time | A separate `artist_tags` table: only worth it to look artists up by tag |
+| `listeners >= 0` is a check constraint | The rule lives in the database, so no buggy code path can break it | Only checking in zod: another write path might skip it |
+| `fetched_at` has a default | The 30-day cache expiry compares it to the current time | — |
 
-> **前端類比**：`name_norm` 就像做搜尋時先把輸入 `trim().toLowerCase()` 再比對。顯示用原本的 `name`，比對用正規化過的 `name_norm`。
+> **Frontend analogy**: `name_norm` is like running `trim().toLowerCase()` on a search input before comparing. Display the original `name`; compare with the normalized `name_norm`.
 
-**親眼看**：`pnpm db:studio` 打開 `artists` 表看欄位；或 `pnpm db:sandbox` 後輸入 `\d artists`，會看到 unique 和 check 兩個 constraint。
+**See it**: open the `artists` table in `pnpm db:studio`, or run `pnpm db:sandbox` and type `\d artists` to see the unique and check constraints.
 
-## 4. 外部 API client：zod 驗證＋可替換的 fetch
+## 4. External API clients: zod validation and a swappable fetch
 
-程式在 `server/lastfm/`：`schemas.ts`（zod）、`client.ts`（呼叫 API）、`fixtures/`（錄好的真實回應）。
+The code is in `server/lastfm/`: `schemas.ts` (zod), `client.ts` (API calls) and `fixtures/` (recorded real responses).
 
-### zod 不只驗證，也負責「翻譯」
+### zod validates and translates
 
-> **前端類比**：拿到後端 API 的資料後，你常會寫一個 `toViewModel()` 把它轉成畫面好用的形狀。這裡把驗證和轉換寫在同一個 schema 裡。
+> **Frontend analogy**: after fetching from a backend you often write a `toViewModel()` to reshape the data for the UI. Here validation and reshaping live in the same schema.
 
-Last.fm 的原始回應很不好用：數字是字串（`"8500398"`）、沒有 MBID 時是 `""`、只有一筆時陣列會變成單一物件、每筆還帶一堆用不到的圖片網址。`schemas.ts` 一次處理掉，後面的推薦演算法只會看到乾淨的 `{ name, mbid: string | null, listeners: number }`。
+Last.fm's raw responses are awkward: numbers are strings (`"8500398"`), a missing MBID is `""`, a one-item array becomes a single object, and every item carries image URLs we don't use. `schemas.ts` handles all of it, so the algorithm only sees clean `{ name, mbid: string | null, listeners: number }`.
 
-格式變了（例如 Last.fm 改了欄位名稱）就在這裡丟錯，不會讓 `undefined` 一路流進演算法，最後變成畫面上的 `NaN`。
+If the format changes (say Last.fm renames a field), it throws right here instead of letting `undefined` flow into the algorithm and end up as `NaN` on screen.
 
-### 為什麼 fetch 要從外面傳進來
+### Why fetch is passed in
 
-> **前端類比**：測試元件時用 MSW 或 mock 掉 `fetch`，不讓測試真的打後端。
+> **Frontend analogy**: in component tests you use MSW or mock `fetch` so the test never hits a real backend.
 
-`createLastfmClient({ apiKey, fetch })` 的 `fetch` 預設是全域的，測試傳一個假的進去，回傳 fixture 的內容。好處：
+`createLastfmClient({ apiKey, fetch })` uses the global `fetch` by default; tests pass a fake that returns fixture content. That means:
 
-- 測試不需要網路、不需要 API key，CI 也能跑
-- 測試可以檢查「送出去的網址對不對」（`client.test.ts` 第一個測試）
-- 可以模擬真實世界很難觸發的情況，例如 503、回傳 HTML
+- Tests need no network and no API key, so CI can run them.
+- Tests can check that the right URL was requested (the first test in `client.test.ts`).
+- Tests can simulate cases that are hard to trigger for real, like a 503 or an HTML response.
 
-這個寫法叫**依賴注入**：函式需要的東西由呼叫的人給，而不是自己去拿。
+This is **dependency injection**: the caller provides what a function needs instead of the function fetching it itself.
 
-### Fixture 是錄下來的，不是手寫的
+### Fixtures are recorded, not hand-written
 
-`pnpm record:lastfm` 打真的 API，連 HTTP 狀態一起存成 JSON。手寫的假資料容易「寫成你以為的樣子」；錄下來的才會有 `"listeners": "8500398"` 這種真實的怪癖。唯一手做的案例（只有一筆時變成物件）在測試裡有註解說明。
+`pnpm record:lastfm` calls the real API and saves the response, HTTP status included, as JSON. Hand-written fake data tends to look the way you assume it does; recorded data has real quirks like `"listeners": "8500398"`. The one hand-made case (a single item becoming an object) is marked in its test.
 
-**親眼看**：打開 `server/lastfm/fixtures/similar-not-found.json`，找不到歌手時 Last.fm 回的是 **HTTP 200**，錯誤放在 body。所以 `client.ts` 看 body 的 `error` 欄位，不只看 `res.ok`。
+**See it**: open `server/lastfm/fixtures/similar-not-found.json`. When an artist isn't found, Last.fm returns **HTTP 200** with the error in the body, which is why `client.ts` checks the body's `error` field and not just `res.ok`.
 
-### 第二個 client：同樣的形狀，不同的怪癖
+### A second client: same shape, different quirks
 
-`server/itunes/` 和 `server/lastfm/` 結構一樣（schema + 注入 fetch + 錄好的 fixture），差別都來自錄 fixture 時看到的真實行為：
+`server/itunes/` is built like `server/lastfm/` (schema + injected fetch + recorded fixtures). The differences all come from real behavior seen while recording:
 
 | | Last.fm | iTunes |
 |---|---|---|
-| 出錯時 | HTTP 200 + `error` 欄位，要看 body | HTTP 4xx + `errorMessage`，看 `res.ok` 就夠 |
-| 數字、陣列 | 數字是字串、單筆變物件，要在 schema 修 | 本來就是 number 和陣列 |
-| 不要的資料 | — | 結果裡可能混 MV 等其他 `kind`：**先過濾再驗證**，不讓一筆不相干的資料讓整個回應失敗 |
-| API key | 要 | 不用 |
+| Errors | HTTP 200 + an `error` field; check the body | HTTP 4xx + `errorMessage`; `res.ok` is enough |
+| Numbers, arrays | Numbers are strings and single items become objects; fixed in the schema | Already numbers and arrays |
+| Unwanted data | — | Results can include other `kind`s such as music videos: **filter, then validate**, so one unrelated item can't fail the whole response |
+| API key | Required | Not needed |
 
-> **前端類比**：同一個 `fetch` 包裝，接兩個後端；共用的是「回應進來先驗證、轉成自己的型別」這個習慣，不是共用一個萬用函式。兩個 client 才各 40 行，硬抽共用層反而要處理兩種錯誤格式的分支。
+> **Frontend analogy**: one `fetch` wrapper pattern, two backends. What's shared is the habit (validate every response and convert it to your own types), not one do-everything function. Each client is about 40 lines; a shared layer would have to branch on two error formats.
 
-**地區會改變資料**：`country` 參數決定查哪一國的商店。台灣商店裡宇多田ヒカル 叫 `Hikaru Utada`；Radiohead 的原版〈Creep〉不在台灣商店，搜尋第一筆是 Acoustic 版。所以「從搜尋結果挑對的那首」要另外寫成純函式，不能直接拿第一筆。
+**The store changes the data**: the `country` parameter picks a store. In the Taiwan store, 宇多田ヒカル is `Hikaru Utada`, and Radiohead's original "Creep" isn't there; the first result is the acoustic version. So picking the right song out of the results is a separate pure function, not just taking the first one.
 
-## 5. 分級挑選：先找最好的，再退而求其次
+## 5. Tiered picking: the best option first, then fall back
 
-> **前端類比**：`srcset` 或「有 2x 圖用 2x，沒有用 1x，再沒有用預設圖」。一串由好到差的選項，取第一個存在的。
+> **Frontend analogy**: `srcset`, or "use the 2x image if there is one, else 1x, else the default". A list of options from best to worst; take the first that exists.
 
-外部資料常常沒有完美的答案：iTunes 台灣商店沒有 Radiohead 原版的〈Creep〉，只有 Acoustic 版。這時候有幾種寫法：
+External data often has no perfect answer: the iTunes Taiwan store has no original "Creep" by Radiohead, only an acoustic version. Some ways to handle that:
 
-| 寫法 | 問題 |
+| Approach | Problem |
 |---|---|
-| 直接拿第一筆 | 換一首歌就可能拿到別人的同名歌 |
-| 只接受完全相符 | 太嚴格，很多歌會沒有試聽 |
-| 給每筆打分數再排序 | 分數要調權重，規則藏在數字裡，難測也難解釋 |
-| **分級挑選**（`filter` 出有資格的，再 `find(最好) ?? find(次好) ?? null`） | 規則一條一級，每級各有一個測試；要加一級就多一個 `??` |
+| Take the first result | For another song it might be a different artist's song with the same title |
+| Accept only exact matches | Too strict; many songs would have no preview |
+| Score every result and sort | Weights need tuning, the rules hide in numbers, and it's hard to test or explain |
+| **Tiered picking** (`filter` the eligible ones, then `find(best) ?? find(next) ?? null`) | One rule per tier, one test per tier; adding a tier is one more `??` |
 
-這個專案選分級挑選。規則少（三級）的時候最好讀；如果之後規則多到五六級、級與級之間還要互相比較，才改成打分數。
+This project uses tiered picking. With few rules (three tiers) it's the easiest to read; scoring only pays off if there are five or six tiers that need to be weighed against each other.
 
-另一個原則：**寧可回 `null`，也不要猜**。挑不到試聽，卡片就不顯示播放鈕；挑錯了，使用者會聽到別人的歌，以為推薦壞了。
+Another principle: **return `null` rather than guess**. If no preview is found, the card shows no play button. If the wrong one is picked, the user hears someone else's song and thinks the recommendation is broken.
 
-## 6. 快取：先查資料庫，沒有才打 API
+## 6. Caching: check the database, call the API only when needed
 
-> **前端類比**：TanStack Query／SWR 的 `staleTime`。有資料又沒過期就直接用，過期才重新 fetch。差別是這裡的快取存在 Postgres，所有訪客共用，伺服器重開也還在。
+> **Frontend analogy**: TanStack Query's or SWR's `staleTime`. Fresh data is used as is; stale data is refetched. The difference is that this cache lives in Postgres, shared by every visitor and surviving server restarts.
 
-`server/cache/lastfm.ts` 的寫法叫 **cache-aside**：
+`server/cache/lastfm.ts` follows **cache-aside**:
 
-1. 用正規化的名字查 `artists`
-2. 有，而且 `isFresh(fetched_at, now)`（30 天內）→ 直接回傳，**不打 API**
-3. 沒有或過期 → 打 Last.fm → 寫回資料庫 → 回傳
+1. Look up the normalized name in `artists`.
+2. Found and `isFresh(fetched_at, now)` (within 30 days) → return it, **no API call**.
+3. Missing or stale → call Last.fm → write it back → return it.
 
-上一個專案學過的東西在這裡都用得到：
+What was learned on the last project all shows up here:
 
-- **upsert（`onConflictDoUpdate`）**：兩個訪客同時查同一位新歌手，兩邊都沒查到、都打 API、都寫入。用 upsert 的話，後寫的變成更新，不會撞 unique 錯誤。
-- **transaction**：相似清單過期時要「刪舊、寫新、更新 `similar_fetched_at`」三步。像超商換貨架：沒有 transaction，就是店員先把舊貨全撤掉、新貨還在推車上，這時走進來的客人（同時進來的另一個請求）會看到空貨架，拿到空的推薦；店員半路被叫走（寫新的那步失敗），貨架就一直空著，直到下一位客人觸發重抓。有 transaction，就像拉上簾子換完再拉開：別人只會看到舊貨架或新貨架；半路失敗就整個復原，舊清單還在。
-- **`now` 由參數傳入**：和 fetch 一樣是依賴注入。測試可以直接傳「31 天後」，不必 mock 系統時間。
+- **Upsert (`onConflictDoUpdate`)**: two visitors look up the same new artist at once; neither finds it, both call the API, both write. With an upsert, the second write becomes an update instead of a unique-constraint error.
+- **Transaction**: refreshing a stale similar list means "delete the old rows, write the new ones, update `similar_fetched_at`". Think of restocking a shelf. Without a transaction, the clerk clears the old stock while the new stock is still on the cart: a customer walking in now (a concurrent request) sees an empty shelf and gets empty recommendations, and if the clerk is called away halfway (the write fails), the shelf stays empty until the next refetch. With a transaction, it's like restocking behind a curtain: everyone sees either the old shelf or the new one, and a failure halfway rolls everything back, leaving the old list in place.
+- **`now` is passed in**: dependency injection again. Tests can pass "31 days later" without mocking the system clock.
 
-**親眼看**：`pnpm db:studio` 打開 `artists` 和 `artist_similar`。第一次查一位歌手要打 2 次 API（約 700ms），第二次 0 次（約 3ms）。
+**See it**: open `artists` and `artist_similar` in `pnpm db:studio`. The first lookup of an artist makes 2 API calls (about 700ms); the second makes none (about 3ms).
 
-### 「沒有」也要快取，「壞了」不能快取
+### Cache "nothing", never "broken"
 
-> **前端類比**：搜尋框打「zzqx」，後端回空陣列，SWR 會把空陣列也快取起來，不會每次重打。但如果是 500 錯誤，SWR 不會把錯誤當成資料存下來，下次會重試。
+> **Frontend analogy**: search for "zzqx" and the backend returns an empty array; SWR caches the empty array and doesn't refetch. A 500 error isn't stored as data, so the next request retries.
 
-`server/cache/tracks.ts` 分兩種情況：
+`server/cache/tracks.ts` handles the two cases differently:
 
-| 情況 | 處理 | 為什麼 |
+| Case | Handling | Why |
 |---|---|---|
-| iTunes 正常回應，但挑不到歌 | 存一列，試聽欄位是 `null`（**negative cache**） | 不存的話，每次推薦到這位歌手都再問一次 iTunes，很快撞到每分鐘約 20 次的限制 |
-| iTunes 出錯（403、當機） | 什麼都不存，錯誤往上丟 | 存了的話，iTunes 恢復後 30 天內這位歌手都沒有試聽 |
+| iTunes answers normally but no song matches | Store a row with a `null` preview (**negative caching**) | Otherwise every recommendation of this artist asks iTunes again and quickly hits its limit of about 20 a minute |
+| iTunes fails (403, outage) | Store nothing and rethrow | Storing it would leave the artist without a preview for 30 days after iTunes recovers |
 
-測試 `remembers that iTunes had nothing` 和 `does not cache anything when iTunes fails` 各檢查一種。
+The tests `remembers that iTunes had nothing` and `does not cache anything when iTunes fails` check one case each.
 
-## 7. 推薦演算法是一條純函式的管線
+## 7. The algorithm is a pipeline of pure functions
 
-> **前端類比**：Redux 的 selector（或 Vue 的 computed）。state 進去、畫面要的資料出來，不打 API、不改 state。同樣的輸入永遠得到同樣的輸出，所以測試只要準備輸入、比對輸出。
+> **Frontend analogy**: a Redux selector (or a Vue computed). State in, the data the view needs out, no API calls, no mutations. The same input always gives the same output, so a test just prepares input and compares output.
 
-`server/utils/recommend/` 的每一步都是這樣：
+Every step in `server/utils/recommend/` works like that:
 
 ```
-每位種子的相似清單 ──mergeCandidates──▶ 合併、加總分數、排序
-                     ──excludeArtists──▶ 拿掉種子本身、不喜歡的
-                     ──取前 10 位────▶ 推薦結果（標上 algo_version）
+each seed's similar list ──mergeCandidates──▶ merge, sum scores, sort
+                         ──excludeArtists───▶ drop the seeds and artists already shown
+                         ──take the top 10──▶ recommendations (tagged with algo_version)
 ```
 
-資料從哪來（快取、Last.fm）是 `/api/recommendations` 的事，演算法只吃 `types.ts` 裡的普通物件。好處：
+Where the data comes from (cache, Last.fm) is `/api/recommendations`' job; the algorithm only takes the plain objects in `types.ts`. That means:
 
-- 測試不需要資料庫，也不需要 fixture，手寫幾筆就能測一條規則
-- 換資料來源（例如之後改用標籤找候選）不必改演算法
-- 盲聽測驗要比較不同版本的演算法時，同樣的輸入一定得到同樣的輸出（所以分數一樣時要依名字排，不能靠 `Map` 或資料庫回傳的順序）
+- Tests need no database or fixtures; a few hand-written items test one rule.
+- Changing the data source (say, finding candidates by tag) doesn't change the algorithm.
+- When the blind test compares algorithm versions, the same input always gives the same output (which is why equal scores sort by name instead of relying on `Map` or database order).
 
-**用 Map 分組累加**（練習 3）：同一位歌手出現在好幾位種子的清單裡時，用 `nameNorm` 當 key 找到原本那筆，把分數加上去，而不是新增一筆。
+**Grouping with a Map** (exercise 3): when an artist appears in several seeds' lists, use `nameNorm` as the key to find the existing entry and add to its score instead of adding a new entry.
 
-## 8. API route：一層只做一件事
+## 8. API routes: one job per layer
 
-> **前端類比**：元件不直接 `fetch`，而是呼叫一個 hook 或 service；hook 再用 API client。元件只管畫面，service 只管資料流程。這裡是同樣的分層，只是在伺服器上。
+> **Frontend analogy**: components don't call `fetch` directly; they call a hook or service, which uses the API client. Components handle the view; services handle the data flow. Same layering, on the server.
 
-`GET /api/recommendations?seed=Tame%20Impala&seed=Kokoroko` 經過四層：
+`GET /api/recommendations?seed=Tame%20Impala&seed=Kokoroko` passes through four layers:
 
-| 層 | 檔案 | 只做這件事 |
+| Layer | File | Its one job |
 |---|---|---|
-| route | `server/api/recommendations.get.ts` | 驗證 query（zod）、呼叫 service、把錯誤轉成 HTTP 狀態碼（404、502） |
-| service | `server/services/recommendations.ts` | 串接：種子 → 快取 → 演算法 → 每張卡片補試聽；決定哪些錯誤要往上丟、哪些自己接住 |
-| 快取 | `server/cache/` | 先查 Postgres，沒有才打 Last.fm、iTunes |
-| 演算法 | `server/utils/recommend/` | 純函式，不知道資料從哪來 |
+| Route | `server/api/recommendations.get.ts` | Rate-limit, validate the query (zod), call the service, map errors to status codes (404, 502) |
+| Service | `server/services/recommendations.ts` | Wire it together: seeds → cache → algorithm → a preview for each card; decide which errors to rethrow and which to handle |
+| Cache | `server/cache/` | Check Postgres; call Last.fm or iTunes only when needed |
+| Algorithm | `server/utils/recommend/` | Pure functions that don't know where the data comes from |
 
-測試也照層分：演算法用手寫資料（unit）、快取和 service 用假的 client ＋ 測試資料庫（db）、route 只剩幾行，用 `curl` 親眼看。
+Tests follow the layers: the algorithm with hand-written data (unit), the cache and service with fake clients and a test database (db), and the route, now only a few lines, checked by hand with `curl`.
 
-**錯誤要在哪一層接住？** 看它影響多大：
+**Which layer catches an error?** It depends on how much it affects:
 
-- 一位歌手的試聽查不到（iTunes 403）→ service 在**那張卡片**接住，回 `preview: { status: "error" }`，其他 9 張照常
-- 種子找不到 → 整份推薦做不出來，丟 `SeedNotFoundError`，route 轉成 404 加上建議的歌手名
-- Last.fm 當機 → route 轉成 502，不把 Last.fm 的原始錯誤訊息傳給前端
+- One artist's preview fails (iTunes 403) → the service catches it for **that card** and returns `preview: { status: "error" }`; the other 9 are fine.
+- A seed isn't found → no recommendations are possible, so it throws `SeedNotFoundError`, which the route turns into a 404 with suggested names.
+- Last.fm is down → the route returns 502 without passing Last.fm's own error message to the client.
 
-**同時打幾個 API？** `mapLimit(items, 3, fn)` 像 `Promise.all(items.map(fn))`，但同時最多 3 個。全部一起打比較快，但會撞到速率限制；一個一個打不會撞，但 10 位歌手要等很久。
+**How many API calls at once?** `mapLimit(items, 3, fn)` is like `Promise.all(items.map(fn))` with at most 3 in flight. All at once is faster but hits rate limits; one at a time never hits them but makes 10 artists slow.
 
-## 9. 合併多份排行：看名次，不看原始分數（v2）
+## 9. Merging rankings: use ranks, not raw scores (v2)
 
-> **前端類比**：三個不同的評分網站，一個習慣打 9 分以上、一個平均 6 分。直接把分數加起來，愛打高分的那個網站會決定排名。比較公平的做法是看「它在各網站排第幾」。
+> **Frontend analogy**: three review sites, one that usually gives 9+ and one that averages 6. Add the raw scores and the generous site decides the ranking. It's fairer to look at where each item ranks on each site.
 
-v1 直接加總 Last.fm 的 `match`。Kokoroko 的相似清單前 10 名都在 0.8 以上，Tame Impala 的掉得比較快，結果 10 個名額 Kokoroko 拿 5 個、Tame Impala 只拿 1 個。
+v1 summed Last.fm's `match`. Kokoroko's top 10 similar artists were all above 0.8 while Tame Impala's dropped off faster, so Kokoroko took 5 of the 10 spots and Tame Impala only 1.
 
-v2 用 **Reciprocal Rank Fusion**（搜尋引擎合併多份結果的常見做法）：在一位種子的清單裡排第 `rank` 名，得 `1 / (RANK_K + rank)` 分。
+v2 uses **Reciprocal Rank Fusion** (a common way search engines merge result lists): rank `rank` in a seed's list scores `1 / (RANK_K + rank)`.
 
-- 每位種子的第 1 名分數一樣、第 2 名一樣……所以前 10 名會輪流來自各位種子
-- 被好幾位種子推薦的歌手，各種子的分數加起來，還是排在前面（SPEC 的要求）
-- `RANK_K` 控制兩者的平衡：越大，名次之間差越少，「被好幾位種子推薦」越佔優勢。這裡用 5
+- Every seed's #1 scores the same, as does every #2, and so on, so the top 10 alternates between seeds.
+- An artist recommended by several seeds sums their scores and still ranks high, as the spec requires.
+- `RANK_K` balances the two: the larger it is, the smaller the gaps between ranks and the bigger the advantage of being recommended by several seeds. This project uses 5.
 
-**代價**：只看名次就丟掉了 `match` 的大小。一位種子的相似清單整體都很弱（第 1 名只有 0.2），它的第 1 名還是和別的種子的第 1 名一樣重。
+**The cost**: ranks throw away how large `match` was. If a seed's whole list is weak (its #1 is only 0.2), its #1 still counts as much as another seed's #1.
 
-## 10. 首頁：SSR、localStorage 和自動完成
+## 10. The home page: SSR, localStorage and autocomplete
 
-### SSR 時 localStorage 的陷阱（`skipHydrate`）
+### The SSR localStorage trap (`skipHydrate`)
 
-> **前端類比**：Next.js 裡在 render 時讀 `localStorage` 會報錯或造成 hydration mismatch，要等 `useEffect` 才讀。Nuxt 也一樣，而且 Pinia 多了一層坑。
+> **Frontend analogy**: in Next.js, reading `localStorage` during render throws or causes a hydration mismatch, so you read it in `useEffect`. Nuxt is the same, with an extra Pinia pitfall.
 
-Nuxt 預設先在伺服器把頁面渲染成 HTML，再到瀏覽器「接手」（hydration）。伺服器沒有 `localStorage`，所以種子清單是空的；Pinia 會把這份**空狀態**連同 HTML 一起送到瀏覽器，瀏覽器接手時套用它——蓋掉 localStorage 讀出來的種子，再把空陣列寫回 localStorage。結果：重新整理後種子全不見。
+Nuxt renders the page to HTML on the server first, then the browser takes over (hydration). The server has no `localStorage`, so the seed list is empty there. Pinia sends that **empty state** with the HTML, the browser applies it on hydration, overwriting the seeds read from localStorage, and then writes the empty array back to localStorage. The result: the seeds vanish on reload.
 
-`app/stores/seeds.ts` 的兩個修正：
+`app/stores/seeds.ts` has two fixes:
 
-- `skipHydrate(seeds)`：告訴 Pinia 這個欄位不要用伺服器送來的值
-- `useLocalStorage(..., { initOnMounted: true })`：等瀏覽器掛載完才讀 localStorage，伺服器和瀏覽器第一次渲染出來的 HTML 一樣，不會 hydration mismatch
+- `skipHydrate(seeds)`: tells Pinia not to use the server's value for this field.
+- `useLocalStorage(..., { initOnMounted: true })`: reads localStorage only after mount, so the server and the browser's first render produce the same HTML (no hydration mismatch).
 
-測試 `keeps the browser's seeds when the server sent an empty state` 模擬「伺服器送來空狀態」重現這個問題。
+The test `keeps the browser's seeds when the server sent an empty state` reproduces the bug by simulating the server sending an empty state.
 
-### 自動完成的兩個細節
+### Two autocomplete details
 
-- **debounce**：`refDebounced(query, 250)`，停止打字 250ms 才查，不是每按一個鍵就打一次 API
-- **舊請求晚回來**：打「ta」「tam」「tame」送出三個請求，回來的順序不一定。每次送出記一個編號，只採用最後一個編號的結果（`latestRequest`）
+- **Debounce**: `refDebounced(query, 400)` waits until typing pauses for 400ms instead of calling the API on every key. 250ms was too short: normal typing often pauses that long between keys.
+- **Late responses**: typing "ta", "tam", "tame" sends three requests that can come back in any order. Each request gets a number and only the latest one's result is used (`latestRequest`).
 
-### 全頁共用一個播放器
+### One player for the whole page
 
-`createSharedComposable`（VueUse）：每張卡片呼叫 `usePreviewPlayer()` 拿到的是同一份狀態，像一個小型的全域 store。播 B 的時候 A 自動停，因為只有一個 `<audio>`。
+`createSharedComposable` (VueUse): every card that calls `usePreviewPlayer()` gets the same state, like a tiny global store. Playing B stops A because there's only one `<audio>`.
 
-## 11. Explore from here：路徑狀態是純函式
+## 11. Explore from here: the path is pure-function state
 
-> **前端類比**：瀏覽器的上一頁／下一頁，或 React Router 的 history stack。每往下挖一層 push 一筆，點路徑回去就把後面的切掉。
+> **Frontend analogy**: the browser's Back/Forward, or React Router's history stack. Each level deeper pushes an entry; going back along the path drops everything after it.
 
-`app/utils/explore-trail.ts` 把路徑存成陣列，每一層記三件事：從哪位歌手挖下來（第一層是 `null`）、推薦結果、看到第幾張。
+`app/utils/explore-trail.ts` keeps the path as an array, with three things per level: the artist it came from (`null` for the first level), the recommendations, and which record is being viewed.
 
-- `exploreFrom`、`backTo` 都回傳新陣列、不改原本的：回上一層時前面各層原封不動，所以不用重新查詢
-- `excludedFor` 算下一層的排除名單：原本的種子 ＋ 每一層顯示過的唱片，送給 API 的 `exclude`
-- 「看到第幾張」用 `v-model:index` 綁到唱片箱：唱片箱改，路徑裡那一層跟著改；回到那一層時，唱片箱從那一張開始
+- `exploreFrom` and `backTo` return new arrays and never mutate the old one, so earlier levels stay untouched and going back needs no refetch.
+- `excludedFor` builds the next level's exclusion list: the original seeds plus every record shown on every level, sent as the API's `exclude`.
+- The record being viewed is bound to the crate with `v-model:index`: when the crate changes it, that level of the path changes too, and returning to a level opens the crate on that record.
 
-演算法本身沒有變：往下挖只是「一位種子 ＋ 一份排除名單」再跑一次推薦。
+The algorithm doesn't change: exploring is just another recommendation run with one seed and an exclusion list.
 
-## 12. 網址是推薦結果的唯一來源
+## 12. The URL is the single source of truth
 
-> **前端類比**：React Router 的 `useSearchParams`，或篩選條件放在網址的商品列表頁。畫面由網址算出來，不是由按鈕點了幾次算出來。
+> **Frontend analogy**: React Router's `useSearchParams`, or a product list with its filters in the URL. The view is computed from the URL, not from how many times a button was clicked.
 
 `/recommendations?seed=Tame+Impala&seed=Kokoroko&explore=Pond`
 
-- **解析網址**：`app/utils/recommendations-route.ts` 把 query 轉成 `{ seeds, explore }`。網址可以手改：多的、空的、重複的都去掉，最多 3 位種子、3 層
-- **依網址查詢**：`useAsyncData` 監看網址，一層一層查。伺服器端渲染時就查好，打開頁面直接有結果；從首頁換過來時（`lazy`）先顯示唱盤
-- **查過的不再查**：每一層的結果存在 `useState`，key 是「種子 ＋ 路徑」。伺服器查好的會跟著頁面送到瀏覽器；往下挖、回上一層、按上一頁都先看這裡
-- **往下挖＝改網址**：先查好下一層、確認有新歌手，才 `router.push`；網址一變，`useAsyncData` 重跑時直接從快取拿
+- **Parsing**: `app/utils/recommendations-route.ts` turns the query into `{ seeds, explore }`. URLs can be hand-edited: extra, empty and duplicate values are dropped, keeping at most 3 seeds and 3 levels.
+- **Fetching from the URL**: `useAsyncData` watches the URL and fetches level by level. With SSR the page arrives with results; coming from home (`lazy`), it shows the turntable first.
+- **Never fetch twice**: each level's result is kept in `useState`, keyed by seeds + path. Server-fetched results travel to the browser with the page; exploring, going back and the Back button all check here first.
+- **Exploring = changing the URL**: fetch the next level first and only `router.push` if it has new artists; when the URL changes, `useAsyncData` reruns and reads from the cache.
 
-**SSR 的坑**：在 `setup` 裡用瀏覽器才有的東西（`Audio`、`window`、`localStorage`）會讓伺服器端渲染失敗。等真的要用時才建立（試聽播放器），或放在 `onMounted` 裡（種子的 localStorage）。
+**The SSR pitfall**: using browser-only things in `setup` (`Audio`, `window`, `localStorage`) breaks server rendering. Create them only when needed (the preview player) or do it in `onMounted` (the seeds' localStorage).
 
-## 13. 速率限制：固定時間窗＋資料庫原子計數
+## 13. Rate limiting: fixed windows and atomic counts in the database
 
-> **前端類比**：按鈕的 throttle，只是放在伺服器、而且是對「每個人」各算一份。超過就回 `429 Too Many Requests`，`Retry-After` 告訴對方幾秒後再試。
+> **Frontend analogy**: a button throttle, but on the server and counted separately for each person. Over the limit returns `429 Too Many Requests`, with `Retry-After` saying how many seconds to wait.
 
-- **固定時間窗**：時間切成一分鐘一格，每格各自計數，下一分鐘重新算（`server/utils/rate-limit.ts` 的 `windowStart`）。缺點是格子交界可能短時間內通過兩倍（59 秒 20 次＋下一分鐘 0 秒 20 次）；要更平均可以用滑動時間窗或 token bucket，但要存更多狀態。這個專案用固定的就夠
-- **計數存在 Postgres**：Vercel 是 serverless，每個請求可能跑在不同機器，記憶體裡的計數不共用
-- **原子計數**：`INSERT … ON CONFLICT DO UPDATE SET count = count + 1 RETURNING count`。「+1」在資料庫裡一次做完，同時來的兩個請求不會都讀到 5、都寫回 6。測試：同時送 25 個、上限 20，剛好 20 個通過
-- **不存 IP**：存「IP ＋ 鹽」的 SHA-256。鹽是伺服器的祕密（`RATE_LIMIT_SALT`），沒有鹽就不能把所有 IP 算一遍來反查
-- **清理**：每次寫入有 1% 機會順便刪掉一小時前的列，不另外排程
+- **Fixed window**: time is cut into one-minute windows, each counted separately (`windowStart` in `server/utils/rate-limit.ts`). The downside is that around a boundary up to twice the limit can get through in a short time (20 at second 59, then 20 at second 0). Sliding windows or token buckets are smoother but store more state; fixed windows are enough here.
+- **Counts in Postgres**: Vercel is serverless, so each request may run on a different instance and in-memory counts aren't shared.
+- **Atomic increments**: `INSERT … ON CONFLICT DO UPDATE SET count = count + 1 RETURNING count`. The database does the increment in one step, so two concurrent requests can't both read 5 and write 6. Test: 25 requests at once with a limit of 20 lets exactly 20 through.
+- **No raw IPs**: store the SHA-256 of salt + IP. The salt is a server secret (`RATE_LIMIT_SALT`), so the hash can't be reversed by hashing every possible IP.
+- **Cleanup**: each write has a 1% chance to delete windows older than an hour; no scheduled job needed.
 
-**兩個坑**：
+**Two pitfalls**:
 
-1. **整個 route 快取時**（`defineCachedEventHandler`），快取命中不會經過限制，還會把第一個人的回應 header 重播給別人。改成只快取「打 Last.fm」那一步（`defineCachedFunction`），限制寫在外面
-2. **SSR 看不到使用者的 IP**：頁面在伺服器上查自己的 API 不經過網路，API 拿不到 IP，所有人的 SSR 被算成同一個「unknown」。`useApiFetch` 在 SSR 時把使用者的 IP 放進 `x-forwarded-for` 帶過去（Vercel 會蓋掉使用者自己送的這個 header，不能假冒）
+1. **Caching the whole route** (`defineCachedEventHandler`) skips the limit on cache hits and replays the first caller's response headers to others. Cache only the Last.fm call (`defineCachedFunction`) and rate-limit outside it.
+2. **SSR can't see the client IP**: when a page calls its own API during server rendering, the request doesn't go over the network, so the API sees no IP and every visitor's SSR shares one "unknown" bucket. `useApiFetch` forwards the client IP in `x-forwarded-for` during SSR (Vercel overwrites that header, so clients can't spoof it).
