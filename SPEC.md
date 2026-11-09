@@ -149,7 +149,7 @@ The schedule is tight. If it slips, cut in this order: popularity slider → LLM
 - [ ] Without an account, get recommendations and hear a preview within 30 seconds
 - [x] Repeating a query with the same seeds calls no external API or LLM
 - [x] Over the rate limit returns 429 and the page says so
-- [ ] A live demo works
+- [x] A live demo works ([music-recs-roan.vercel.app](https://music-recs-roan.vercel.app/))
 - [ ] The blind test has ratings, and the README has a recommended-vs-control results table (growing past 30 visitors after the MVP)
 - [ ] CI passes; the README has an architecture diagram, demo link and eval results
 

@@ -364,3 +364,14 @@ Verified (button bottom ≤ screen height, no scrolling, one-line title in one c
 | 4 | Frontend attacks (XSS, CSRF, clickjacking) | Media URLs must be https; production-only security headers: CSP, `frame-ancestors 'none'`, `X-Frame-Options: DENY`, `nosniff`, `Referrer-Policy`, `Permissions-Policy`, HSTS | Adopted (I asked to check common frontend attacks) | CSRF doesn't apply yet (read-only GETs, no cookies). `script-src 'unsafe-inline'` stays until nonces are worth a module |
 
 Verified with a production build: all headers present on pages and APIs; 10 records, 10 covers, fonts and a 30s preview load with no CSP errors; home → Recommend works. Neither the Last.fm key nor the salt is in the client bundle. Three requests with spoofed `x-forwarded-for` locally land in one bucket.
+
+## 2026-11-09 · Deploying to Vercel + Neon
+
+| # | Question | Decision | Status | Reason / alternatives |
+|---|---|---|---|---|
+| 1 | Database connections on serverless | Neon's pooled URL with `max: 3`, `idle_timeout: 20` and `prepare: false` | Adopted | Every function instance opens its own pool; PgBouncer in transaction mode doesn't support prepared statements |
+| 2 | Regions | Neon in Singapore (`aws-ap-southeast-1`), Vercel functions in Singapore (`sin1`) | Adopted | The first deploy ran in iad1 (USA): a cached recommendation took 3.5s because every query crossed the Pacific. In sin1 it takes 0.27–0.48s |
+| 3 | Does iTunes block Vercel's IPs? | Checked live: 10 of 10 records had previews | No action | It was a listed risk |
+| 4 | Does Vercel overwrite `x-forwarded-for`? | Checked live: 12 requests with different spoofed values still hit the 429 limit | Confirmed | The rate limiter trusts the header only on Vercel because of this |
+
+Live: https://music-recs-roan.vercel.app/

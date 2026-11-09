@@ -1,8 +1,10 @@
 # Music Recs
 
+**Live demo: [music-recs-roan.vercel.app](https://music-recs-roan.vercel.app/)**
+
 Pick up to three artists you love and get ten records to flip through, each with a 30-second preview. From any record you can **explore** one level deeper, up to three levels, and every level shows artists you haven't seen yet. No account and no sign-in.
 
-> **Status**: a one-week portfolio project (November 2026). Recommendations, previews, Explore and rate limiting are done. The live demo and the blind test that measures recommendation quality are next. See [What's next](#whats-next).
+> **Status**: a one-week portfolio project (November 2026). Recommendations, previews, Explore and rate limiting are live. The blind test that measures recommendation quality is next. See [What's next](#whats-next).
 
 ## Features
 
@@ -117,7 +119,6 @@ docs/                Decision log, concept notes, exercises
 
 ## What's next
 
-- **Live demo** on Vercel + Neon.
 - **Blind test**: listen to three songs, rate each, then see which were recommended and which came from a same-genre control group. The eval is the average rating difference between recommended and control songs, with a confidence interval, counted once per visitor.
 - **Recommendation reasons** written by an LLM, cached and capped per day. Until then, each record says which of your artists it's similar to.
 
