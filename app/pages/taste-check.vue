@@ -83,6 +83,10 @@ async function loadStats() {
 const roundSummary = computed(() => (revealed.value.length ? describeRound(revealed.value) : ""));
 
 useHead({ title: "Taste Check · Music Recs" });
+useShareMeta(() => ({
+  title: "Do these picks fit your taste?",
+  description: "Play three unnamed songs, rate each one, then see which were picked for you and which were random.",
+}));
 </script>
 
 <template>

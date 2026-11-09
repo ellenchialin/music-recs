@@ -173,6 +173,10 @@ watch(currentKey, async () => {
 });
 
 useHead({ title: () => (currentLevel.value?.artist ? `More like ${currentLevel.value.artist} · Music Recs` : "Music Recs") });
+useShareMeta(() => ({
+  title: query.value ? `Records like ${seedsLabel(query.value.seeds)}` : "Music Recs",
+  description: "Ten records to flip through and preview, with a way to dig deeper from any of them.",
+}));
 </script>
 
 <template>

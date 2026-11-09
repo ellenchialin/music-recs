@@ -1,6 +1,7 @@
 import { mountSuspended } from "@nuxt/test-utils/runtime";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { nextTick } from "vue";
+import App from "../app.vue";
 import IndexPage from "./index.vue";
 
 beforeEach(() => {
@@ -18,11 +19,22 @@ const open = async (route = "/") => {
   mounted.push(page);
   return page;
 };
+const mountedApps: { unmount: () => void }[] = [];
 afterEach(() => {
   mounted.splice(0).forEach((page) => page.unmount());
+  mountedApps.splice(0).forEach((app) => app.unmount());
 });
 
 describe("index page", () => {
+  // The title comes from app.vue's site-wide default, so mount the whole app.
+  // Without it the tab and bookmarks showed only the URL
+  it("has a page title", async () => {
+    // Unmounted with the pages after each test, even when an assertion fails
+    mountedApps.push(await mountSuspended(App, { route: "/" }));
+    await vi.waitFor(() => expect(document.title).toBe("Music Recs"));
+  });
+
+
   // The words are separate elements with no space between them, so aria-label gives the name
   it("shows the app title", async () => {
     const page = await open();
