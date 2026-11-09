@@ -51,6 +51,12 @@ export const topTracksResponse = z
   .object({ toptracks: z.object({ track: list(topTrack) }) })
   .transform((r) => r.toptracks.track);
 
+const tagArtist = z.object({ name: z.string().min(1), mbid }).transform(({ name, mbid }) => ({ name, mbid }));
+
+export const tagTopArtistsResponse = z
+  .object({ topartists: z.object({ artist: list(tagArtist) }) })
+  .transform((r) => r.topartists.artist);
+
 export const artistInfoResponse = z
   .object({
     artist: z.object({

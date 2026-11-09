@@ -48,6 +48,9 @@ export const RATE_LIMITS = {
   recommendations: { limit: 10, windowMs: 60_000 },
   // Debounced, but fast typing still sends a dozen or so a minute
   search: { limit: 60, windowMs: 60_000 },
+  // Starting a round fetches recommendations and control songs; rating is cheap but shares the limit
+  blindTest: { limit: 12, windowMs: 60_000 },
+  stats: { limit: 30, windowMs: 60_000 },
 } satisfies Record<string, RateLimitRule>;
 
 // Throws 429 with Retry-After when over the limit. Outside Vercel, SSR's internal requests have no

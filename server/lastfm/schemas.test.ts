@@ -2,9 +2,11 @@ import { describe, expect, it } from "vitest";
 import info from "./fixtures/info-radiohead.json";
 import search from "./fixtures/search-radiohead.json";
 import similar from "./fixtures/similar-radiohead.json";
+import topartists from "./fixtures/topartists-psychedelic.json";
 import toptags from "./fixtures/toptags-radiohead.json";
 import toptracks from "./fixtures/toptracks-radiohead.json";
 import {
+  tagTopArtistsResponse,
   artistInfoResponse,
   artistSearchResponse,
   similarArtistsResponse,
@@ -81,3 +83,12 @@ describe("artistInfoResponse", () => {
     expect(artist.tags.slice(0, 2)).toEqual(["rock", "alternative"]);
   });
 });
+
+describe("tagTopArtistsResponse", () => {
+  it("keeps each artist's name and MBID, in Last.fm's order", () => {
+    const artists = tagTopArtistsResponse.parse(topartists.body);
+    expect(artists).toHaveLength(5);
+    expect(artists[0]).toEqual({ name: "Tame Impala", mbid: "63aa26c3-d59b-4da4-84ac-716b54f1ef4d" });
+  });
+});
+

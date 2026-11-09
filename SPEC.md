@@ -33,7 +33,7 @@ Decisions already made are in `docs/ai-log.md`. When the spec and a decision dis
 2. The recommendations page (`/recommendations?seed=…`, one screen, no scrolling) shows 10 records: cover, title, a 30-second preview and a one-line reason.
 3. "Explore from here" on a record digs one level deeper (the URL gains `&explore=…`), up to 3 levels. The breadcrumb `Home › seeds › Pond` goes back to any level, the browser's Back button works too, and Home returns with the seeds for editing.
 4. A mainstream ↔ obscure slider changes the recommendations. (Deferred.)
-5. The blind test: listen to 3 songs, rate each 1–5, then see which ones were recommended.
+5. The Taste Check (`/taste-check`, linked from the recommendations page as "Fit your taste? →"): a blind test. Listen to 3 songs, rate each 1–5, then see which ones were picked for you.
 
 ## Features
 
@@ -71,7 +71,7 @@ Every result is tagged with an `algo_version`.
 - Up to 3 levels; at the deepest level Explore is hidden. The breadcrumb goes back to any level without refetching, on the record that was being viewed.
 - When there are no new artists, stay on the current level and say so.
 
-### 5. Blind test [Required]
+### 5. Taste Check (blind test) [Required]
 
 - Each round has 3 songs: 1–2 from the recommendations, the rest a control group.
 - Control group: random popular songs from the seeds' most common genre tags (same genre, so it's fair).
@@ -96,7 +96,7 @@ Every result is tagged with an `algo_version`.
 
 - Production responses carry a Content Security Policy, `frame-ancestors 'none'` and `X-Frame-Options: DENY` (clickjacking), `X-Content-Type-Options: nosniff`, a referrer policy, a permissions policy and HSTS.
 - No HTML from data is rendered; Vue escapes all text.
-- All APIs are read-only GETs without cookies, so CSRF doesn't apply yet. The blind test's POSTs will need `SameSite=Lax` cookies and an Origin check.
+- The blind test's POSTs use a `SameSite=Lax`, `httpOnly` visitor cookie and refuse requests whose `Origin` isn't this site (CSRF).
 - API keys and the salt are server-only; the production client bundle is checked for them.
 
 ## Data model
@@ -106,10 +106,10 @@ Every result is tagged with an `algo_version`.
 | `artists` | Last.fm artists: name, MusicBrainz ID, listeners, tags, fetch time | Built |
 | `artist_similar` | Similarity between artists | Built |
 | `tracks` | Each artist's track, iTunes ID, preview URL, cover | Built |
-| `visitors` | Anonymous ID, creation time | Table built, not used yet |
+| `visitors` | Anonymous ID, creation time | Built |
 | `rate_limits` | Per-client rate-limit counts, external API budgets and the iTunes breaker | Built |
 | `reason_cache` | Cached recommendation reasons | Planned |
-| `blind_tests` | Each round: songs, which were recommended, ratings, algorithm version | Planned |
+| `blind_tests`, `blind_test_items` | Each round (visitor, seeds, algorithm version, control genre) and its three songs (which were recommended, ratings) | Built |
 
 ## API (draft)
 
@@ -142,7 +142,7 @@ Every result is tagged with an `algo_version`.
 
 The schedule is tight. If it slips, cut in this order: popularity slider → LLM reasons (use rule-based reasons) → Playwright.
 
-**Status (2026-11-09)**: days 1–5 are done except deployment and LLM reasons; the popularity slider is deferred. Next: deploy, then the blind test.
+**Status (2026-11-09)**: deployed, and the blind test and `/api/stats` work; LLM reasons and the popularity slider are deferred.
 
 ## Acceptance criteria
 

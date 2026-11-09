@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import notFound from "./fixtures/similar-not-found.json";
+import topartists from "./fixtures/topartists-psychedelic.json";
 import similar from "./fixtures/similar-radiohead.json";
 import { LastfmError, createLastfmClient } from "./client";
 
@@ -61,5 +62,12 @@ describe("createLastfmClient", () => {
     const err = await client.searchArtists("radiohead").catch((e: unknown) => e);
 
     expect(String((err as Error).message)).not.toContain(apiKey);
+  });
+
+  it("gets a tag's top artists", async () => {
+    const { fetch, calls } = fakeFetch(200, topartists.body);
+    const artists = await createLastfmClient({ apiKey, fetch }).getTagTopArtists("psychedelic", { limit: 5 });
+    expect(artists[0]?.name).toBe("Tame Impala");
+    expect(Object.fromEntries(calls[0]?.searchParams ?? [])).toMatchObject({ method: "tag.getTopArtists", tag: "psychedelic", limit: "5" });
   });
 });

@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { bigint, check, integer, pgTable, primaryKey, real, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { bigint, boolean, check, integer, pgTable, primaryKey, real, text, timestamp, uuid } from "drizzle-orm/pg-core";
 
 const createdAt = () => timestamp("created_at", { withTimezone: true }).notNull().defaultNow();
 
@@ -75,3 +75,39 @@ export const rateLimits = pgTable(
   },
   (t) => [primaryKey({ columns: [t.key, t.windowStart] }), check("rate_limits_count_positive", sql`${t.count} > 0`)],
 );
+
+// One blind-test round: three songs played without names, rated 1–5, then revealed
+export const blindTests = pgTable("blind_tests", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  visitorId: uuid("visitor_id")
+    .notNull()
+    .references(() => visitors.id, { onDelete: "cascade" }),
+  seeds: text("seeds").array().notNull(),
+  algoVersion: text("algo_version").notNull(),
+  // The genre the control songs came from
+  controlTag: text("control_tag").notNull(),
+  createdAt: createdAt(),
+  // null until rated; a round can be rated once
+  ratedAt: timestamp("rated_at", { withTimezone: true }),
+});
+
+// The round's songs. is_recommended never leaves the server before the round is rated
+export const blindTestItems = pgTable(
+  "blind_test_items",
+  {
+    testId: uuid("test_id")
+      .notNull()
+      .references(() => blindTests.id, { onDelete: "cascade" }),
+    position: integer("position").notNull(),
+    artist: text("artist").notNull(),
+    title: text("title").notNull(),
+    previewUrl: text("preview_url").notNull(),
+    isRecommended: boolean("is_recommended").notNull(),
+    rating: integer("rating"),
+  },
+  (t) => [
+    primaryKey({ columns: [t.testId, t.position] }),
+    check("blind_test_items_rating_range", sql`${t.rating} between 1 and 5`),
+  ],
+);
+

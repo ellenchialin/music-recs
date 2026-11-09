@@ -80,6 +80,14 @@ describe("recommendations page", () => {
     expect(crumbLink(page, "Home").attributes("href")).toBe("/?seed=Tame+Impala&seed=Kokoroko");
   });
 
+  it("links to a taste check of these seeds", async () => {
+    const page = await open(SEEDS);
+    await vi.waitFor(() => expect(recordNames(page)).toHaveLength(2));
+    // Asks the visitor's question rather than naming the feature
+    const link = page.findAll("a").find((a) => a.text().includes("Fit your taste?"))!;
+    expect(link.attributes("href")).toBe("/taste-check?seed=Tame+Impala&seed=Kokoroko");
+  });
+
   it("explores by adding a level to the URL", async () => {
     const page = await open(SEEDS);
     await vi.waitFor(() => expect(recordNames(page)).toHaveLength(2));

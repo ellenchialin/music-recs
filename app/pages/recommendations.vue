@@ -8,6 +8,7 @@ import {
   parseRecommendationsQuery,
   recommendationsLocation,
   seedsLabel,
+  tasteCheckLocation,
 } from "~/utils/recommendations-route";
 
 // /recommendations?seed=…&explore=…: the URL decides everything, so Back goes up a level
@@ -177,9 +178,9 @@ useHead({ title: () => (currentLevel.value?.artist ? `More like ${currentLevel.v
 <template>
   <div class="flex h-dvh flex-col">
     <!-- One screen tall: everything has a fixed height except the covers, which take the rest -->
-    <header class="mx-auto w-full max-w-7xl shrink-0 px-4 pt-4 sm:px-8 sm:pt-6">
+    <header class="mx-auto flex w-full max-w-7xl shrink-0 items-baseline gap-4 px-4 pt-4 sm:px-8 sm:pt-6">
       <!-- One line; scrolls sideways when too long -->
-      <nav aria-label="Breadcrumb" class="overflow-x-auto">
+      <nav aria-label="Breadcrumb" class="min-w-0 flex-1 overflow-x-auto">
         <ol class="flex items-center gap-2 text-base whitespace-nowrap">
           <li class="flex items-center gap-2">
             <NuxtLink :to="homeLocation(query?.seeds ?? [])" class="font-bold underline underline-offset-4">Home</NuxtLink>
@@ -193,6 +194,10 @@ useHead({ title: () => (currentLevel.value?.artist ? `More like ${currentLevel.v
           </li>
         </ol>
       </nav>
+      <!-- Always tests the original seeds' recommendations, whichever level is showing -->
+      <NuxtLink v-if="query" :to="tasteCheckLocation(query.seeds)" class="shrink-0 font-bold whitespace-nowrap underline underline-offset-4">
+        Fit your taste? →
+      </NuxtLink>
     </header>
 
     <main class="mx-auto flex min-h-0 w-full max-w-7xl flex-1 flex-col overflow-x-clip px-4 pt-4 pb-4 sm:px-8 sm:pt-6 sm:pb-6">

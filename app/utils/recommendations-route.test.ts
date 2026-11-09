@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { homeLocation, parseRecommendationsQuery, recommendationsLocation, seedsLabel } from "./recommendations-route";
+import { tasteCheckLocation, homeLocation, parseRecommendationsQuery, recommendationsLocation, seedsLabel } from "./recommendations-route";
 
 describe("parseRecommendationsQuery", () => {
   it("reads one or many seeds and the explore path", () => {
@@ -42,6 +42,10 @@ describe("links", () => {
 
   it("builds the home location with the seeds", () => {
     expect(homeLocation(["Tame Impala", "Kokoroko"])).toEqual({ path: "/", query: { seed: ["Tame Impala", "Kokoroko"] } });
+  });
+
+  it("builds the taste check location with the seeds", () => {
+    expect(tasteCheckLocation(["Tame Impala", "Kokoroko"])).toEqual({ path: "/taste-check", query: { seed: ["Tame Impala", "Kokoroko"] } });
   });
 
   it("labels the seeds for the breadcrumb", () => {

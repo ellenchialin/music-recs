@@ -13,11 +13,14 @@ const cases: { file: string; params: Record<string, string> }[] = [
   { file: "toptracks-radiohead", params: { method: "artist.getTopTracks", artist: "Radiohead", limit: "5", autocorrect: "1" } },
   { file: "info-radiohead", params: { method: "artist.getInfo", artist: "Radiohead", autocorrect: "1" } },
   { file: "similar-not-found", params: { method: "artist.getSimilar", artist: "zzqx no such artist 4821" } },
+  { file: "topartists-psychedelic", params: { method: "tag.getTopArtists", tag: "psychedelic", limit: "5" } },
 ];
+// pnpm record:lastfm <file> re-records just that case and leaves the other fixtures alone
+const only = process.argv[2];
 
 await mkdir(outDir, { recursive: true });
 
-for (const { file, params } of cases) {
+for (const { file, params } of cases.filter((c) => !only || c.file === only)) {
   const url = new URL("https://ws.audioscrobbler.com/2.0/");
   url.search = new URLSearchParams({ ...params, api_key: LASTFM_API_KEY, format: "json" }).toString();
   const res = await fetch(url);

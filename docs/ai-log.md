@@ -375,3 +375,20 @@ Verified with a production build: all headers present on pages and APIs; 10 reco
 | 4 | Does Vercel overwrite `x-forwarded-for`? | Checked live: 12 requests with different spoofed values still hit the 429 limit | Confirmed | The rate limiter trusts the header only on Vercel because of this |
 
 Live: https://music-recs-roan.vercel.app/
+
+## 2026-11-09 · Taste Check (blind test) and /api/stats
+
+| # | Question | Decision | Status | Reason / alternatives |
+|---|---|---|---|---|
+| 1 | Where control songs come from | Top artists of the seeds' most common Last.fm tag (`tag.getTopArtists`), excluding seeds and recommended artists; generic tags like "seen live" are skipped and spellings merged | Adopted | Same genre is fair. The real "psychedelic" chart lists Tame Impala first, so excluding seeds matters |
+| 2 | Round shape | 3 songs, 1–2 recommended, shuffled; names and covers hidden until rated | Adopted | |
+| 3 | When a round is created | Only when the visitor presses Start | Adopted | A crawler opening the page shouldn't create rounds |
+| 4 | Eval method | Per-visitor difference (recommended − control), averaged across visitors, with a Student's t 95% CI | Adopted | Pooling all ratings would let heavy players dominate |
+| 5 | Anonymous ID and CSRF | `visitor_id` cookie (random UUID, `httpOnly`, `SameSite=Lax`, `Secure` outside dev); POSTs must come from this site's Origin | Adopted | First routes that write with a cookie |
+| 6 | Rating twice | One conditional update claims the round; a second rating gets 409 | Adopted | |
+| 7 | Revealing names | First tried `AnimatePresence mode="wait"` to swap "Song 1" for the name; mixing a plain element with a motion one crashed Vue (`subTree` of null). The name is now a `motion.p` that animates in when it mounts | Adopted | Found in the browser |
+| 8 | Link from the recommendations page | "Fit your taste? →" in the breadcrumb row, so the heading keeps its width on phones | Adopted (I chose the copy) | "Blind test" names the feature, not why to click. The test measures recommendations rather than changing them, so the copy asks the visitor's question instead of promising better picks. Next to the heading the link truncated "Recommended for you" at 375px |
+| 10 | Naming the page | "Taste Check" at `/taste-check`, matching the "Fit your taste? →" link. The API and tables keep the method's name (`blind_tests`) | Adopted (I chose it from three options) | "Blind Test" didn't match the entry copy; "Taste Test" was a mouthful. Renaming tables would need a migration and visitors never see them |
+| 9 | Plain language on the results | "Picked for you" / "Random pick" instead of "Recommended" / "Control"; your round summed up in a sentence; the overall result in words, claiming a difference only once the 95% CI excludes zero | Adopted (I asked for clearer copy) | "Control" and raw CI numbers meant nothing to visitors. The CI still decides what's said |
+
+Verified locally with real APIs: a round mixes recommended and same-genre control songs; rating reveals them; a second rating gets 409, no cookie 404, a cross-site Origin 403, an out-of-range rating 400; stats update. The page fits one screen at 375×667 with no console errors.

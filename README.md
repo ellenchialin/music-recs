@@ -4,7 +4,7 @@
 
 Pick up to three artists you love and get ten records to flip through, each with a 30-second preview. From any record you can **explore** one level deeper, up to three levels, and every level shows artists you haven't seen yet. No account and no sign-in.
 
-> **Status**: a one-week portfolio project (November 2026). Recommendations, previews, Explore and rate limiting are live. The blind test that measures recommendation quality is next. See [What's next](#whats-next).
+> **Status**: a one-week portfolio project (November 2026). Recommendations, previews, Explore and the blind test are live. Results will be added as people play. See [What's next](#whats-next).
 
 ## Features
 
@@ -13,6 +13,7 @@ Pick up to three artists you love and get ten records to flip through, each with
 - **Explore from here**: dig from any record into artists similar to it, up to three levels deep. Each level excludes everything shown before, so you always get new names. A breadcrumb (`Home › Tame Impala + Kokoroko › Pond`) goes back to any level instantly, without refetching.
 - **Shareable URLs**: the URL is the single source of truth (`/recommendations?seed=…&explore=…`), so reload, Back and shared links all show the same screen, rendered on the server.
 - **Graceful gaps**: no preview in any store shows "No preview" with an Apple Music link; a temporary iTunes error affects only that record and offers a retry; an unknown artist suggests similar names.
+- **Taste Check**: a blind test. Listen to three unnamed songs, rate each 1–5, then see which were picked for you and which were random picks from the same genre. Results feed the eval below.
 - **One screen, every size**: both pages fit exactly one viewport from a 320px phone to a 1920px desktop, with motion that respects the system's reduced-motion setting.
 
 ## How it works
@@ -119,7 +120,7 @@ docs/                Decision log, concept notes, exercises
 
 ## What's next
 
-- **Blind test**: listen to three songs, rate each, then see which were recommended and which came from a same-genre control group. The eval is the average rating difference between recommended and control songs, with a confidence interval, counted once per visitor.
+- **Eval results**: the blind test measures the average rating difference between recommended and control songs, counted once per visitor, with a 95% confidence interval (`GET /api/stats`). The table goes here once enough people have played.
 - **Recommendation reasons** written by an LLM, cached and capped per day. Until then, each record says which of your artists it's similar to.
 
 ## Credits

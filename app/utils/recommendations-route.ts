@@ -40,6 +40,11 @@ export function homeLocation(seeds: string[]): RouteLocationRaw {
   return { path: "/", query: { seed: seeds } };
 }
 
+// The Taste Check (a blind test) for the same seeds
+export function tasteCheckLocation(seeds: string[]): RouteLocationRaw {
+  return { path: "/taste-check", query: { seed: seeds } };
+}
+
 export function seedsLabel(seeds: string[]): string {
   return seeds.join(" + ");
 }

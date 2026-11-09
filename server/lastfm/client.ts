@@ -4,6 +4,7 @@ import {
   artistSearchResponse,
   errorResponse,
   similarArtistsResponse,
+  tagTopArtistsResponse,
   topTagsResponse,
   topTracksResponse,
 } from "./schemas";
@@ -65,6 +66,8 @@ export function createLastfmClient({ apiKey, fetch = globalThis.fetch }: { apiKe
     getTopTracks: (artist: string, { limit }: { limit?: number } = {}) =>
       call(byArtist("artist.getTopTracks", artist, limit), topTracksResponse),
     getInfo: (artist: string) => call(byArtist("artist.getInfo", artist), artistInfoResponse),
+    getTagTopArtists: (tag: string, { limit = 50 }: { limit?: number } = {}) =>
+      call({ method: "tag.getTopArtists", tag, limit: String(limit) }, tagTopArtistsResponse),
   };
 }
 

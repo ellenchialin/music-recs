@@ -283,3 +283,18 @@ The algorithm doesn't change: exploring is just another recommendation run with 
 Security headers are set in `nuxt.config.ts` for production only, because the dev server's hot reload needs inline scripts and websockets the CSP blocks. `script-src` still allows `'unsafe-inline'` for Nuxt's inline config script; removing it needs nonces (e.g. the nuxt-security module).
 
 **See it**: `pnpm build`, then `PORT=3100 node --env-file=.env .output/server/index.mjs`, and `curl -I http://localhost:3100/`.
+
+## 15. The Taste Check: a blind test the listener can't see through
+
+The page is called Taste Check (`/taste-check`); the method behind it is a blind test, which is what the API (`/api/blind-tests`) and tables (`blind_tests`) are named after.
+
+> **Frontend analogy**: an A/B test, except the user rates both variants without knowing which is which. Hiding names and covers keeps "this is the recommended one" from biasing the rating.
+
+- **Control group**: popular artists from the seeds' most common Last.fm tag (`pickTopTag`, counting "j-pop" and "JPop" as one), minus the seeds and the recommended artists. Same genre, so recommendations can't win just by being the right style.
+- **A round** (`pickRound`): one or two recommended songs plus control songs, three in all, shuffled. Randomness is passed in so tests can pin it.
+- **Secrets stay on the server**: the client gets only preview URLs until the round is rated. `is_recommended` is in the database, not in the response.
+- **One rating per round**: the round is claimed with a single conditional update (`… WHERE rated_at IS NULL RETURNING id`), so two concurrent submissions can't both count. Another visitor's round answers 404, not 403, so round IDs can't be probed.
+- **The eval** (`computeStats`): each visitor's recommended average minus their control average, then the mean across visitors, so one person playing twenty rounds counts once. The 95% confidence interval uses Student's t; with few visitors it's honestly wide.
+- **CSRF**: these are the first routes that write with a cookie. The visitor cookie is `SameSite=Lax` and `httpOnly`, and POSTs whose `Origin` isn't this site get a 403.
+
+**Known limit**: clearing cookies makes a new visitor, so one person can still count several times. The stats say how many visitors they're based on.
