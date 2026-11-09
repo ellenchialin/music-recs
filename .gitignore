@@ -28,3 +28,6 @@ logs
 
 # graphify: a local dev aid for AI assistants; rebuild with `graphify update .`
 graphify-out/
+
+# Local Claude Code settings and skills (machine-specific paths)
+.claude/
