@@ -4,16 +4,16 @@
 
 Pick up to three artists you love and get ten records to flip through, each with a 30-second preview. From any record you can **explore** one level deeper, up to three levels, and every level shows artists you haven't seen yet. No account and no sign-in.
 
-> **Status**: a one-week portfolio project (November 2026). Recommendations, previews, Explore and the blind test are live. Results will be added as people play. See [What's next](#whats-next).
+> **Status**: a one-week portfolio project (November 2026). Recommendations, previews, Explore and the Taste Check are live. Eval results will be added here as people play. Try it and [see whether the picks fit your taste](https://music-recs-roan.vercel.app/).
 
 ## Features
 
 - **Seed artists**: type-ahead search backed by Last.fm, with misspelled lookalikes filtered out (for example "radıohead" with a dotless ı). Choose 1–3 artists; they're remembered in the browser.
 - **A crate of records**: ten recommendations shown like flipping through a record crate. Swipe, drag, click the side covers or use the arrow keys. Each record shows the artist, a representative track, which of your artists it's similar to, and a round play button for the preview.
 - **Explore from here**: dig from any record into artists similar to it, up to three levels deep. Each level excludes everything shown before, so you always get new names. A breadcrumb (`Home › Tame Impala + Kokoroko › Pond`) goes back to any level instantly, without refetching.
-- **Shareable URLs**: the URL is the single source of truth (`/recommendations?seed=…&explore=…`), so reload, Back and shared links all show the same screen, rendered on the server.
+- **Shareable URLs**: the URL is the single source of truth (`/recommendations?seed=…&explore=…`), so reload, Back and shared links all show the same screen, rendered on the server, with a link preview (Open Graph) for chat apps and social sites.
 - **Graceful gaps**: no preview in any store shows "No preview" with an Apple Music link; a temporary iTunes error affects only that record and offers a retry; an unknown artist suggests similar names.
-- **Taste Check**: a blind test. Listen to three unnamed songs, rate each 1–5, then see which were picked for you and which were random picks from the same genre. Results feed the eval below.
+- **Taste Check** ("Fit your taste?" on the recommendations page): a blind test. Listen to three unnamed songs, rate each 1–5, then see which were picked for you and which were random picks from the same genre. Results feed the eval below.
 - **One screen, every size**: both pages fit exactly one viewport from a 320px phone to a 1920px desktop, with motion that respects the system's reduced-motion setting.
 
 ## How it works
@@ -33,7 +33,18 @@ flowchart LR
 3. **Exclude**: drop the seeds themselves (matched by normalized name or MusicBrainz ID), plus everything already shown when exploring.
 4. **Previews**: for each of the top 10, take Last.fm's top track and find it on iTunes, trying the Taiwan, US and Japan stores in turn (stores localize artist names, e.g. BoA is 寶兒 in Taiwan). A small tiered matcher prefers the original title, then a version of it, and never a different artist's song.
 
-Every result is tagged with an algorithm version so future blind-test ratings can compare versions.
+Every result is tagged with an algorithm version so blind-test ratings can compare versions.
+
+## Measuring it: the Taste Check
+
+Recommendations are easy to show and hard to prove, so the site measures itself.
+
+1. **A fair opponent**: each round mixes one or two recommended songs with popular songs from the seeds' most common Last.fm genre tag, so recommendations can't win just by being the right style.
+2. **Blind**: names and covers stay hidden until you've rated all three; which songs were recommended never leaves the server before that.
+3. **One visitor, one vote**: each visitor's own difference (recommended average − random average) is computed first and then averaged across visitors, so one person playing twenty rounds counts once.
+4. **Honest uncertainty**: a 95% confidence interval (Student's t) decides what the page says. Until it excludes zero, it says there's no clear difference yet.
+
+Live numbers: [`/api/stats`](https://music-recs-roan.vercel.app/api/stats). Known limit: clearing cookies makes a new visitor, so the count is an upper bound on real people.
 
 ## Stack and why
 
@@ -51,12 +62,12 @@ Every result is tagged with an algorithm version so future blind-test ratings ca
 
 ## Engineering notes
 
-- **Test-driven**: 218 tests. The algorithm and rate limiting are pure functions with unit tests; caching and services run against a real test database; pages and components are tested in a simulated browser. External APIs are never called in tests: recorded fixtures stand in for them.
+- **Test-driven**: 264 tests. The algorithm and rate limiting are pure functions with unit tests; caching and services run against a real test database; pages and components are tested in a simulated browser. External APIs are never called in tests: recorded fixtures stand in for them.
 - **Caching that won't lie**: "iTunes has no preview" is cached (so we don't ask again for 30 days); "iTunes is down" is not (so the preview comes back when it recovers).
 - **Rate limiting**: fixed one-minute windows counted atomically in Postgres, because serverless instances don't share memory. IPv6 clients are grouped by /64, `x-forwarded-for` is trusted only behind Vercel's proxy, and only a salted hash of the IP is stored.
 - **Protecting upstream APIs**: one uncached recommendation can make dozens of Last.fm and iTunes calls, so there's also a site-wide per-minute budget for each API and a circuit breaker that backs off iTunes for five minutes when it starts throttling.
-- **Security headers**: in production, a Content Security Policy, `frame-ancestors 'none'` against clickjacking, `nosniff`, a referrer policy and HSTS. Media URLs from iTunes must be https.
-- **Privacy**: no accounts and no personal data. Your chosen artists are stored only in your browser; the server keeps salted IP hashes for rate limiting and deletes them after about an hour.
+- **Security**: in production, a Content Security Policy, `frame-ancestors 'none'` against clickjacking, `nosniff`, a referrer policy and HSTS. Media URLs from iTunes must be https. The Taste Check's POSTs refuse other origins (CSRF), a round can be rated once, and another visitor's round answers 404.
+- **Privacy**: no accounts and no personal data. Your chosen artists are stored only in your browser. The Taste Check uses an anonymous random ID in an `httpOnly` cookie; the server keeps salted IP hashes for rate limiting and deletes them after about an hour.
 
 The reasoning behind each decision, including the ones that were tried and reverted, is in [`docs/ai-log.md`](docs/ai-log.md). Concepts are explained for a frontend engineer in [`docs/concepts.md`](docs/concepts.md). The full spec is [`SPEC.md`](SPEC.md).
 
@@ -105,7 +116,7 @@ Open http://localhost:3000.
 
 ```
 app/                 Vue pages, components, composables and stores
-  pages/             index (pick artists), recommendations (the crate)
+  pages/             index (pick artists), recommendations (the crate), taste-check (the blind test)
   components/        RecordCrate, SeedInput, SunTurntable, VinylRecord
 server/
   api/               HTTP routes: validation, rate limiting, error mapping
@@ -120,8 +131,10 @@ docs/                Decision log, concept notes, exercises
 
 ## What's next
 
-- **Eval results**: the blind test measures the average rating difference between recommended and control songs, counted once per visitor, with a 95% confidence interval (`GET /api/stats`). The table goes here once enough people have played.
+- **Eval results**: a recommended-vs-random table here once enough people have played the Taste Check (the spec's goal is 30+ visitors).
 - **Recommendation reasons** written by an LLM, cached and capped per day. Until then, each record says which of your artists it's similar to.
+- **End-to-end tests** with Playwright for the main flows.
+- **A mainstream ↔ obscure slider** (deferred).
 
 ## Credits
 

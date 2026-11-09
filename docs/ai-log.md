@@ -392,3 +392,13 @@ Live: https://music-recs-roan.vercel.app/
 | 9 | Plain language on the results | "Picked for you" / "Random pick" instead of "Recommended" / "Control"; your round summed up in a sentence; the overall result in words, claiming a difference only once the 95% CI excludes zero | Adopted (I asked for clearer copy) | "Control" and raw CI numbers meant nothing to visitors. The CI still decides what's said |
 
 Verified locally with real APIs: a round mixes recommended and same-genre control songs; rating reveals them; a second rating gets 409, no cookie 404, a cross-site Origin 403, an out-of-range rating 400; stats update. The page fits one screen at 375×667 with no console errors.
+
+## 2026-11-09 · Sharing and housekeeping
+
+| # | Question | Decision | Status | Reason / alternatives |
+|---|---|---|---|---|
+| 1 | Shared links show a bare URL | Open Graph and Twitter card tags on every page via `useShareMeta`, with absolute URLs built from the request's origin and a 1200×630 image in the site's own style (`public/og-image.png`, source `scripts/og-image.html`, rendered with headless Chrome) | Adopted (I asked for it) | Needed to collect Taste Check ratings from friends. A dynamic image per page (e.g. nuxt-og-image) would add a dependency for little gain |
+| 2 | GitHub Actions warned that Node 20 is deprecated | `actions/checkout@v7`, `actions/setup-node@v7`, `pnpm/action-setup@v6` (all Node 24), plus `permissions: contents: read` from the security review | Adopted (I asked for it) | |
+| 3 | ESLint warned about `<br />` written by Prettier | `vue/html-self-closing` accepts either form for void elements; everything else keeps Vue's defaults | Adopted (I asked for it) | Requiring `/>` would rewrite every `<input>`; turning off format-on-save would fight the editor |
+| 4 | The home page had no `<title>` (tabs and bookmarks showed the URL) | `app.vue` sets "Music Recs" as the default for any page without its own title; the test mounts the whole app to check it | Adopted | I first also set it in `index.vue` only so a page-only test would pass; one source is enough, and the test now checks what visitors see |
+| 5 | Preview image subtitle | "Pick 1–3 artists you love. Get recommendations you can preview.", the home page's own words | Adopted (my call) | "Flip through records" only makes sense once you've seen the crate |

@@ -78,6 +78,11 @@ Every result is tagged with an `algo_version`.
 - Rate 1–5, then reveal which were recommended.
 - Every rating is stored with the algorithm version.
 
+### 6. Link previews
+
+- Every page has Open Graph and Twitter card tags with absolute URLs and a 1200×630 image (`public/og-image.png`, source in `scripts/og-image.html`), so shared links show a title, description and picture.
+- The recommendations page names the seeds ("Records like Tame Impala + Kokoroko"); the Taste Check asks "Do these picks fit your taste?".
+
 ## Anonymous identity and privacy
 
 - A random ID is generated on the first visit and stored in a cookie.
@@ -142,7 +147,7 @@ Every result is tagged with an `algo_version`.
 
 The schedule is tight. If it slips, cut in this order: popularity slider → LLM reasons (use rule-based reasons) → Playwright.
 
-**Status (2026-11-09)**: deployed, and the blind test and `/api/stats` work; LLM reasons and the popularity slider are deferred.
+**Status (2026-11-09)**: deployed with the Taste Check, `/api/stats` and link previews. Collecting ratings is next; LLM reasons, Playwright and the popularity slider are deferred.
 
 ## Acceptance criteria
 
