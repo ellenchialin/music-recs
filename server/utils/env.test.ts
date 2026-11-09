@@ -35,6 +35,12 @@ describe("parseRateLimitEnv", () => {
     expect(env.RATE_LIMIT_SALT).toHaveLength(32);
   });
 
+  // Vercel sets VERCEL=1, and its proxy overwrites x-forwarded-for
+  it("trusts the proxy only on Vercel", () => {
+    expect(parseRateLimitEnv({ RATE_LIMIT_SALT: "a".repeat(32), VERCEL: "1" }).trustProxy).toBe(true);
+    expect(parseRateLimitEnv({ RATE_LIMIT_SALT: "a".repeat(32) }).trustProxy).toBe(false);
+  });
+
   it("rejects a missing or short salt without echoing it", () => {
     expect(() => parseRateLimitEnv({})).toThrow(/RATE_LIMIT_SALT/);
     expect(() => parseRateLimitEnv({ RATE_LIMIT_SALT: "short-secret" })).toThrow(/^(?!.*secret).*RATE_LIMIT_SALT/);

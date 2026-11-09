@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { checkLimit, hashClientIp, windowStart } from "./rate-limit";
+import { checkLimit, clientBucket, hashClientIp, pickClientIp, windowStart } from "./rate-limit";
 
 const MINUTE = 60_000;
 const at = (iso: string) => new Date(`2026-11-05T${iso}Z`);
@@ -57,3 +57,49 @@ describe("hashClientIp", () => {
     expect(hash).not.toContain("203.0.113.7");
   });
 });
+
+// One IPv6 user usually gets a whole /64 and can rotate addresses inside it for free
+describe("clientBucket", () => {
+  it("keeps an IPv4 address as is", () => {
+    expect(clientBucket("203.0.113.7")).toBe("203.0.113.7");
+  });
+
+  it("puts addresses in the same IPv6 /64 in one bucket", () => {
+    expect(clientBucket("2001:db8:1:2:aaaa::1")).toBe(clientBucket("2001:db8:1:2:bbbb:cccc:dddd:2"));
+    expect(clientBucket("2001:db8:1:2::9")).toBe("2001:db8:1:2::/64");
+  });
+
+  it("separates different IPv6 /64s", () => {
+    expect(clientBucket("2001:db8:1:2::1")).not.toBe(clientBucket("2001:db8:1:3::1"));
+  });
+
+  it("reads compressed and uppercase IPv6 the same way", () => {
+    expect(clientBucket("2001:DB8::1")).toBe("2001:db8:0:0::/64");
+    expect(clientBucket("::1")).toBe("0:0:0:0::/64");
+  });
+
+  it("treats an IPv4-mapped IPv6 address as IPv4", () => {
+    expect(clientBucket("::ffff:203.0.113.7")).toBe("203.0.113.7");
+  });
+
+  it("keeps anything unparseable as is", () => {
+    expect(clientBucket("unknown")).toBe("unknown");
+  });
+});
+
+// x-forwarded-for can be sent by anyone; only a proxy that overwrites it (Vercel) makes it trustworthy
+describe("pickClientIp", () => {
+  it("uses the first forwarded address behind a trusted proxy", () => {
+    expect(pickClientIp({ forwardedFor: "198.51.100.1, 10.0.0.1", socketAddress: "10.0.0.1", trustProxy: true })).toBe("198.51.100.1");
+  });
+
+  it("ignores x-forwarded-for when the proxy isn't trusted", () => {
+    expect(pickClientIp({ forwardedFor: "198.51.100.1", socketAddress: "203.0.113.7", trustProxy: false })).toBe("203.0.113.7");
+  });
+
+  it("falls back to the socket address, then to unknown", () => {
+    expect(pickClientIp({ forwardedFor: undefined, socketAddress: "203.0.113.7", trustProxy: true })).toBe("203.0.113.7");
+    expect(pickClientIp({ forwardedFor: undefined, socketAddress: undefined, trustProxy: false })).toBe("unknown");
+  });
+});
+

@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { isIP } from "node:net";
 
 // Fixed-window rate limiting: each window (e.g. a minute) has its own count,
 // and requests over the limit are blocked until the window ends
@@ -36,3 +37,24 @@ export function checkLimit(count: number, rule: RateLimitRule, now: Date): RateL
 export function hashClientIp(ip: string, salt: string): string {
   return createHash("sha256").update(`${salt}:${ip}`).digest("hex");
 }
+
+// The rate-limit identity for a client: IPv4 as is, IPv6 by its /64 network.
+// A single IPv6 user usually gets a whole /64 and can rotate through it for free
+export function clientBucket(ip: string): string {
+  const mapped = /^::ffff:(\d+\.\d+\.\d+\.\d+)$/i.exec(ip);
+  if (mapped) return mapped[1]!;
+  if (isIP(ip) !== 6) return ip;
+  const [head = "", tail = ""] = ip.toLowerCase().split("::");
+  const left = head ? head.split(":") : [];
+  const right = tail ? tail.split(":") : [];
+  const groups = ip.includes("::") ? [...left, ...Array(8 - left.length - right.length).fill("0"), ...right] : left;
+  return `${groups.slice(0, 4).map((g) => g.replace(/^0+(?=.)/, "")).join(":")}::/64`;
+}
+
+// Behind a proxy that overwrites x-forwarded-for (Vercel), its first entry is the client.
+// Anywhere else the header is client-controlled, so use the connection's address
+export function pickClientIp(opts: { forwardedFor?: string; socketAddress?: string; trustProxy: boolean }): string {
+  const forwarded = opts.trustProxy ? opts.forwardedFor?.split(",")[0]?.trim() : undefined;
+  return forwarded || opts.socketAddress || "unknown";
+}
+

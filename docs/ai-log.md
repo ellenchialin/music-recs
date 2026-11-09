@@ -353,3 +353,14 @@ Verified (button bottom ≤ screen height, no scrolling, one-line title in one c
 |---|---|---|---|---|
 | 1 | Language of comments and docs | All English, like the UI; `CLAUDE.md` updated | Adopted (my call) | |
 | 2 | How many comments | Only where needed and short: why (background, pitfalls, trade-offs), not what the code says; test names describe behavior, so most comments above tests were removed | Adopted (my call) | |
+
+## 2026-11-09 · Security fixes before deploying
+
+| # | Question | Decision | Status | Reason / alternatives |
+|---|---|---|---|---|
+| 1 | One uncached recommendation makes up to ~46 external calls, so many IPs together could get the Last.fm key or our server IP banned | Site-wide per-minute budgets for external calls (iTunes 20, Last.fm 200) in `rate_limits`; a 5-minute circuit breaker when iTunes answers 403/429; the per-IP recommendations limit drops from 20 to 10 | Adopted | Over budget, the wrapper throws the client's own error, so the existing handling applies with no new paths. Cost: with a cold cache the first visitors in a busy minute may see "Preview failed to load" more often |
+| 2 | IPv6 address rotation bypasses the per-IP limit | Key IPv6 by its /64, IPv4 as is | Adopted | |
+| 3 | `x-forwarded-for` is client-controlled outside Vercel | Trust it only when `VERCEL=1` | Adopted | Locally, SSR's internal requests share the "unknown" bucket; dev only |
+| 4 | Frontend attacks (XSS, CSRF, clickjacking) | Media URLs must be https; production-only security headers: CSP, `frame-ancestors 'none'`, `X-Frame-Options: DENY`, `nosniff`, `Referrer-Policy`, `Permissions-Policy`, HSTS | Adopted (I asked to check common frontend attacks) | CSRF doesn't apply yet (read-only GETs, no cookies). `script-src 'unsafe-inline'` stays until nonces are worth a module |
+
+Verified with a production build: all headers present on pages and APIs; 10 records, 10 covers, fonts and a 30s preview load with no CSP errors; home → Recommend works. Neither the Last.fm key nor the salt is in the client bundle. Three requests with spoofed `x-forwarded-for` locally land in one bucket.

@@ -259,3 +259,27 @@ The algorithm doesn't change: exploring is just another recommendation run with 
 
 1. **Caching the whole route** (`defineCachedEventHandler`) skips the limit on cache hits and replays the first caller's response headers to others. Cache only the Last.fm call (`defineCachedFunction`) and rate-limit outside it.
 2. **SSR can't see the client IP**: when a page calls its own API during server rendering, the request doesn't go over the network, so the API sees no IP and every visitor's SSR shares one "unknown" bucket. `useApiFetch` forwards the client IP in `x-forwarded-for` during SSR (Vercel overwrites that header, so clients can't spoof it).
+
+## 14. Abuse and frontend security
+
+> **Frontend analogy**: a per-user throttle stops one person spamming a button; it doesn't stop a thousand people pressing it at once. That needs a cap on the shared resource itself.
+
+**Site-wide budgets** (`server/services/external-budget.ts`): one uncached recommendation can make about 46 Last.fm and iTunes calls, so per-IP limits alone could still get our API key or server IP banned. The real clients are wrapped so every call takes from a per-minute budget (`budget:itunes` 20, `budget:lastfm` 200, stored in `rate_limits`). Over budget, the wrapper throws the client's own error, so the existing handling applies: that card's preview becomes "error" (not cached), or the request becomes a 502. When iTunes answers 403/429 it's throttling us, so a **circuit breaker** skips iTunes for 5 minutes instead of making it worse.
+
+**Who is "one client"**:
+
+- `x-forwarded-for` can be sent by anyone. It's only trusted on Vercel (`VERCEL=1`), whose proxy overwrites it; elsewhere the connection's address is used (`pickClientIp`).
+- IPv6 users usually get a whole /64 and can rotate addresses inside it for free, so IPv6 is keyed by its /64 (`clientBucket`).
+
+**Common frontend attacks**:
+
+| Attack | Status here |
+|---|---|
+| XSS | No `v-html`; Vue escapes all text. External URLs that reach `<img>` and `<audio>` must be https (`z.url()` alone accepts `javascript:` and `data:`). A CSP limits where scripts, media and fonts can come from |
+| CSRF | Every API is a read-only GET with no cookies or sessions, so there's nothing to forge. The blind test's POSTs will need `SameSite=Lax` cookies and an Origin check |
+| Clickjacking | `frame-ancestors 'none'` and `X-Frame-Options: DENY`: the site can't be embedded in someone else's iframe |
+| Leaked secrets | API keys are only read on the server; the production client bundle was searched for them |
+
+Security headers are set in `nuxt.config.ts` for production only, because the dev server's hot reload needs inline scripts and websockets the CSP blocks. `script-src` still allows `'unsafe-inline'` for Nuxt's inline config script; removing it needs nonces (e.g. the nuxt-security module).
+
+**See it**: `pnpm build`, then `PORT=3100 node --env-file=.env .output/server/index.mjs`, and `curl -I http://localhost:3100/`.

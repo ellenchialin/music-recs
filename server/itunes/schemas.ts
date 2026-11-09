@@ -2,12 +2,16 @@ import { z } from "zod";
 
 // Validates iTunes Search API responses and keeps only the fields we use
 
+// These end up in <img> and <audio>: anything but a valid https URL becomes null.
+// (z.url() alone accepts javascript: and data:)
+const httpsUrl = z
+  .string()
+  .optional()
+  .transform((url) => (url && url.startsWith("https://") && URL.canParse(url) ? url : null));
+
 // iTunes only lists 30/60/100px covers, but the size in the URL can be changed
 const COVER_SIZE = "600x600bb";
-const cover = z
-  .url()
-  .optional()
-  .transform((url) => (url ? url.replace(/\/\d+x\d+bb\./, `/${COVER_SIZE}.`) : null));
+const cover = httpsUrl.transform((url) => url?.replace(/\/\d+x\d+bb\./, `/${COVER_SIZE}.`) ?? null);
 
 const result = z.object({
   kind: z.string().optional(),
@@ -15,7 +19,7 @@ const result = z.object({
   trackName: z.string().min(1),
   artistName: z.string().min(1),
   collectionName: z.string().optional(),
-  previewUrl: z.url().optional(),
+  previewUrl: httpsUrl,
   artworkUrl100: cover,
 });
 

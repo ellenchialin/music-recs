@@ -11,9 +11,13 @@ const lastfmEnvSchema = z.object({
 });
 
 // Salt for hashing client IPs in rate limiting; long enough not to be guessed
-const rateLimitEnvSchema = z.object({
-  RATE_LIMIT_SALT: z.string().min(32),
-});
+const rateLimitEnvSchema = z
+  .object({
+    RATE_LIMIT_SALT: z.string().min(32),
+    // Set by Vercel, whose proxy overwrites x-forwarded-for
+    VERCEL: z.string().optional(),
+  })
+  .transform(({ RATE_LIMIT_SALT, VERCEL }) => ({ RATE_LIMIT_SALT, trustProxy: VERCEL === "1" }));
 
 export type DbEnv = z.infer<typeof dbEnvSchema>;
 export type LastfmEnv = z.infer<typeof lastfmEnvSchema>;
@@ -38,6 +42,6 @@ export function parseLastfmEnv(source: EnvSource = process.env): LastfmEnv {
   return parseEnv(lastfmEnvSchema, source);
 }
 
-export function parseRateLimitEnv(source: EnvSource = process.env): z.infer<typeof rateLimitEnvSchema> {
+export function parseRateLimitEnv(source: EnvSource = process.env): z.output<typeof rateLimitEnvSchema> {
   return parseEnv(rateLimitEnvSchema, source);
 }

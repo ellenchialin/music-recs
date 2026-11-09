@@ -39,6 +39,17 @@ describe("searchResponse", () => {
     ]);
   });
 
+  // These URLs end up in <img> and <audio>; only accept https, never javascript: or data:
+  it("turns preview and cover URLs that aren't https into null", () => {
+    const body = {
+      resultCount: 1,
+      results: [{ kind: "song", trackId: 1, trackName: "A", artistName: "B", previewUrl: "javascript:alert(1)", artworkUrl100: "http://a.example/100x100bb.jpg" }],
+    };
+    expect(searchResponse.parse(body)).toEqual([
+      { id: 1, name: "A", artist: "B", album: null, previewUrl: null, artworkUrl: null },
+    ]);
+  });
+
   it("drops results that are not songs", () => {
     const body = {
       resultCount: 2,

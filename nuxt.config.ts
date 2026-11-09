@@ -1,5 +1,32 @@
 import tailwindcss from "@tailwindcss/vite";
 
+// Production only: Vite's dev server needs inline scripts and websockets that this CSP blocks.
+// script-src needs 'unsafe-inline' for Nuxt's inline config script (nonces would need a module);
+// style-src for the inline styles Motion sets. Media comes from iTunes, fonts from Google
+const contentSecurityPolicy = [
+  "default-src 'self'",
+  "script-src 'self' 'unsafe-inline'",
+  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+  "font-src https://fonts.gstatic.com",
+  "img-src 'self' data: https://*.mzstatic.com",
+  "media-src https://*.itunes.apple.com https://*.mzstatic.com",
+  "connect-src 'self'",
+  "object-src 'none'",
+  "base-uri 'self'",
+  "form-action 'self'",
+  "frame-ancestors 'none'",
+].join("; ");
+
+const securityHeaders = {
+  "Content-Security-Policy": contentSecurityPolicy,
+  // frame-ancestors covers modern browsers; X-Frame-Options covers older ones (clickjacking)
+  "X-Frame-Options": "DENY",
+  "X-Content-Type-Options": "nosniff",
+  "Referrer-Policy": "strict-origin-when-cross-origin",
+  "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
+  "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
+};
+
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
   compatibilityDate: "2025-07-15",
@@ -29,5 +56,8 @@ export default defineNuxtConfig({
   },
   typescript: {
     strict: true,
+  },
+  $production: {
+    routeRules: { "/**": { headers: securityHeaders } },
   },
 });
