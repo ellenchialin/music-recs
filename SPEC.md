@@ -23,7 +23,7 @@ Decisions already made are in `docs/ai-log.md`. When the spec and a decision dis
 | Validation | zod for API input, external API responses and LLM output |
 | LLM | Claude Haiku 5.5 with structured output, only for writing reasons |
 | External data | Last.fm API (search, similar artists, tags, top tracks) and iTunes Search API (previews, covers); neither needs user sign-in |
-| Tests | Vitest + `@nuxt/test-utils`; Playwright for the main flows |
+| Tests | Vitest + `@nuxt/test-utils`; Playwright for the main flows (planned) |
 | Deployment | Vercel + Neon |
 | CI | GitHub Actions: typecheck, lint, tests |
 
@@ -32,7 +32,7 @@ Decisions already made are in `docs/ai-log.md`. When the spec and a decision dis
 1. Open the home page (`/`), enter 1–3 artists you like (with autocomplete) and press Recommend.
 2. The recommendations page (`/recommendations?seed=…`, one screen, no scrolling) shows 10 records: cover, title, a 30-second preview and a one-line reason.
 3. "Explore from here" on a record digs one level deeper (the URL gains `&explore=…`), up to 3 levels. The breadcrumb `Home › seeds › Pond` goes back to any level, the browser's Back button works too, and Home returns with the seeds for editing.
-4. A mainstream ↔ obscure slider changes the recommendations.
+4. A mainstream ↔ obscure slider changes the recommendations. (Deferred.)
 5. The blind test: listen to 3 songs, rate each 1–5, then see which ones were recommended.
 
 ## Features
@@ -87,21 +87,29 @@ Every result is tagged with an `algo_version`.
 ## Cost and abuse
 
 - External data is cached in Postgres for 30 days.
-- Rate limits are stored in Postgres (Vercel is serverless, so in-memory counts are unreliable): per IP per minute (20 for recommendations, 60 for autocomplete), storing only a salted hash of the IP. Over the limit returns 429 with `Retry-After`.
+- Rate limits are stored in Postgres (Vercel is serverless, so in-memory counts are unreliable): per client per minute (10 for recommendations, 60 for autocomplete), storing only a salted hash of the IP. IPv6 clients count per /64, and `x-forwarded-for` is trusted only on Vercel. Over the limit returns 429 with `Retry-After`.
+- Site-wide budgets per minute for external APIs (iTunes 20, Last.fm 200), and a 5-minute circuit breaker when iTunes answers 403/429. Over budget, a card's preview becomes a retryable error and a Last.fm failure becomes a 502.
 - LLM: caching, a daily site-wide limit, and a monthly spend limit in the Anthropic console.
-- External API responses keep only the fields we need and are validated with zod.
+- External API responses keep only the fields we need and are validated with zod; preview and cover URLs must be https.
 
-## Data model (draft)
+## Security
 
-| Table | Contents |
-|---|---|
-| `artists` | Last.fm artists: name, MusicBrainz ID, listeners, tags, fetch time |
-| `artist_similar` | Similarity between artists |
-| `tracks` | Each artist's track, iTunes ID, preview URL, cover |
-| `visitors` | Anonymous ID, creation time |
-| `reason_cache` | Cached recommendation reasons |
-| `blind_tests` | Each round: songs, which were recommended, ratings, algorithm version |
-| `rate_limits` | Rate-limit counts |
+- Production responses carry a Content Security Policy, `frame-ancestors 'none'` and `X-Frame-Options: DENY` (clickjacking), `X-Content-Type-Options: nosniff`, a referrer policy, a permissions policy and HSTS.
+- No HTML from data is rendered; Vue escapes all text.
+- All APIs are read-only GETs without cookies, so CSRF doesn't apply yet. The blind test's POSTs will need `SameSite=Lax` cookies and an Origin check.
+- API keys and the salt are server-only; the production client bundle is checked for them.
+
+## Data model
+
+| Table | Contents | Status |
+|---|---|---|
+| `artists` | Last.fm artists: name, MusicBrainz ID, listeners, tags, fetch time | Built |
+| `artist_similar` | Similarity between artists | Built |
+| `tracks` | Each artist's track, iTunes ID, preview URL, cover | Built |
+| `visitors` | Anonymous ID, creation time | Table built, not used yet |
+| `rate_limits` | Per-client rate-limit counts, external API budgets and the iTunes breaker | Built |
+| `reason_cache` | Cached recommendation reasons | Planned |
+| `blind_tests` | Each round: songs, which were recommended, ratings, algorithm version | Planned |
 
 ## API (draft)
 
@@ -134,10 +142,12 @@ Every result is tagged with an `algo_version`.
 
 The schedule is tight. If it slips, cut in this order: popularity slider → LLM reasons (use rule-based reasons) → Playwright.
 
+**Status (2026-11-09)**: days 1–5 are done except deployment and LLM reasons; the popularity slider is deferred. Next: deploy, then the blind test.
+
 ## Acceptance criteria
 
 - [ ] Without an account, get recommendations and hear a preview within 30 seconds
-- [ ] Repeating a query with the same seeds calls no external API or LLM
+- [x] Repeating a query with the same seeds calls no external API or LLM
 - [x] Over the rate limit returns 429 and the page says so
 - [ ] A live demo works
 - [ ] The blind test has ratings, and the README has a recommended-vs-control results table (growing past 30 visitors after the MVP)
@@ -151,4 +161,5 @@ The schedule is tight. If it slips, cut in this order: popularity slider → LLM
 | No preview in the iTunes Taiwan store (stores localize artist names) | Try the US and Japan stores in order; otherwise show "No preview" |
 | Too few blind-test players | State the sample size clearly; start with friends |
 | Last.fm terms of use | Non-commercial use, with attribution |
-| iTunes rate limit (about 20 per minute) | Cache results for 30 days, including "checked, nothing found" |
+| iTunes rate limit (about 20 per minute) | Cache results for 30 days, including "checked, nothing found"; a site-wide budget and a circuit breaker |
+| iTunes may throttle datacenter IPs (Vercel) | Check right after deploying; previews degrade to a retryable error instead of failing the page |
