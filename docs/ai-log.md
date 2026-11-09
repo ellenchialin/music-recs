@@ -402,3 +402,11 @@ Verified locally with real APIs: a round mixes recommended and same-genre contro
 | 3 | ESLint warned about `<br />` written by Prettier | `vue/html-self-closing` accepts either form for void elements; everything else keeps Vue's defaults | Adopted (I asked for it) | Requiring `/>` would rewrite every `<input>`; turning off format-on-save would fight the editor |
 | 4 | The home page had no `<title>` (tabs and bookmarks showed the URL) | `app.vue` sets "Music Recs" as the default for any page without its own title; the test mounts the whole app to check it | Adopted | I first also set it in `index.vue` only so a page-only test would pass; one source is enough, and the test now checks what visitors see |
 | 5 | Preview image subtitle | "Pick 1–3 artists you love. Get recommendations you can preview.", the home page's own words | Adopted (my call) | "Flip through records" only makes sense once you've seen the crate |
+
+## 2026-11-09 · A personal domain
+
+| # | Question | Decision | Status | Reason / alternatives |
+|---|---|---|---|---|
+| 1 | The demo URL ended in `-roan.vercel.app` | Bought `ellenchen.dev` (Cloudflare Registrar) and serve this project at `musicrecs.ellenchen.dev`: a CNAME to Vercel with Cloudflare's proxy off, so Vercel issues the certificate | Adopted (my call) | A personal domain holds the portfolio site and every project as subdomains; a per-project domain wouldn't. `musicrecs.vercel.app` was free but still looked temporary |
+
+No code changes were needed: link previews build URLs from the request's origin, the CSP uses `'self'`, and the CSRF check compares the Origin with the request's host. Verified on the new domain: Let's Encrypt certificate, security headers, previews pointing at the new domain, functions in sin1, same-origin POSTs allowed and other origins refused.

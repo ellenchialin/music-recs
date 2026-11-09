@@ -1,10 +1,10 @@
 # Music Recs
 
-**Live demo: [music-recs-roan.vercel.app](https://music-recs-roan.vercel.app/)**
+**Live demo: [musicrecs.ellenchen.dev](https://musicrecs.ellenchen.dev/)**
 
 Pick up to three artists you love and get ten records to flip through, each with a 30-second preview. From any record you can **explore** one level deeper, up to three levels, and every level shows artists you haven't seen yet. No account and no sign-in.
 
-> **Status**: a one-week portfolio project (November 2026). Recommendations, previews, Explore and the Taste Check are live. Eval results will be added here as people play. Try it and [see whether the picks fit your taste](https://music-recs-roan.vercel.app/).
+> **Status**: a one-week portfolio project (November 2026). Recommendations, previews, Explore and the Taste Check are live. Eval results will be added here as people play. Try it and [see whether the picks fit your taste](https://musicrecs.ellenchen.dev/).
 
 ## Features
 
@@ -44,7 +44,7 @@ Recommendations are easy to show and hard to prove, so the site measures itself.
 3. **One visitor, one vote**: each visitor's own difference (recommended average − random average) is computed first and then averaged across visitors, so one person playing twenty rounds counts once.
 4. **Honest uncertainty**: a 95% confidence interval (Student's t) decides what the page says. Until it excludes zero, it says there's no clear difference yet.
 
-Live numbers: [`/api/stats`](https://music-recs-roan.vercel.app/api/stats). Known limit: clearing cookies makes a new visitor, so the count is an upper bound on real people.
+Live numbers: [`/api/stats`](https://musicrecs.ellenchen.dev/api/stats). Known limit: clearing cookies makes a new visitor, so the count is an upper bound on real people.
 
 ## Stack and why
 

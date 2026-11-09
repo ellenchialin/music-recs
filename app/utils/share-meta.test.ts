@@ -3,7 +3,7 @@ import { shareMeta } from "./share-meta";
 
 describe("shareMeta", () => {
   const meta = shareMeta({
-    origin: "https://music-recs-roan.vercel.app",
+    origin: "https://musicrecs.ellenchen.dev",
     path: "/taste-check?seed=Tame+Impala",
     title: "Taste Check",
     description: "Do these picks fit your taste?",
@@ -23,8 +23,8 @@ describe("shareMeta", () => {
 
   // Link previews ignore relative URLs, so both must be absolute
   it("uses absolute URLs for the page and the preview image", () => {
-    expect(meta.ogUrl).toBe("https://music-recs-roan.vercel.app/taste-check?seed=Tame+Impala");
-    expect(meta.ogImage).toBe("https://music-recs-roan.vercel.app/og-image.png");
+    expect(meta.ogUrl).toBe("https://musicrecs.ellenchen.dev/taste-check?seed=Tame+Impala");
+    expect(meta.ogImage).toBe("https://musicrecs.ellenchen.dev/og-image.png");
     expect(meta.twitterImage).toBe(meta.ogImage);
   });
 
