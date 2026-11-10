@@ -411,3 +411,13 @@ Verified locally with real APIs: a round mixes recommended and same-genre contro
 | 1 | The demo URL ended in `-roan.vercel.app` | Bought `ellenchen.dev` (Cloudflare Registrar) and serve this project at `musicrecs.ellenchen.dev`: a CNAME to Vercel with Cloudflare's proxy off, so Vercel issues the certificate | Adopted (my call) | A personal domain holds the portfolio site and every project as subdomains; a per-project domain wouldn't. `musicrecs.vercel.app` was free but still looked temporary |
 
 No code changes were needed: link previews build URLs from the request's origin, the CSP uses `'self'`, and the CSRF check compares the Origin with the request's host. Verified on the new domain: Let's Encrypt certificate, security headers, previews pointing at the new domain, functions in sin1, same-origin POSTs allowed and other origins refused.
+
+## 2026-11-10 · End-to-end tests
+
+| # | Question | Decision | Status | Reason / alternatives |
+|---|---|---|---|---|
+| 1 | How to keep E2E off the real Last.fm and iTunes, when the server (not the browser) calls them | Seed the cache tables in a separate `music_e2e` database by running the real `getRecommendations` against fake clients that serve recorded fixtures; run the server with a fake Last.fm key behind a proxy that refuses every connection, so a cache miss fails at once. The seed refuses non-local databases (it empties every table) and checks that every card has a preview | Adopted | `page.route` only sees browser requests. A fixture mode inside the server would put test code in production; hand-written `INSERT`s could drift from the schema |
+| 2 | Dev server or production build | `nuxt build` + `node .output/server/index.mjs` on port 3100, rebuilt by Playwright's `webServer` on every run (a few seconds) so a run from the editor never tests a stale build | Adopted | The build has the CSP and security headers, so a CSP that blocked previews would fail the test; `nuxt dev` would hide it |
+| 3 | How to prove a preview really plays | Answer preview URLs with a generated silent WAV, and record `currentTime` from `HTMLMediaElement.prototype.play`, because the player's `<audio>` is never in the DOM | Adopted | The Pause label alone appears before `play()` resolves. Playwright's Chrome for Testing can play AAC, so `channel: "chrome"` isn't needed |
+| 4 | Where E2E runs in CI | Its own job, in parallel with typecheck/lint/test, uploading the trace report on failure | Adopted | The browser download is slow; the fast checks shouldn't wait for it |
+| 5 | The "preview within 30 seconds" criterion | Not measured here: with seeded data the timing means nothing. A scheduled smoke test against the live site would measure it | Open | |

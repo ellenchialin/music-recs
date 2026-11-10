@@ -2,11 +2,15 @@ import { drizzle } from "drizzle-orm/postgres-js";
 import { migrate } from "drizzle-orm/postgres-js/migrator";
 import postgres from "postgres";
 
-// Creates the test database if needed and applies all migrations
+// Vitest's DB project: the test database comes from vitest.config.ts
 export default async function setup() {
   const url = process.env.TEST_DATABASE_URL;
   if (!url) throw new Error("TEST_DATABASE_URL is not set (see vitest.config.ts)");
+  await prepareDatabase(url);
+}
 
+// Creates the database if needed and applies all migrations. Also used by the E2E setup
+export async function prepareDatabase(url: string) {
   const target = new URL(url);
   const dbName = target.pathname.slice(1);
   const admin = new URL(url);

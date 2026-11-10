@@ -23,7 +23,7 @@ Decisions already made are in `docs/ai-log.md`. When the spec and a decision dis
 | Validation | zod for API input, external API responses and LLM output |
 | LLM | Claude Haiku 5.5 with structured output, only for writing reasons |
 | External data | Last.fm API (search, similar artists, tags, top tracks) and iTunes Search API (previews, covers); neither needs user sign-in |
-| Tests | Vitest + `@nuxt/test-utils`; Playwright for the main flows (planned) |
+| Tests | Vitest + `@nuxt/test-utils`; Playwright for the main flows |
 | Deployment | Vercel + Neon |
 | CI | GitHub Actions: typecheck, lint, tests |
 
@@ -147,7 +147,7 @@ Every result is tagged with an `algo_version`.
 
 The schedule is tight. If it slips, cut in this order: popularity slider → LLM reasons (use rule-based reasons) → Playwright.
 
-**Status (2026-11-10)**: deployed with the Taste Check, `/api/stats` and link previews. The eval reached 30 visitors (recommended +1.09 over random, 95% CI +0.42 to +1.75) and its table is in the README; LLM reasons, Playwright and the popularity slider are deferred.
+**Status (2026-11-10)**: deployed with the Taste Check, `/api/stats` and link previews. The eval reached 30 visitors (recommended +1.09 over random, 95% CI +0.42 to +1.75) and its table is in the README. Playwright covers the main flow in CI; LLM reasons and the popularity slider are deferred.
 
 ## Acceptance criteria
 

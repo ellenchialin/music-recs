@@ -1,0 +1,17 @@
+{
+  // nuxt typecheck doesn't see the E2E files; `pnpm typecheck` checks them with this config.
+  // DOM types because page.evaluate and addInitScript callbacks run in the browser
+  "compilerOptions": {
+    "target": "es2023",
+    "lib": ["es2023", "dom"],
+    "module": "preserve",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "types": ["node"],
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "skipLibCheck": true,
+    "noEmit": true
+  },
+  "include": ["./**/*.ts", "../../playwright.config.ts"]
+}

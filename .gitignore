@@ -31,3 +31,7 @@ graphify-out/
 
 # Local Claude Code settings and skills (machine-specific paths)
 .claude/
+
+# Playwright output
+playwright-report/
+test-results/

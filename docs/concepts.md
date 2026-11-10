@@ -324,3 +324,33 @@ The page is called Taste Check (`/taste-check`); the method behind it is a blind
 - **CSRF**: these are the first routes that write with a cookie. The visitor cookie is `SameSite=Lax` and `httpOnly`, and POSTs whose `Origin` isn't this site get a 403.
 
 **Known limit**: clearing cookies makes a new visitor, so one person can still count several times. The stats say how many visitors they're based on.
+
+## 16. End-to-end tests with Playwright
+
+> **Frontend analogy**: unit tests check one function, component tests mount one component in a fake DOM (happy-dom). An E2E test is a robot user: a real browser opens the built site, types, clicks and listens, and every layer between the button and the database runs for real.
+
+| Layer | Runs | Fakes | Catches |
+|---|---|---|---|
+| Unit (`unit`) | One pure function | Nothing needed | Wrong rules (ranking, stats) |
+| DB (`db`) | Server code + real Postgres | API clients | Wrong SQL, constraints, caching |
+| Component (`nuxt`) | One component in happy-dom | `$fetch`, audio | Wrong UI states |
+| **E2E (`e2e`)** | The built app in Chromium | Only the outside world (Last.fm, iTunes, audio files) | Pieces that work alone but not together: routing, SSR, CSP, cookies, the real `<audio>` |
+
+E2E tests are slow (seconds each) and have more ways to break, so there are only a few, each covering a main flow. Details stay in the faster layers.
+
+### Faking the outside world without mocking the server
+
+The browser only talks to our server; our server talks to Last.fm and iTunes. Playwright's `page.route` can only intercept the browser's own requests, so it can't fake the server's calls. Instead the test uses the cache from section 6:
+
+1. **Seed** (`tests/e2e/global-setup.ts`, run once before the tests): empty every table, then run the real `getRecommendations` once against fake clients that serve the recorded fixtures. It fills `artists`, `artist_similar` and `tracks` in a separate database, `music_e2e`, exactly as a real request would. The seed refuses any database that isn't local, and checks that every card got a preview, since `getRecommendations` turns a failed preview into an error card instead of throwing.
+2. **Serve**: the built server runs against `music_e2e` with a fake Last.fm key, and its outside requests go through a proxy that refuses every connection (`NODE_USE_ENV_PROXY`, which Node 24's `fetch` honors). Every lookup is a cache hit; a miss fails at once instead of quietly using the real API.
+3. **In the browser**: `context.route` answers the preview URLs with a short generated WAV file and blocks every other outside request. Autocomplete (`/api/artists/search`) is answered with an empty list, since it would call Last.fm and is covered by component tests.
+
+Seeding through the real cache code rather than hand-written `INSERT`s means the seed can't drift from the schema or the cache's rules.
+
+### Two things that differ from component tests
+
+- **Wait for what the user sees, not for time.** `await expect(locator).toBeVisible()` retries until it passes or times out; there are no `sleep`s. Locators find elements the way users and screen readers do (`getByRole("button", { name: "Recommend" })`), so the test also checks the accessible names.
+- **It tests a production build** (`nuxt build`, then the Node server), so security headers and CSP apply. If the CSP blocked the preview host, this test would catch it; `nuxt dev` wouldn't.
+
+**Codecs**: older Playwright Chromium builds couldn't play AAC, the format of iTunes previews (`.m4a`), so old advice says to use `channel: "chrome"`. Playwright now ships Chrome for Testing, which can (`canPlayType('audio/mp4; codecs="mp4a.40.2"')` answers "probably"). The tests still serve a generated WAV, because the point is not to download anything from outside; the browser sniffs the content, not the extension.

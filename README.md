@@ -65,7 +65,7 @@ Recommended songs scored about one point higher on a five-point scale, and the w
 | Database | **Postgres 17** + **Drizzle ORM** | Caches Last.fm and iTunes data and stores rate-limit counters. Docker locally, Neon in production |
 | Validation | **zod** | Every external API response and every request is validated and reshaped at the boundary, so bad data never reaches the algorithm |
 | Data | **Last.fm API**, **iTunes Search API** | No user sign-in needed. Spotify was ruled out: its development mode now allows only a few users. Deezer was ruled out: it isn't available in Taiwan |
-| Tests | **Vitest** + `@nuxt/test-utils` | Three projects: pure functions in Node, database tests against a real Postgres, components in happy-dom |
+| Tests | **Vitest** + `@nuxt/test-utils`, **Playwright** | Three Vitest projects: pure functions in Node, database tests against a real Postgres, components in happy-dom. Playwright drives the production build in Chromium for the main flow, with the cache seeded from recorded fixtures so no outside API is called |
 | Hosting | **Vercel** + **Neon** | Serverless deploys with a managed Postgres |
 
 ## Engineering notes
@@ -115,7 +115,8 @@ Open http://localhost:3000.
 
 | Command | Purpose |
 |---|---|
-| `pnpm test` | All tests (needs `pnpm db:up` for the database tests) |
+| `pnpm test` | All Vitest tests (needs `pnpm db:up` for the database tests) |
+| `pnpm test:e2e` | Build, then run the Playwright tests (needs `pnpm db:up`; once: `pnpm exec playwright install chromium`) |
 | `pnpm typecheck` / `pnpm lint` | Type check and lint |
 | `pnpm db:studio` | Browse the cached data in Drizzle Studio |
 | `pnpm record:lastfm` / `pnpm record:itunes` | Re-record API fixtures from the real APIs |
@@ -141,7 +142,7 @@ docs/                Decision log, concept notes, exercises
 
 - **More eval data**: keep the results table current as more people play, and compare algorithm versions once there's a v3.
 - **Recommendation reasons** written by an LLM, cached and capped per day. Until then, each record says which of your artists it's similar to.
-- **End-to-end tests** with Playwright for the main flows.
+- **More end-to-end tests**: Explore and the Taste Check. The main flow (pick an artist → recommendations → hear a preview) is covered.
 - **A mainstream ↔ obscure slider** (deferred).
 
 ## Credits

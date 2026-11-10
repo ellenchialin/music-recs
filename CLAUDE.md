@@ -15,6 +15,7 @@ Run `nvm use` first (Node 24; Nuxt doesn't support Homebrew's Node 25).
 | `pnpm dev` | Dev server at http://localhost:3000 |
 | `pnpm test` / `pnpm test:watch` | All Vitest projects: `unit` (pure functions in `server/` and `shared/`), `db` (`*.db.test.ts` against `music_test`; run `pnpm db:up` first), `nuxt` (components in `app/`, happy-dom) |
 | `pnpm test:unit` / `pnpm test:db` | One project only |
+| `pnpm test:e2e` | Playwright (`tests/e2e/`): builds, then tests against the built server on port 3100 and the `music_e2e` database, seeded from fixtures. Run `pnpm db:up` first; install the browser once with `pnpm exec playwright install chromium` |
 | `pnpm typecheck` | `nuxt typecheck` (vue-tsc) |
 | `pnpm lint` | ESLint (`@nuxt/eslint`) |
 | `pnpm db:up` / `pnpm db:down` | Local Postgres 17 (Docker, port 5434; dev DB `music`, test DB `music_test`) |
@@ -25,7 +26,7 @@ Run `nvm use` first (Node 24; Nuxt doesn't support Homebrew's Node 25).
 | `pnpm record:itunes` | Re-record `server/itunes/fixtures/` from the real iTunes Search API (no key needed) |
 | `graphify update .` | Rebuild the code knowledge graph in `graphify-out/` (local, no LLM). Install once: `python3 -m venv ~/.local/share/graphify-venv && ~/.local/share/graphify-venv/bin/pip install graphifyy`, then link `bin/graphify` into `~/.local/bin` |
 
-CI (`.github/workflows/ci.yml`) runs typecheck → lint → test.
+CI (`.github/workflows/ci.yml`) runs typecheck → lint → test, and E2E in a parallel job.
 
 ## Conventions
 

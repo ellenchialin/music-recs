@@ -12,8 +12,9 @@ permissions:
 jobs:
   check:
     runs-on: ubuntu-latest
-    # DB tests need a real Postgres, configured like docker-compose.yml
-    services:
+    # DB tests need a real Postgres, configured like docker-compose.yml. Anchored so the e2e job
+    # uses the same definition
+    services: &postgres
       db:
         image: postgres:17
         env:
@@ -38,3 +39,26 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm lint
       - run: pnpm test
+
+  # The main flow in a real browser against the production build. Separate from `check` so a slow
+  # browser download doesn't hold up the faster checks
+  e2e:
+    runs-on: ubuntu-latest
+    services: *postgres
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps --no-shell chromium
+      - run: pnpm test:e2e
+      # The report holds a trace of each failed test: every step, the DOM and the network
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7

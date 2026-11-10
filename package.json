@@ -11,7 +11,7 @@
     "build": "nuxt build",
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare",
-    "typecheck": "nuxt typecheck",
+    "typecheck": "nuxt typecheck && tsc -p tests/e2e",
     "lint": "eslint .",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -23,6 +23,7 @@
     "db:sandbox": "docker compose exec db psql -U app -d music_test",
     "test:unit": "vitest run --project unit",
     "test:db": "vitest run --project db",
+    "test:e2e": "playwright test",
     "record:lastfm": "tsx --env-file=.env scripts/record-lastfm-fixtures.ts",
     "record:itunes": "tsx scripts/record-itunes-fixtures.ts"
   },
@@ -51,6 +52,7 @@
   "devDependencies": {
     "@nuxt/eslint": "^1.17.0",
     "@nuxt/test-utils": "^4.3.4",
+    "@playwright/test": "^1.65.0",
     "@types/node": "^24.19.2",
     "@vue/test-utils": "^2.5.1",
     "dotenv": "^18.0.9",
