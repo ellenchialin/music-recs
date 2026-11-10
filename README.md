@@ -20,7 +20,7 @@ Pick up to three artists you love and get ten records to flip through, each with
 
 ```mermaid
 flowchart LR
-  UI["Nuxt pages<br/>(Vue 3, Pinia)"] -->|GET /api/recommendations| Route
+  UI["Nuxt pages<br/>(Vue 3, Pinia)"] -->|GET /api/recommendations<br/>GET /api/previews| Route
   Route["API route<br/>rate limit + zod"] --> Service["Service<br/>seeds → candidates → previews"]
   Service --> Algo["recommend()<br/>pure functions"]
   Service --> Cache["Postgres cache<br/>30-day TTL"]
@@ -31,7 +31,7 @@ flowchart LR
 1. **Similar artists**: for each seed, take Last.fm's similar-artists list (cached in Postgres for 30 days).
 2. **Merge by rank**: combine the lists with Reciprocal Rank Fusion, a common way search engines merge ranked lists. Rank *r* in a seed's list scores `1 / (5 + r)`, summed across seeds. Using ranks instead of raw similarity scores keeps one seed from taking most of the spots, while artists similar to several seeds still rank highest.
 3. **Exclude**: drop the seeds themselves (matched by normalized name or MusicBrainz ID), plus everything already shown when exploring.
-4. **Previews**: for each of the top 10, take Last.fm's top track and find it on iTunes, trying the Taiwan, US and Japan stores in turn (stores localize artist names, e.g. BoA is 寶兒 in Taiwan). A small tiered matcher prefers the original title, then a version of it, and never a different artist's song.
+4. **Previews**: for each of the top 10, take Last.fm's top track and find it on iTunes, trying the Taiwan, US and Japan stores in turn (stores localize artist names, e.g. BoA is 寶兒 in Taiwan). A small tiered matcher prefers the original title, then a version of it, and never a different artist's song. The list doesn't wait for this: it answers with cached previews, and the page fetches the rest from `/api/previews`, nearest record first, while the Play button shows a spinner.
 
 Every result is tagged with an algorithm version so blind-test ratings can compare versions.
 
@@ -70,7 +70,8 @@ Recommended songs scored about one point higher on a five-point scale, and the w
 
 ## Engineering notes
 
-- **Test-driven**: 264 tests. The algorithm and rate limiting are pure functions with unit tests; caching and services run against a real test database; pages and components are tested in a simulated browser. External APIs are never called in tests: recorded fixtures stand in for them.
+- **Test-driven**: about 290 tests, plus Playwright end-to-end and a daily smoke test of the live site against Core Web Vitals and Nielsen's response-time limits. The algorithm and rate limiting are pure functions with unit tests; caching and services run against a real test database; pages and components are tested in a simulated browser. External APIs are never called in tests: recorded fixtures stand in for them.
+- **Show the list, then fill it in**: an uncached recommendation used to take 4–5 s because every preview was looked up before answering. Now the records appear in about 2 s (1.1 s of it the turntable animation) and each preview follows on its own.
 - **Caching that won't lie**: "iTunes has no preview" is cached (so we don't ask again for 30 days); "iTunes is down" is not (so the preview comes back when it recovers).
 - **Rate limiting**: fixed one-minute windows counted atomically in Postgres, because serverless instances don't share memory. IPv6 clients are grouped by /64, `x-forwarded-for` is trusted only behind Vercel's proxy, and only a salted hash of the IP is stored.
 - **Protecting upstream APIs**: one uncached recommendation can make dozens of Last.fm and iTunes calls, so there's also a site-wide per-minute budget for each API and a circuit breaker that backs off iTunes for five minutes when it starts throttling.

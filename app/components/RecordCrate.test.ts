@@ -99,7 +99,16 @@ describe("RecordCrate", () => {
     await button(wrapper, "Next record").trigger("click");
     expect(info(wrapper).text()).toContain("Preview failed to load");
     await info(wrapper).findAll("button").find((b) => b.text() === "Retry")!.trigger("click");
-    expect(wrapper.emitted("retry")).toHaveLength(1);
+    expect(wrapper.emitted("retry")).toEqual([["Ezra Collective"]]);
+  });
+
+  // The list arrives before previews; the button waits in place until its preview has loaded
+  it("shows a disabled, busy play button while the preview is loading", async () => {
+    const wrapper = await mountSuspended(RecordCrate, { props: { cards: [card("Pond", { status: "pending" }, null)] } });
+    const loading = button(wrapper, "Loading preview of Pond");
+    expect(loading.attributes("disabled")).toBeDefined();
+    expect(loading.attributes("aria-busy")).toBe("true");
+    expect(button(wrapper, "Play preview of Pond")).toBeUndefined();
   });
 
   it("explores from the selected record", async () => {

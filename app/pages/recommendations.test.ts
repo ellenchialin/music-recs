@@ -1,7 +1,7 @@
 import { mountSuspended, registerEndpoint } from "@nuxt/test-utils/runtime";
 import { createError } from "h3";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { RecommendationsResult } from "~~/shared/types/recommendations";
+import type { CardPreview, RecommendationCard, RecommendationsResult } from "~~/shared/types/recommendations";
 import RecommendationsPage from "./recommendations.vue";
 
 // Fake API: "Kokoroco" (misspelled) → 404; user seeds → Khruangbin, Nowhere; exploring X →
@@ -9,13 +9,15 @@ import RecommendationsPage from "./recommendations.vue";
 let requests: { seeds: string[]; exclude: string[] }[] = [];
 let gate: Promise<void> | null = null;
 let throttled = false;
-const card = (artist: string) => ({
+const card = (artist: string): RecommendationCard => ({
   artist,
   score: 0.2,
   sources: ["Tame Impala"],
   track: { title: `${artist} Hit`, artworkUrl: null },
-  preview: { status: "unavailable" as const },
+  preview: { status: "unavailable" },
 });
+// The seed "Slow Lane" gets cards whose previews aren't cached yet
+const pendingCard = (artist: string): RecommendationCard => ({ ...card(artist), track: null, preview: { status: "pending" } });
 registerEndpoint("/api/recommendations", async (event) => {
   if (gate) await gate;
   const query = new URLSearchParams(event.path.split("?")[1]);
@@ -28,12 +30,36 @@ registerEndpoint("/api/recommendations", async (event) => {
   }
   const seed = seeds[0]!;
   const artists = !exclude.length ? ["Khruangbin", "Nowhere"] : seed === "Nowhere" ? [] : [`${seed} Friend 1`, `${seed} Friend 2`];
-  const result: RecommendationsResult = { algoVersion: "v2", seeds, recommendations: artists.map(card) };
+  const result: RecommendationsResult = {
+    algoVersion: "v2",
+    seeds,
+    recommendations: seed === "Slow Lane" ? ["Pond", "MGMT"].map(pendingCard) : artists.map(card),
+  };
   return result;
+});
+
+// Fake preview API: every artist has "<artist> Hit". failures[artist] requests fail first; $fetch
+// retries a failed GET once on its own, so failing the visitor's first try takes two
+let previewRequests: string[] = [];
+let failures: Record<string, number> = {};
+registerEndpoint("/api/previews", async (event) => {
+  const artist = new URLSearchParams(event.path.split("?")[1]).get("artist")!;
+  previewRequests.push(artist);
+  if ((failures[artist] ?? 0) > 0) {
+    failures[artist]!--;
+    throw createError({ statusCode: 500 });
+  }
+  const found: CardPreview = {
+    track: { title: `${artist} Hit`, artworkUrl: null },
+    preview: { status: "available", url: `https://audio.example/${encodeURIComponent(artist)}.m4a` },
+  };
+  return found;
 });
 
 beforeEach(() => {
   requests = [];
+  previewRequests = [];
+  failures = {};
   gate = null;
   throttled = false;
   // Levels live in useState and useAsyncData results persist per key in the Nuxt app
@@ -205,5 +231,24 @@ describe("recommendations page", () => {
     await button(page, "Explore artists like Khruangbin")!.trigger("click");
     await vi.waitFor(() => expect(page.text()).toContain("Too many requests — try again in a minute"));
     expect(currentQuery()).toEqual(SEEDS_QUERY);
+  });
+
+  it("shows the records first and fills in previews that weren't cached", async () => {
+    const page = await open("/recommendations?seed=Slow%20Lane");
+    await vi.waitFor(() => expect(recordNames(page)).toEqual(["Pond", "MGMT"]));
+    await vi.waitFor(() => expect(button(page, "Play preview of Pond Hit")).toBeDefined());
+    expect(previewRequests.sort()).toEqual(["MGMT", "Pond"]);
+  });
+
+  it("retries only the preview that failed", async () => {
+    failures = { Pond: 2 };
+    const page = await open("/recommendations?seed=Slow%20Lane");
+    await vi.waitFor(() => expect(page.text()).toContain("Preview failed to load"));
+
+    await page.findAll("button").find((b) => b.text() === "Retry")!.trigger("click");
+
+    await vi.waitFor(() => expect(button(page, "Play preview of Pond Hit")).toBeDefined());
+    expect(previewRequests.filter((a) => a === "Pond")).toHaveLength(3);
+    expect(requests).toHaveLength(1);
   });
 });

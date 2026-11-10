@@ -126,6 +126,12 @@ What was learned on the last project all shows up here:
 
 **See it**: open `artists` and `artist_similar` in `pnpm db:studio`. The first lookup of an artist makes 2 API calls (about 700ms); the second makes none (about 3ms).
 
+### Answer with what's cached, fetch the rest after
+
+> **Frontend analogy**: a feed that renders its list right away with skeletons, then lazy-loads each item's media. Same data, but the visitor sees something in one round trip instead of waiting for the slowest piece.
+
+`/api/recommendations` used to look up all ten previews before answering, so an uncached query took 4–5 s. Now `getRecommendations(..., { previews: "cached" })` reads previews with `getCachedArtistTrack` (no API calls) and marks the rest `pending`. The page's `useCardPreviews` fetches each pending one from `/api/previews`, nearest record first (`previewQueue`), three at a time, and `withPreviews` merges them into the cards. The level cache stays untouched, and a failed preview is retried on its own.
+
 ### Cache "nothing", never "broken"
 
 > **Frontend analogy**: search for "zzqx" and the backend returns an empty array; SWR caches the empty array and doesn't refetch. A 500 error isn't stored as data, so the next request retries.

@@ -121,7 +121,8 @@ Every result is tagged with an `algo_version`.
 | Method | Path | Purpose |
 |---|---|---|
 | GET | `/api/artists/search?q=` | Autocomplete |
-| GET | `/api/recommendations?seed=&exclude=` | Seeds (plus artists to exclude when exploring) → recommendations |
+| GET | `/api/recommendations?seed=&exclude=` | Seeds (plus artists to exclude when exploring) → recommendations, with previews only if already cached (others `pending`) |
+| GET | `/api/previews?artist=` | One card's track and preview, for cards left `pending` |
 | POST | `/api/blind-tests` | Start a round |
 | POST | `/api/blind-tests/:id/ratings` | Submit ratings → reveal |
 | GET | `/api/stats` | Eval numbers |
@@ -151,7 +152,7 @@ The schedule is tight. If it slips, cut in this order: popularity slider → LLM
 
 ## Acceptance criteria
 
-- [x] Without an account, get recommendations and hear a preview within 30 seconds (6.5 s on 2026-11-10). Superseded by per-phase budgets from Core Web Vitals and Nielsen, checked daily by the smoke test; uncached recommendations (about 4–5 s) are still over the 4 s line
+- [x] Without an account, get recommendations and hear a preview within 30 seconds (6.5 s on 2026-11-10). Superseded by per-phase budgets from Core Web Vitals and Nielsen, checked daily by the smoke test. Uncached recommendations went from 4–5 s to about 2 s by showing the list before previews
 - [x] Repeating a query with the same seeds calls no external API or LLM
 - [x] Over the rate limit returns 429 and the page says so
 - [x] A live demo works ([musicrecs.ellenchen.dev](https://musicrecs.ellenchen.dev/))

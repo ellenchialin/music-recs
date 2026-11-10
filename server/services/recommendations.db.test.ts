@@ -7,7 +7,7 @@ import { LastfmError, type LastfmClient } from "../lastfm/client";
 import type { ArtistSearchResult } from "../lastfm/schemas";
 import { normalizeArtistName } from "../../shared/utils/normalize-artist-name";
 import { ALGO_VERSION } from "../utils/recommend/recommend";
-import { SeedNotFoundError, getRecommendations } from "./recommendations";
+import { SeedNotFoundError, getPreview, getRecommendations } from "./recommendations";
 
 const db = getDb();
 const now = new Date("2026-11-04T12:00:00Z");
@@ -168,5 +168,60 @@ describe("getRecommendations", () => {
     );
 
     expect(result.recommendations.map((r) => r.artist)).toEqual(["MGMT"]);
+  });
+});
+
+// The page shows the records first and fills previews in one by one, so it asks only for what's cached
+describe("getRecommendations with cached previews only", () => {
+  it("returns every card without looking up previews that aren't cached", async () => {
+    const { lastfm, itunes, calls } = world();
+
+    const result = await getRecommendations({ db, lastfm, itunes, now }, { seeds: ["Tame Impala"], previews: "cached" });
+
+    expect(result.recommendations.map((r) => [r.artist, r.track, r.preview])).toEqual([
+      ["Pond", null, { status: "pending" }],
+      ["MGMT", null, { status: "pending" }],
+      ["Khruangbin", null, { status: "pending" }],
+    ]);
+    // Only the seed's info and similar list
+    expect(calls).toEqual({ lastfm: 2, itunes: 0 });
+  });
+
+  it("includes previews that are already cached", async () => {
+    const { lastfm, itunes } = world();
+    await getPreview({ db, lastfm, itunes, now }, "MGMT");
+
+    const result = await getRecommendations({ db, lastfm, itunes, now }, { seeds: ["Tame Impala"], previews: "cached" });
+
+    const byArtist = Object.fromEntries(result.recommendations.map((r) => [r.artist, r.preview.status]));
+    expect(byArtist).toEqual({ Pond: "pending", MGMT: "available", Khruangbin: "pending" });
+  });
+});
+
+describe("getPreview", () => {
+  it("looks up one artist's track and preview", async () => {
+    const { lastfm, itunes } = world();
+
+    expect(await getPreview({ db, lastfm, itunes, now }, "Pond")).toEqual({
+      track: { title: "Pond Hit", artworkUrl: "https://art.example/600x600bb.jpg" },
+      preview: { status: "available", url: expect.stringMatching(/^https:\/\/audio\.example\//) },
+    });
+  });
+
+  it("answers from the cache the second time", async () => {
+    const { lastfm, itunes, calls } = world();
+    await getPreview({ db, lastfm, itunes, now }, "Pond");
+    calls.lastfm = 0;
+    calls.itunes = 0;
+
+    await getPreview({ db, lastfm, itunes, now }, "pond ");
+
+    expect(calls).toEqual({ lastfm: 0, itunes: 0 });
+  });
+
+  it("reports an error instead of throwing when the lookup fails", async () => {
+    const { lastfm, itunes } = world({ previews: { Pond: "error" } });
+
+    expect(await getPreview({ db, lastfm, itunes, now }, "Pond")).toEqual({ track: null, preview: { status: "error" } });
   });
 });

@@ -2,6 +2,7 @@
 import { AnimatePresence, motion } from "motion-v";
 import type { RecommendationsResult, SeedNotFoundData } from "~~/shared/types/recommendations";
 import { normalizeArtistName } from "~~/shared/utils/normalize-artist-name";
+import { withPreviews } from "~/utils/card-previews";
 import { canExplore, excludedFor, type Trail } from "~/utils/explore-trail";
 import {
   homeLocation,
@@ -135,12 +136,18 @@ function onIndexChange(index: number) {
   exploreMessage.value = "";
 }
 
-// Preview errors aren't cached, so refetching this level retries iTunes
-function retryLevel() {
-  const { [currentKey.value]: _, ...rest } = levels.value;
-  levels.value = rest;
-  void refresh();
-}
+// The list comes back before uncached previews; fetch those in the browser and merge them in
+const previews = useCardPreviews();
+const cards = computed(() =>
+  currentLevel.value ? withPreviews(currentLevel.value.result.recommendations, previews.loaded.value) : [],
+);
+onMounted(() => {
+  watch(
+    () => currentLevel.value?.result,
+    (result) => result && void previews.load(result.recommendations, viewing.value[currentKey.value] ?? 0),
+    { immediate: true },
+  );
+});
 
 function useSuggestion(seed: string, suggestion: string) {
   const seeds = query.value?.seeds.map((s) => (s === seed ? suggestion : s)) ?? [suggestion];
@@ -277,13 +284,13 @@ useShareMeta(() => ({
             >
               <RecordCrate
                 :index="viewing[currentKey] ?? 0"
-                :cards="currentLevel.result.recommendations"
+                :cards="cards"
                 :can-explore="canExplore(trail)"
                 :exploring="exploring"
                 :notice="exploreMessage"
                 @update:index="onIndexChange"
                 @explore="explore"
-                @retry="retryLevel"
+                @retry="previews.retry"
               />
             </motion.div>
           </AnimatePresence>

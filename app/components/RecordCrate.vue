@@ -9,8 +9,8 @@ const props = withDefaults(
   { canExplore: true, exploring: false, notice: "" },
 );
 const emit = defineEmits<{
-  // Ask the page to refetch after a preview error
-  retry: [];
+  // Ask the page to fetch this artist's preview again after an error
+  retry: [artist: string];
   explore: [artist: string];
 }>();
 
@@ -71,6 +71,7 @@ const isPlaying = computed(
   () => current.value.preview.status === "available" && player.playingUrl.value === current.value.preview.url,
 );
 const trackTitle = computed(() => current.value.track?.title ?? current.value.artist);
+const loadingPreview = computed(() => current.value.preview.status === "pending");
 
 function togglePreview() {
   if (current.value.preview.status === "available") void player.toggle(current.value.preview.url);
@@ -194,18 +195,33 @@ const appleMusicUrl = computed(() => {
           <svg aria-hidden="true" viewBox="0 0 24 24" class="size-7 fill-current"><path d="M5 4h3v16H5zM20 4v16L9 12z" /></svg>
         </button>
 
+        <!-- One button for both states: while the preview loads it's disabled and shows a spinner, so
+             nothing moves when the preview arrives. The track isn't known yet, so that label names the artist -->
         <motion.button
-          v-if="current.preview.status === 'available'"
+          v-if="current.preview.status === 'available' || loadingPreview"
           type="button"
-          :aria-pressed="isPlaying"
-          :aria-label="`${isPlaying ? 'Pause' : 'Play'} preview of ${trackTitle}`"
+          :disabled="loadingPreview"
+          :aria-busy="loadingPreview"
+          :aria-pressed="loadingPreview ? undefined : isPlaying"
+          :aria-label="loadingPreview ? `Loading preview of ${current.artist}` : `${isPlaying ? 'Pause' : 'Play'} preview of ${trackTitle}`"
           class="flex size-16 shrink-0 items-center justify-center rounded-full border-3 border-ink bg-teal text-ink"
           :while-press="{ scale: 0.92 }"
           :transition="spring.snappy"
           @click="togglePreview"
         >
+          <motion.svg
+            v-if="loadingPreview"
+            aria-hidden="true"
+            viewBox="0 0 24 24"
+            class="size-7"
+            :animate="{ rotate: 360 }"
+            :transition="{ duration: 1, ease: 'linear', repeat: Infinity }"
+          >
+            <circle cx="12" cy="12" r="9" fill="none" stroke-width="3" class="stroke-ink/25" />
+            <path d="M12 3a9 9 0 0 1 9 9" fill="none" stroke-width="3" stroke-linecap="round" class="stroke-ink" />
+          </motion.svg>
           <!-- The play triangle is nudged right to look centered -->
-          <svg aria-hidden="true" viewBox="0 0 12 12" class="size-6 fill-current" :class="isPlaying ? '' : 'translate-x-0.5'">
+          <svg v-else aria-hidden="true" viewBox="0 0 12 12" class="size-6 fill-current" :class="isPlaying ? '' : 'translate-x-0.5'">
             <path v-if="isPlaying" d="M2 1h3v10H2zM7 1h3v10H7z" />
             <path v-else d="M2 1l9 5-9 5z" />
           </svg>
@@ -226,7 +242,7 @@ const appleMusicUrl = computed(() => {
 
         <p v-else class="flex min-w-0 items-center gap-2 text-sm sm:text-base">
           <span class="truncate text-ink/70">Preview failed to load</span>
-          <button type="button" class="shrink-0 font-bold underline underline-offset-4" @click="emit('retry')">Retry</button>
+          <button type="button" class="shrink-0 font-bold underline underline-offset-4" @click="emit('retry', current.artist)">Retry</button>
         </p>
 
         <button

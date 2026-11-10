@@ -11,3 +11,6 @@ export const recommendationsQuery = z.object({
   // Seeds plus artists shown on earlier levels: 3 + 10 × 3 levels fits well within 60
   exclude: oneOrMany.pipe(z.array(z.string()).max(60)).default([]),
 }).transform(({ seed, exclude }) => ({ seeds: seed, exclude }));
+
+// GET /api/previews?artist=Pond: one card's preview, for cards the list left "pending"
+export const previewQuery = z.object({ artist: artistName });

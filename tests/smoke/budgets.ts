@@ -14,7 +14,9 @@ export const BUDGETS = {
   recommendToRecords: { good: 2500, poor: 4000 },
   // Nielsen: about 1 s keeps the flow of thought; well past it the click feels ignored
   playToSound: { good: 1000, poor: 2500 },
-  // Nielsen's 10 s limit for keeping attention, for the whole flow minus the visitor's own typing
+  // The record is on screen with a loading Play button; same patience as pressing Play
+  recordsToPreview: { good: 1000, poor: 2500 },
+  // Nielsen's 10 s limit for keeping attention, for the whole flow (Playwright types instantly)
   flow: { good: 5000, poor: 10000 },
 } satisfies Record<string, Budget>;
 

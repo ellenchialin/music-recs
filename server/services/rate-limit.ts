@@ -51,6 +51,9 @@ export const RATE_LIMITS = {
   // Starting a round fetches recommendations and control songs; rating is cheap but shares the limit
   blindTest: { limit: 12, windowMs: 60_000 },
   stats: { limit: 30, windowMs: 60_000 },
+  // One per card still pending: 10 a page, and a visitor exploring quickly opens a few pages a minute.
+  // Uncached lookups are also capped site-wide by the external budgets
+  previews: { limit: 60, windowMs: 60_000 },
 } satisfies Record<string, RateLimitRule>;
 
 // Throws 429 with Retry-After when over the limit. Outside Vercel, SSR's internal requests have no

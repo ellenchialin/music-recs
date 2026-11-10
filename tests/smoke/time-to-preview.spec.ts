@@ -61,8 +61,13 @@ test(`the main flow stays within its performance budgets (${artist})`, async ({ 
 
   const started = Date.now();
   await page.goto("/");
+  // The browser stops looking for the largest paint at the first input, so let it report before
+  // typing; a visitor doesn't type in the first few hundred milliseconds either
+  await expect
+    .poll(() => page.evaluate(() => window.smoke!.lcp), { timeout: BUDGETS.lcp.poor })
+    .not.toBeNull()
+    .catch(() => {});
   await addArtist(page, artist);
-  const interactive = Date.now() - started;
   const ttfb = await page.evaluate(
     () => (performance.getEntriesByType("navigation")[0] as PerformanceNavigationTiming | undefined)?.responseStart ?? null,
   );
@@ -73,25 +78,35 @@ test(`the main flow stays within its performance budgets (${artist})`, async ({ 
   await expect(page.getByRole("group", { name: /^1 of / })).toBeVisible({ timeout: 30_000 });
   const recommendToRecords = Date.now() - recommendClicked;
 
+  // Records show before their previews; wait for the first one's to load (or turn out missing)
+  const play = page.getByRole("button", { name: /^Play preview of / });
+  const settled = play.or(page.getByText("No preview")).or(page.getByText("Preview failed to load"));
+  const recordsShown = Date.now();
+  await expect(settled).toBeVisible({ timeout: 30_000 });
+  const recordsToPreview = Date.now() - recordsShown;
+
   // Like a visitor, skip records without a preview until one can play. Not timed: it's the
   // visitor's choice, not the site's speed
-  const play = page.getByRole("button", { name: /^Play preview of / });
   for (let i = 0; i < 10 && !(await play.isVisible()); i++) {
     await page.getByRole("button", { name: "Next record" }).click();
+    await expect(settled).toBeVisible({ timeout: 30_000 });
   }
   const playClickedAt = await page.evaluate(() => performance.now());
   await play.click();
   await expect.poll(() => page.evaluate(() => window.smoke!.playingAt), { timeout: 30_000 }).not.toBeNull();
   const playToSound = (await page.evaluate(() => window.smoke!.playingAt!)) - playClickedAt;
   const inp = await page.evaluate(() => window.smoke!.inp);
+  // Wall clock: Playwright's typing and clicks take milliseconds, so this is the site's time
+  const flow = Date.now() - started;
 
   const results: Measured[] = [
     { phase: "Server response (TTFB)", ms: ttfb, budget: BUDGETS.ttfb },
     { phase: "Home page loaded (LCP)", ms: lcp, budget: BUDGETS.lcp },
     { phase: "Recommend → records", ms: recommendToRecords, budget: BUDGETS.recommendToRecords },
+    { phase: "Records → first preview ready", ms: recordsToPreview, budget: BUDGETS.recordsToPreview },
     { phase: "Play → sound", ms: playToSound, budget: BUDGETS.playToSound },
     { phase: "Click response (INP)", ms: inp, budget: BUDGETS.inp },
-    { phase: "Whole flow, minus typing", ms: interactive + recommendToRecords + playToSound, budget: BUDGETS.flow },
+    { phase: "Whole flow", ms: flow, budget: BUDGETS.flow },
   ];
   report(reportTable(`${testInfo.project.name}: ${artist}`, results));
 

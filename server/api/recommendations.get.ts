@@ -14,7 +14,8 @@ export default defineEventHandler(async (event) => {
   try {
     return await getRecommendations(
       { db: getDb(), lastfm: getLastfmClient(), itunes: getItunesClient(), now: new Date() },
-      { seeds, exclude },
+      // Answer as soon as the list is known; the page fetches uncached previews from /api/previews
+      { seeds, exclude, previews: "cached" },
     );
   } catch (err) {
     // 404 with similar names the page can suggest

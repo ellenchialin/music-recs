@@ -23,11 +23,17 @@ export type ArtistTrack = typeof tracks.$inferSelect;
 // store matches everyone. Try them in order
 const ITUNES_STORES = ["TW", "US", "JP"];
 
+// The fresh cached row, or null without calling any API
+export async function getCachedArtistTrack({ db, now }: Pick<Deps, "db" | "now">, artistName: string): Promise<ArtistTrack | null> {
+  const [cached] = await db.select().from(tracks).where(eq(tracks.artistNameNorm, normalizeArtistName(artistName)));
+  return cached && isFresh(cached.fetchedAt, now) ? cached : null;
+}
+
 // artistName is Last.fm's spelling
 export async function getArtistTrack({ db, lastfm, itunes, now }: Deps, artistName: string): Promise<ArtistTrack | null> {
   const artistNameNorm = normalizeArtistName(artistName);
-  const [cached] = await db.select().from(tracks).where(eq(tracks.artistNameNorm, artistNameNorm));
-  if (cached && isFresh(cached.fetchedAt, now)) return cached;
+  const cached = await getCachedArtistTrack({ db, now }, artistName);
+  if (cached) return cached;
 
   const [top] = await lastfm.getTopTracks(artistName, { limit: 1 });
   // Rare; not cached, so the next request asks Last.fm again

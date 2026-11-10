@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { recommendationsQuery } from "./recommendations-query";
+import { previewQuery, recommendationsQuery } from "./recommendations-query";
 
 describe("recommendationsQuery", () => {
   it("turns one seed into a list", () => {
@@ -37,5 +37,17 @@ describe("recommendationsQuery", () => {
     expect(recommendationsQuery.safeParse({ seed: "GUM", exclude: names(60) }).success).toBe(true);
     expect(recommendationsQuery.safeParse({ seed: "GUM", exclude: names(61) }).success).toBe(false);
     expect(recommendationsQuery.safeParse({ seed: "GUM", exclude: " " }).success).toBe(false);
+  });
+});
+
+describe("previewQuery", () => {
+  it("takes one trimmed artist name", () => {
+    expect(previewQuery.parse({ artist: " Pond " })).toEqual({ artist: "Pond" });
+  });
+
+  it("rejects a missing, empty, repeated or very long name", () => {
+    for (const query of [{}, { artist: " " }, { artist: ["Pond", "MGMT"] }, { artist: "x".repeat(201) }]) {
+      expect(previewQuery.safeParse(query).success).toBe(false);
+    }
   });
 });
