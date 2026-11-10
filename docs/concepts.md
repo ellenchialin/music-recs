@@ -139,6 +139,32 @@ What was learned on the last project all shows up here:
 
 The tests `remembers that iTunes had nothing` and `does not cache anything when iTunes fails` check one case each.
 
+### Where a cache can live: memory, Redis or Postgres
+
+> **Frontend analogy**: memory is a `ref` or React state (fast, gone on reload, one tab only). Redis is a shared `Map` that sits on another machine. Postgres is the backend's spreadsheet: slower to reach, but it keeps everything and can answer questions about it.
+
+| | In-process memory (a `Map` in the server) | Redis | Postgres |
+|---|---|---|---|
+| Where the data lives | The server process's RAM | RAM on a separate server, optionally saved to disk | Disk on a separate server, with hot pages cached in RAM |
+| Read time | Nanoseconds (no network) | About 1 ms (one network trip) | A few ms (network trip + query) |
+| Shared between server instances | No: each instance has its own copy | Yes | Yes |
+| Survives a restart or deploy | No | Usually (if persistence is on) | Yes |
+| Data model | Any JS value | Keys → strings, lists, hashes, sets, counters | Tables with types, constraints, joins and transactions |
+| Built-in expiry | Write it yourself | Yes: a TTL per key | No: store a timestamp and compare it (`fetched_at`) |
+| Extra cost to run | None | Another service to pay for and configure | None here: the app already needs it |
+
+Why this project uses Postgres:
+
+- **Serverless has no lasting memory.** Each request on Vercel may land on a different function instance, and idle instances are thrown away, so an in-memory cache would mostly miss.
+- **One less service.** Postgres is already needed for the Taste Check; Redis (for example Upstash) would be a second bill, a second set of secrets and a second thing that can fail.
+- **The cached data is relational.** `artist_similar` points at `artists` with a foreign key, refreshing a similar list is a transaction, and the Taste Check can join against cached tracks. Redis has no joins or foreign keys.
+- **The speed gap doesn't matter here.** A cache hit costs a few ms either way; a miss costs hundreds of ms at Last.fm.
+
+When the other two win:
+
+- **Memory**: data that is the same for everyone, small and safe to lose, read on almost every request in a long-running server (a config table, a compiled regex). Also as a layer in front of Redis or Postgres.
+- **Redis**: very high read or write rates where milliseconds count (sessions, leaderboards, rate limits on a busy API), short-lived data that should expire by itself, and pub/sub or job queues. This project's rate limits would move there first if traffic grew.
+
 ## 7. The algorithm is a pipeline of pure functions
 
 > **Frontend analogy**: a Redux selector (or a Vue computed). State in, the data the view needs out, no API calls, no mutations. The same input always gives the same output, so a test just prepares input and compares output.
