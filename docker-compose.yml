@@ -6,9 +6,10 @@ services:
       POSTGRES_USER: app
       POSTGRES_PASSWORD: app
       POSTGRES_DB: music
-    # 5433 is taken by another local project
+    # 5433 is taken by another local project. Bound to 127.0.0.1 so other devices on the same
+    # network can't connect with the public app/app login
     ports:
-      - "5434:5432"
+      - "127.0.0.1:5434:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
