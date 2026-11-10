@@ -42,6 +42,14 @@ describe("RecordCrate", () => {
     expect(slides[0]!.attributes("aria-current")).toBe("true");
   });
 
+  // A record that isn't inside its cover shows on its own while covers slide past
+  it("keeps each record inside its own cover so they move together", async () => {
+    const wrapper = await mountCrate();
+    const slides = wrapper.findAll('[aria-roledescription="slide"]');
+    expect(slides.every((s) => s.find('[data-testid="sleeve-record"]').exists())).toBe(true);
+    expect(wrapper.findAll('[data-testid="sleeve-record"]')).toHaveLength(slides.length);
+  });
+
   it("moves to the next and previous record with the arrow buttons", async () => {
     const wrapper = await mountCrate();
     expect(button(wrapper, "Previous record").attributes("disabled")).toBeDefined();

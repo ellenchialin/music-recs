@@ -60,7 +60,7 @@ function placement(index: number) {
       rotateY: side * -28,
       opacity: Math.abs(offset) > 3 ? 0 : 1,
     },
-    // Selected cover 20, the vinyl behind it 15, side covers below
+    // Selected cover on top, side covers below
     zIndex: offset === 0 ? 20 : 10 - Math.abs(offset),
     dim: distance === 0 ? 0 : 0.25 + distance * 0.1,
   };
@@ -106,22 +106,6 @@ const appleMusicUrl = computed(() => {
         @drag-end="onDragEnd"
       >
         <motion.div
-          :key="`disc-${active}`"
-          aria-hidden="true"
-          class="absolute inset-[4%] z-[15] rounded-full bg-ink"
-          :initial="{ x: '0%', rotate: 0 }"
-          :animate="{ x: '34%', rotate: 90 }"
-          :transition="{ ...spring.smooth, delay: 0.15 }"
-        >
-          <svg viewBox="0 0 200 200" class="size-full">
-            <circle cx="100" cy="100" r="80" fill="none" stroke-width="4" class="stroke-ink-soft" />
-            <circle cx="100" cy="100" r="62" fill="none" stroke-width="4" class="stroke-ink-soft" />
-            <circle cx="100" cy="100" r="34" :class="['fill-coral', 'fill-pink', 'fill-teal-deep'][active % 3]" />
-            <circle cx="100" cy="100" r="5" class="fill-paper" />
-          </svg>
-        </motion.div>
-
-        <motion.div
           v-for="(card, i) in cards"
           :key="card.artist"
           role="group"
@@ -136,6 +120,23 @@ const appleMusicUrl = computed(() => {
           :transition="spring.smooth"
           @click="onSlideClick(i)"
         >
+          <!-- Each cover holds its own record, so the record travels with it and only slides out
+               once that cover is selected. -z-10 puts it behind the cover but above the side covers -->
+          <motion.div
+            aria-hidden="true"
+            data-testid="sleeve-record"
+            class="absolute inset-[4%] -z-10 rounded-full bg-ink"
+            :initial="{ x: '0%', rotate: 0 }"
+            :animate="i === active ? { x: '34%', rotate: 90 } : { x: '0%', rotate: 0 }"
+            :transition="i === active ? { ...spring.smooth, delay: 0.15 } : spring.smooth"
+          >
+            <svg viewBox="0 0 200 200" class="size-full">
+              <circle cx="100" cy="100" r="80" fill="none" stroke-width="4" class="stroke-ink-soft" />
+              <circle cx="100" cy="100" r="62" fill="none" stroke-width="4" class="stroke-ink-soft" />
+              <circle cx="100" cy="100" r="34" :class="['fill-coral', 'fill-pink', 'fill-teal-deep'][i % 3]" />
+              <circle cx="100" cy="100" r="5" class="fill-paper" />
+            </svg>
+          </motion.div>
           <img
             v-if="card.track?.artworkUrl"
             :src="card.track.artworkUrl"
