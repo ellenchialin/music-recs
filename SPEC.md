@@ -147,7 +147,7 @@ Every result is tagged with an `algo_version`.
 
 The schedule is tight. If it slips, cut in this order: popularity slider → LLM reasons (use rule-based reasons) → Playwright.
 
-**Status (2026-11-09)**: deployed with the Taste Check, `/api/stats` and link previews. Collecting ratings is next; LLM reasons, Playwright and the popularity slider are deferred.
+**Status (2026-11-10)**: deployed with the Taste Check, `/api/stats` and link previews. The eval reached 30 visitors (recommended +1.09 over random, 95% CI +0.42 to +1.75) and its table is in the README; LLM reasons, Playwright and the popularity slider are deferred.
 
 ## Acceptance criteria
 
@@ -155,8 +155,8 @@ The schedule is tight. If it slips, cut in this order: popularity slider → LLM
 - [x] Repeating a query with the same seeds calls no external API or LLM
 - [x] Over the rate limit returns 429 and the page says so
 - [x] A live demo works ([musicrecs.ellenchen.dev](https://musicrecs.ellenchen.dev/))
-- [ ] The blind test has ratings, and the README has a recommended-vs-control results table (growing past 30 visitors after the MVP)
-- [ ] CI passes; the README has an architecture diagram, demo link and eval results
+- [x] The blind test has ratings, and the README has a recommended-vs-control results table (growing past 30 visitors after the MVP)
+- [x] CI passes; the README has an architecture diagram, demo link and eval results
 
 ## Risks
 

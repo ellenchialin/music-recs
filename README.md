@@ -4,7 +4,7 @@
 
 Pick up to three artists you love and get ten records to flip through, each with a 30-second preview. From any record you can **explore** one level deeper, up to three levels, and every level shows artists you haven't seen yet. No account and no sign-in.
 
-> **Status**: a one-week portfolio project (November 2026). Recommendations, previews, Explore and the Taste Check are live. Eval results will be added here as people play. Try it and [see whether the picks fit your taste](https://musicrecs.ellenchen.dev/).
+> **Status**: a one-week portfolio project (November 2026). Recommendations, previews, Explore and the Taste Check are live. With 30 visitors, recommended songs beat random picks by about a point ([results](#results-algorithm-v2-2026-11-10)). Try it and [see whether the picks fit your taste](https://musicrecs.ellenchen.dev/).
 
 ## Features
 
@@ -45,6 +45,14 @@ Recommendations are easy to show and hard to prove, so the site measures itself.
 4. **Honest uncertainty**: a 95% confidence interval (Student's t) decides what the page says. Until it excludes zero, it says there's no clear difference yet.
 
 Live numbers: [`/api/stats`](https://musicrecs.ellenchen.dev/api/stats). Known limit: clearing cookies makes a new visitor, so the count is an upper bound on real people.
+
+### Results (algorithm v2, 2026-11-10)
+
+| Visitors | Ratings | Picked for you | Random pick | Difference | 95% CI |
+|---:|---:|---:|---:|---:|---:|
+| 30 | 96 | 3.97 / 5 | 2.88 / 5 | **+1.09** | +0.42 to +1.75 |
+
+Recommended songs scored about one point higher on a five-point scale, and the whole confidence interval is above zero, so the gap isn't noise. Caveats: most players found the site through me, so they aren't a random sample, and nothing checks that a song was actually heard before it was rated.
 
 ## Stack and why
 
@@ -131,7 +139,7 @@ docs/                Decision log, concept notes, exercises
 
 ## What's next
 
-- **Eval results**: a recommended-vs-random table here once enough people have played the Taste Check (the spec's goal is 30+ visitors).
+- **More eval data**: keep the results table current as more people play, and compare algorithm versions once there's a v3.
 - **Recommendation reasons** written by an LLM, cached and capped per day. Until then, each record says which of your artists it's similar to.
 - **End-to-end tests** with Playwright for the main flows.
 - **A mainstream ↔ obscure slider** (deferred).
