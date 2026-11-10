@@ -7,6 +7,7 @@ const BLOCK_OUTSIDE = "NODE_USE_ENV_PROXY=1 HTTPS_PROXY=http://127.0.0.1:9 HTTP_
 // E2E tests drive the production build, so security headers and the CSP apply as on the live site
 export default defineConfig({
   testDir: "tests/e2e",
+  testMatch: "**/*.spec.ts",
   globalSetup: "./tests/e2e/global-setup.ts",
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,

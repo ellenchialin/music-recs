@@ -11,7 +11,7 @@
     "build": "nuxt build",
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare",
-    "typecheck": "nuxt typecheck && tsc -p tests/e2e",
+    "typecheck": "nuxt typecheck && tsc -p tests/tsconfig.playwright.json",
     "lint": "eslint .",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -24,6 +24,7 @@
     "test:unit": "vitest run --project unit",
     "test:db": "vitest run --project db",
     "test:e2e": "playwright test",
+    "test:smoke": "playwright test -c playwright.smoke.config.ts",
     "record:lastfm": "tsx --env-file=.env scripts/record-lastfm-fixtures.ts",
     "record:itunes": "tsx scripts/record-itunes-fixtures.ts"
   },

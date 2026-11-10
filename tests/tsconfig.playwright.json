@@ -1,5 +1,5 @@
 {
-  // nuxt typecheck doesn't see the E2E files; `pnpm typecheck` checks them with this config.
+  // nuxt typecheck doesn't see the Playwright files (E2E, smoke, helpers); `pnpm typecheck` checks them with this config.
   // DOM types because page.evaluate and addInitScript callbacks run in the browser
   "compilerOptions": {
     "target": "es2023",
@@ -13,5 +13,5 @@
     "skipLibCheck": true,
     "noEmit": true
   },
-  "include": ["./**/*.ts", "../../playwright.config.ts"]
+  "include": ["e2e/**/*.ts", "helpers/**/*.ts", "smoke/**/*.ts", "../playwright.config.ts", "../playwright.smoke.config.ts"]
 }

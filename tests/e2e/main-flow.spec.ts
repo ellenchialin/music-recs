@@ -1,14 +1,8 @@
 import { expect, test } from "@playwright/test";
+import { addArtist, previewPlayedTo, recordPreviewProgress } from "../helpers/browser";
 import { PREVIEW_ORIGIN, silentWav } from "./outside-world";
 
 const wav = silentWav();
-
-declare global {
-  interface Window {
-    // Furthest point any preview has played to, in seconds
-    previewPlayedTo?: number;
-  }
-}
 
 test.beforeEach(async ({ context }) => {
   // Nothing may reach the real outside world: previews get a WAV, everything else is blocked
@@ -19,22 +13,7 @@ test.beforeEach(async ({ context }) => {
         ? route.fulfill({ contentType: "audio/wav", body: wav })
         : route.abort(),
   );
-
-  // The player's <audio> is never added to the page, so record its progress from the prototype
-  await context.addInitScript(() => {
-    const play = HTMLMediaElement.prototype.play;
-    // The page reuses one element, so listen only once per element
-    const watched = new WeakSet<HTMLMediaElement>();
-    HTMLMediaElement.prototype.play = function () {
-      if (!watched.has(this)) {
-        watched.add(this);
-        this.addEventListener("timeupdate", () => {
-          window.previewPlayedTo = Math.max(window.previewPlayedTo ?? 0, this.currentTime);
-        });
-      }
-      return play.call(this);
-    };
-  });
+  await recordPreviewProgress(context);
 });
 
 test("picks an artist, gets recommendations and hears a preview", async ({ page }) => {
@@ -42,14 +21,7 @@ test("picks an artist, gets recommendations and hears a preview", async ({ page 
   await page.route("**/api/artists/search**", (route) => route.fulfill({ json: [] }));
 
   await page.goto("/");
-  const input = page.getByRole("combobox", { name: "Add an artist you love" });
-  // Typing before Vue has hydrated the page is lost, so retry until the artist shows up
-  await expect(async () => {
-    await input.fill("Radiohead");
-    await input.press("Enter");
-    await expect(page.getByRole("button", { name: "Remove Radiohead" })).toBeVisible({ timeout: 1000 });
-  }).toPass();
-
+  await addArtist(page, "Radiohead");
   await page.getByRole("button", { name: "Recommend" }).click();
 
   await expect(page).toHaveURL(/\/recommendations\?seed=Radiohead$/);
@@ -60,5 +32,5 @@ test("picks an artist, gets recommendations and hears a preview", async ({ page 
   await page.getByRole("button", { name: /^Play preview of / }).click();
 
   await expect(page.getByRole("button", { name: /^Pause preview of / })).toBeVisible();
-  await expect.poll(() => page.evaluate(() => window.previewPlayedTo ?? 0)).toBeGreaterThan(0);
+  await expect.poll(() => previewPlayedTo(page)).toBeGreaterThan(0);
 });

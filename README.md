@@ -117,6 +117,7 @@ Open http://localhost:3000.
 |---|---|
 | `pnpm test` | All Vitest tests (needs `pnpm db:up` for the database tests) |
 | `pnpm test:e2e` | Build, then run the Playwright tests (needs `pnpm db:up`; once: `pnpm exec playwright install chromium`) |
+| `pnpm test:smoke` | Times each step on the live site (desktop and a throttled phone) against budgets from Core Web Vitals and Nielsen's response-time limits. Also runs daily in GitHub Actions |
 | `pnpm typecheck` / `pnpm lint` | Type check and lint |
 | `pnpm db:studio` | Browse the cached data in Drizzle Studio |
 | `pnpm record:lastfm` / `pnpm record:itunes` | Re-record API fixtures from the real APIs |

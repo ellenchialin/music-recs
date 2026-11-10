@@ -354,3 +354,32 @@ Seeding through the real cache code rather than hand-written `INSERT`s means the
 - **It tests a production build** (`nuxt build`, then the Node server), so security headers and CSP apply. If the CSP blocked the preview host, this test would catch it; `nuxt dev` wouldn't.
 
 **Codecs**: older Playwright Chromium builds couldn't play AAC, the format of iTunes previews (`.m4a`), so old advice says to use `channel: "chrome"`. Playwright now ships Chrome for Testing, which can (`canPlayType('audio/mp4; codecs="mp4a.40.2"')` answers "probably"). The tests still serve a generated WAV, because the point is not to download anything from outside; the browser sniffs the content, not the extension.
+
+### The smoke test: same browser, real world
+
+E2E answers "does the code work?" with a fake outside world. The smoke test answers "does the live site work, and how fast?", so it fakes nothing: it opens musicrecs.ellenchen.dev, adds an artist, waits for the records, skips any without a preview and plays one, timing each phase.
+
+| | E2E (`pnpm test:e2e`) | Smoke (`pnpm test:smoke`) |
+|---|---|---|
+| Against | The build of this commit, on localhost | Whatever is deployed |
+| Outside APIs | Seeded cache, outside calls refused | Real Last.fm and iTunes |
+| When | Every push (CI) | Daily (scheduled workflow) and by hand |
+| Fails because | The code is wrong | The code, Vercel, Neon, Last.fm or iTunes is wrong or slow |
+
+Timing only means something in the smoke test.
+
+**Budgets, not one big number.** "Under 30 seconds" was too loose and says nothing about which part is slow. Each phase has two lines, the way Core Web Vitals rate pages: at or under *good* is the target, over *poor* fails the run, and in between is only reported, so one slow network moment doesn't raise an alarm (`tests/smoke/budgets.ts`).
+
+| Phase | Good | Poor | Source |
+|---|---|---|---|
+| Server response (TTFB) | ≤ 0.8 s | > 1.8 s | Core Web Vitals |
+| Home page loaded (LCP) | ≤ 2.5 s | > 4 s | Core Web Vitals |
+| Click response (INP) | ≤ 0.2 s | > 0.5 s | Core Web Vitals |
+| Recommend → records | ≤ 2.5 s | > 4 s | LCP's thresholds, since it's a navigation inside the app |
+| Play → sound | ≤ 1 s | > 2.5 s | Nielsen: about 1 s keeps the flow of thought |
+| Whole flow, minus typing | ≤ 5 s | > 10 s | Nielsen: 10 s is the limit for keeping attention |
+
+It runs twice: desktop, and a phone with Lighthouse's mobile profile (slow 4G, 4× slower CPU), throttled through a CDP session. These are lab numbers from one run; Core Web Vitals proper are the 75th percentile of real visitors, which needs field data (real-user monitoring). To measure the slow path, it picks one artist a day from a list of 31: longer than the 30-day cache, so an artist is usually uncached when its turn comes. Desktop runs first and pays for the uncached path; mobile follows and finds the cache warm, so it measures the phone and network. The two share their browser helpers (`tests/helpers/browser.ts`).
+
+**Scheduled workflows** in a public repo are switched off after 60 days without commits; GitHub emails a warning first.
+

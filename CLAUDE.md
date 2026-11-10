@@ -13,10 +13,11 @@ Run `nvm use` first (Node 24; Nuxt doesn't support Homebrew's Node 25).
 | Command | Purpose |
 |---|---|
 | `pnpm dev` | Dev server at http://localhost:3000 |
-| `pnpm test` / `pnpm test:watch` | All Vitest projects: `unit` (pure functions in `server/` and `shared/`), `db` (`*.db.test.ts` against `music_test`; run `pnpm db:up` first), `nuxt` (components in `app/`, happy-dom) |
+| `pnpm test` / `pnpm test:watch` | All Vitest projects: `unit` (pure functions in `server/`, `shared/` and `tests/`), `db` (`*.db.test.ts` against `music_test`; run `pnpm db:up` first), `nuxt` (components in `app/`, happy-dom) |
 | `pnpm test:unit` / `pnpm test:db` | One project only |
 | `pnpm test:e2e` | Playwright (`tests/e2e/`): builds, then tests against the built server on port 3100 and the `music_e2e` database, seeded from fixtures. Run `pnpm db:up` first; install the browser once with `pnpm exec playwright install chromium` |
-| `pnpm typecheck` | `nuxt typecheck` (vue-tsc) |
+| `pnpm test:smoke` | Playwright against the live site (`tests/smoke/`, `playwright.smoke.config.ts`): each phase against the budgets in `tests/smoke/budgets.ts` (Core Web Vitals, Nielsen), desktop and a throttled phone. Real APIs; runs daily via `.github/workflows/smoke.yml` |
+| `pnpm typecheck` | `nuxt typecheck` (vue-tsc), plus `tsc` for the Playwright files |
 | `pnpm lint` | ESLint (`@nuxt/eslint`) |
 | `pnpm db:up` / `pnpm db:down` | Local Postgres 17 (Docker, port 5434; dev DB `music`, test DB `music_test`) |
 | `pnpm db:generate` / `pnpm db:migrate` | Generate / apply migrations with drizzle-kit (schema in `server/db/schema.ts`) |

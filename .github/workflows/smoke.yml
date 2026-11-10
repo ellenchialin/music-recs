@@ -1,0 +1,31 @@
+name: Smoke test
+
+# Times the main flow on the live site once a day against per-phase budgets, with real Last.fm and iTunes behind it.
+# Not on push: it tests what's deployed, and each run costs real API calls
+on:
+  schedule:
+    - cron: "17 2 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  live:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps --no-shell chromium
+      - run: pnpm test:smoke
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: smoke-report
+          path: playwright-report/
+          retention-days: 7

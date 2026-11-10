@@ -25,7 +25,7 @@ Decisions already made are in `docs/ai-log.md`. When the spec and a decision dis
 | External data | Last.fm API (search, similar artists, tags, top tracks) and iTunes Search API (previews, covers); neither needs user sign-in |
 | Tests | Vitest + `@nuxt/test-utils`; Playwright for the main flows |
 | Deployment | Vercel + Neon |
-| CI | GitHub Actions: typecheck, lint, tests |
+| CI | GitHub Actions: typecheck, lint, tests, E2E; a daily smoke test against the live site |
 
 ## User flow
 
@@ -151,7 +151,7 @@ The schedule is tight. If it slips, cut in this order: popularity slider → LLM
 
 ## Acceptance criteria
 
-- [ ] Without an account, get recommendations and hear a preview within 30 seconds
+- [x] Without an account, get recommendations and hear a preview within 30 seconds (6.5 s on 2026-11-10). Superseded by per-phase budgets from Core Web Vitals and Nielsen, checked daily by the smoke test; uncached recommendations (about 4–5 s) are still over the 4 s line
 - [x] Repeating a query with the same seeds calls no external API or LLM
 - [x] Over the rate limit returns 429 and the page says so
 - [x] A live demo works ([musicrecs.ellenchen.dev](https://musicrecs.ellenchen.dev/))
