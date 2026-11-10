@@ -8,7 +8,14 @@ import { homeLocation, parseRecommendationsQuery, recommendationsLocation, seeds
 
 type Song = { position: number; previewUrl: string };
 type Revealed = { position: number; artist: string; title: string; isRecommended: boolean; rating: number };
-type VersionStats = { algoVersion: string; visitors: number; difference: number; ci: [number, number] | null };
+type VersionStats = {
+  algoVersion: string;
+  visitors: number;
+  recommendedMean: number;
+  controlMean: number;
+  difference: number;
+  ci: [number, number] | null;
+};
 
 const route = useRoute();
 const query = computed(() => parseRecommendationsQuery(route.query));

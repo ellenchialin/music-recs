@@ -90,6 +90,9 @@ describe("computeStats", () => {
     const heavy = Array.from({ length: 10 }, () => [rated("a", true, 5), rated("a", false, 1)]).flat();
     const [stats] = computeStats([...heavy, rated("b", true, 2), rated("b", false, 4)]);
     expect(stats!.difference).toBe(1);
+    // The averages shown next to the difference count each visitor once too, so they always agree
+    expect(stats!.recommendedMean).toBe(3.5);
+    expect(stats!.controlMean).toBe(2.5);
   });
 
   it("leaves out visitors who rated only one kind of song", () => {

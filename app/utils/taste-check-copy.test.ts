@@ -24,25 +24,36 @@ describe("describeRound", () => {
 });
 
 describe("describeOverall", () => {
-  const stats = (difference: number, ci: [number, number] | null, visitors: number) => ({ difference, ci, visitors });
+  const stats = (recommendedMean: number, controlMean: number, ci: [number, number] | null, visitors: number) => ({
+    recommendedMean,
+    controlMean,
+    ci,
+    visitors,
+  });
 
-  it("reports a clear win for the recommendations", () => {
-    expect(describeOverall(stats(0.84, [0.3, 1.38], 12))).toBe(
-      "Across 12 listeners, songs picked for them score 0.8 points higher (out of 5) than random picks.",
+  // Two averages side by side are easier to read than "1 point higher"
+  it("shows both averages and calls a clear win", () => {
+    expect(describeOverall(stats(4.12, 3.08, [0.5, 1.6], 20))).toBe(
+      "Across 20 listeners, songs picked for them averaged 4.1 out of 5, random picks 3.1. The algorithm has taste.",
     );
   });
 
-  it("reports a clear loss honestly", () => {
-    expect(describeOverall(stats(-0.6, [-1.1, -0.1], 9))).toBe(
-      "Across 9 listeners, songs picked for them score 0.6 points lower (out of 5) than random picks.",
+  it("owns up to a clear loss", () => {
+    expect(describeOverall(stats(2.6, 3.4, [-1.3, -0.3], 9))).toBe(
+      "Across 9 listeners, songs picked for them averaged 2.6 out of 5, random picks 3.4. Random is winning. The algorithm has some homework to do.",
     );
   });
 
-  // Until the interval excludes zero, any difference could be chance
-  it("says it's too early when the difference could be chance", () => {
-    expect(describeOverall(stats(-0.02, [-4.44, 4.41], 3))).toBe(
-      "No clear difference yet across 3 listeners. More ratings will tell.",
+  // Until the 95% interval excludes zero, the gap could be chance
+  it("calls it too close while the difference could be chance", () => {
+    expect(describeOverall(stats(4, 3.98, [-4.4, 4.4], 3))).toBe(
+      "Across 3 listeners so far, songs picked for them averaged 4.0 out of 5, random picks 4.0. Too close to call. More ears needed.",
     );
-    expect(describeOverall(stats(1.5, null, 1))).toBe("No clear difference yet across 1 listener. More ratings will tell.");
+  });
+
+  it("says listener, not listeners, for one", () => {
+    expect(describeOverall(stats(5, 2, null, 1))).toBe(
+      "Across 1 listener so far, songs picked for them averaged 5.0 out of 5, random picks 2.0. Too close to call. More ears needed.",
+    );
   });
 });

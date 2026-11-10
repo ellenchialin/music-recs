@@ -75,7 +75,7 @@ export type VersionStats = {
   ratings: number;
   recommendedMean: number;
   controlMean: number;
-  // Mean over visitors of (their recommended average − their control average)
+  // All three are means over visitors, so difference = recommendedMean − controlMean
   difference: number;
   // 95% confidence interval for `difference`; null with fewer than two visitors
   ci: [number, number] | null;
@@ -115,14 +115,16 @@ export function computeStats(items: RatedItem[]): VersionStats[] {
       if (included.length === 0) return [];
       const ratings = included.flat();
       const ratingsOf = (rec: boolean, list: RatedItem[]) => list.filter((i) => i.isRecommended === rec).map((i) => i.rating);
-      const differences = included.map((v) => mean(ratingsOf(true, v)) - mean(ratingsOf(false, v)));
+      const recommended = included.map((v) => mean(ratingsOf(true, v)));
+      const control = included.map((v) => mean(ratingsOf(false, v)));
+      const differences = recommended.map((r, i) => r - control[i]!);
       return [
         {
           algoVersion,
           visitors: included.length,
           ratings: ratings.length,
-          recommendedMean: mean(ratingsOf(true, ratings)),
-          controlMean: mean(ratingsOf(false, ratings)),
+          recommendedMean: mean(recommended),
+          controlMean: mean(control),
           difference: mean(differences),
           ci: confidenceInterval(differences),
         },

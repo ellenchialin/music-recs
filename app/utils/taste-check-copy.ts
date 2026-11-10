@@ -18,11 +18,26 @@ export function describeRound(songs: { isRecommended: boolean; rating: number }[
   return `You gave ${describeSide("song picked for you", picked)}, and ${describeSide("random pick", random)}. ${verdict}`;
 }
 
-// Only claims a difference once the 95% interval excludes zero; until then it could be chance
-export function describeOverall({ difference, ci, visitors }: { difference: number; ci: [number, number] | null; visitors: number }) {
-  const listeners = `${visitors} ${visitors === 1 ? "listener" : "listeners"}`;
+// Both averages side by side, then a one-line verdict. A winner is only called once the 95%
+// interval excludes zero; until then the gap could be chance
+export function describeOverall({
+  recommendedMean,
+  controlMean,
+  ci,
+  visitors,
+}: {
+  recommendedMean: number;
+  controlMean: number;
+  ci: [number, number] | null;
+  visitors: number;
+}) {
   const clear = ci !== null && (ci[0] > 0 || ci[1] < 0);
-  if (!clear) return `No clear difference yet across ${listeners}. More ratings will tell.`;
-  const direction = difference > 0 ? "higher" : "lower";
-  return `Across ${listeners}, songs picked for them score ${format(Math.abs(difference))} points ${direction} (out of 5) than random picks.`;
+  const who = `${visitors} ${visitors === 1 ? "listener" : "listeners"}${clear ? "" : " so far"}`;
+  const averages = `songs picked for them averaged ${recommendedMean.toFixed(1)} out of 5, random picks ${controlMean.toFixed(1)}`;
+  const verdict = !clear
+    ? "Too close to call. More ears needed."
+    : recommendedMean > controlMean
+      ? "The algorithm has taste."
+      : "Random is winning. The algorithm has some homework to do.";
+  return `Across ${who}, ${averages}. ${verdict}`;
 }
