@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { AnimatePresence, motion } from "motion-v";
 import { MAX_SEEDS, type AddResult } from "~/stores/seeds";
+import { listMaxHeight } from "~/utils/fit-list";
 
 type Suggestion = { name: string; listeners: number };
 
@@ -99,11 +100,37 @@ async function revealActive() {
 
 const listeners = (n: number) => `${new Intl.NumberFormat("en", { notation: "compact" }).format(n)} listeners`;
 const listboxId = "seed-suggestions";
+
+// Keep the open list inside what's visible: on phones the keyboard hides the lower half without
+// changing 100dvh, so the list's CSS height could push its top off screen
+const root = useTemplateRef("root");
+const list = useTemplateRef<{ $el: HTMLElement } | HTMLElement>("list");
+function fitList() {
+  const viewport = window.visualViewport;
+  const listEl = list.value && "$el" in list.value ? list.value.$el : list.value;
+  if (!viewport || !root.value || !listEl) return;
+  listEl.style.maxHeight = "";
+  const cap = parseFloat(getComputedStyle(listEl).maxHeight) || 320;
+  const opensUp = listEl.getBoundingClientRect().top < root.value.getBoundingClientRect().top;
+  const height = listMaxHeight({
+    list: listEl.getBoundingClientRect(),
+    viewport: { top: viewport.offsetTop, height: viewport.height },
+    opensUp,
+    cap,
+  });
+  listEl.style.maxHeight = `${height}px`;
+}
+watch(
+  () => suggestions.value.length > 0,
+  (open) => open && void nextTick(fitList),
+);
+useEventListener(() => (import.meta.client ? window.visualViewport : null), "resize", () => suggestions.value.length && fitList());
+useEventListener(() => (import.meta.client ? window.visualViewport : null), "scroll", () => suggestions.value.length && fitList());
 const optionId = (i: number) => `seed-suggestion-${i}`;
 </script>
 
 <template>
-  <div class="relative">
+  <div ref="root" class="relative">
     <label for="seed-input" class="block text-base font-bold sm:text-lg short:sr-only">Add an artist you love</label>
     <input
       id="seed-input"
@@ -129,6 +156,7 @@ const optionId = (i: number) => `seed-suggestion-${i}`;
     <AnimatePresence>
       <motion.ul
         v-if="suggestions.length"
+        ref="list"
         :id="listboxId"
         role="listbox"
         class="absolute inset-x-0 bottom-full z-10 mb-2 max-h-[min(20rem,45dvh)] overflow-y-auto border-3 border-ink bg-ink text-paper md:landscape:top-full md:landscape:bottom-auto md:landscape:mb-0 md:landscape:-mt-8 lg:top-full lg:bottom-auto lg:mb-0 lg:-mt-8 lg:max-h-[min(18rem,35dvh)]"

@@ -10,7 +10,8 @@ useShareMeta(() => ({
 <template>
   <!-- Respects the system's reduced-motion setting -->
   <MotionConfig reduced-motion="user">
-    <div class="min-h-screen">
+    <!-- dvh, not screen: iOS Safari makes 100vh taller than the visible page, so every page scrolled -->
+    <div class="min-h-dvh">
       <NuxtRouteAnnouncer />
       <NuxtPage />
     </div>
