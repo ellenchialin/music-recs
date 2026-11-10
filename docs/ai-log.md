@@ -434,3 +434,11 @@ No code changes were needed: link previews build URLs from the request's origin,
 
 Measured on a local production build with real APIs, uncached (desktop): records 2.1 s, first preview ready 0.8 s later, whole flow 4.0 s, all good. On the throttled phone, Play → sound (1.9 s) still needs improvement: preloading the current record's preview is next.
 
+## 2026-11-10 · Starting previews sooner
+
+| # | Question | Decision | Status | Reason / alternatives |
+|---|---|---|---|---|
+| 1 | Play → sound takes about 2 s on a throttled phone | Tried preconnecting to `audio-ssl.itunes.apple.com` (where every preview lives) on the recommendations and Taste Check pages, then removed it | Rejected (my call) | Keep only changes the measurements support, and this one didn't show a clear gain (below). Preloading the viewed record's preview (about 1 MB each) was set aside before trying: Safari on iPhone ignores preload, it spends data on records nobody plays, and the smoke test, which presses Play at once, wouldn't show it |
+
+Measured on the throttled phone (local production build, 3 runs each): 2.02 s on average with preconnect, 2.12 s without. The gain is within run-to-run noise. Chrome's emulated slow 4G adds its latency per request, not per network round trip, so it doesn't charge for the handshakes that preconnect saves; on a real mobile link the saving should be larger, but this setup can't show it. Most of the 2 s is downloading the start of a 1 MB file at 1.6 Mbps.
+
