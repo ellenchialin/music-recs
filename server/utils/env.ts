@@ -19,6 +19,17 @@ const rateLimitEnvSchema = z
   })
   .transform(({ RATE_LIMIT_SALT, VERCEL }) => ({ RATE_LIMIT_SALT, trustProxy: VERCEL === "1" }));
 
+// Optional: without a key, recommendation reasons fall back to "Similar to …". Empty counts as unset
+const llmEnvSchema = z
+  .object({
+    ANTHROPIC_API_KEY: z
+      .string()
+      .optional()
+      .transform((v) => v || undefined)
+      .pipe(z.string().startsWith("sk-ant-").optional()),
+  })
+  .transform(({ ANTHROPIC_API_KEY }) => ({ apiKey: ANTHROPIC_API_KEY ?? null }));
+
 export type DbEnv = z.infer<typeof dbEnvSchema>;
 export type LastfmEnv = z.infer<typeof lastfmEnvSchema>;
 
@@ -40,6 +51,10 @@ export function parseDbEnv(source: EnvSource = process.env): DbEnv {
 
 export function parseLastfmEnv(source: EnvSource = process.env): LastfmEnv {
   return parseEnv(lastfmEnvSchema, source);
+}
+
+export function parseLlmEnv(source: EnvSource = process.env): z.output<typeof llmEnvSchema> {
+  return parseEnv(llmEnvSchema, source);
 }
 
 export function parseRateLimitEnv(source: EnvSource = process.env): z.output<typeof rateLimitEnvSchema> {

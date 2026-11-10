@@ -33,6 +33,8 @@ flowchart LR
 3. **Exclude**: drop the seeds themselves (matched by normalized name or MusicBrainz ID), plus everything already shown when exploring.
 4. **Previews**: for each of the top 10, take Last.fm's top track and find it on iTunes, trying the Taiwan, US and Japan stores in turn (stores localize artist names, e.g. BoA is 寶兒 in Taiwan). A small tiered matcher prefers the original title, then a version of it, and never a different artist's song. The list doesn't wait for this: it answers with cached previews, and the page fetches the rest from `/api/previews`, nearest record first, while the Play button shows a spinner.
 
+5. **Reasons**: once the records are on screen, Claude Haiku 5.5 writes a one-line reason for each, marked "AI", in one call per list. It's told to describe the sound rather than biography and to answer null when unsure; reasons are cached per seed set and capped at 300 calls a day site-wide. Without an API key, or past the cap, records keep "Similar to …".
+
 Every result is tagged with an algorithm version so blind-test ratings can compare versions.
 
 ## Measuring it: the Taste Check
@@ -143,7 +145,6 @@ docs/                Decision log, concept notes, exercises
 ## What's next
 
 - **More eval data**: keep the results table current as more people play, and compare algorithm versions once there's a v3.
-- **Recommendation reasons** written by an LLM, cached and capped per day. Until then, each record says which of your artists it's similar to.
 - **More end-to-end tests**: Explore and the Taste Check. The main flow (pick an artist → recommendations → hear a preview) is covered.
 - **A mainstream ↔ obscure slider** (deferred).
 

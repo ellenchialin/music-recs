@@ -111,3 +111,19 @@ export const blindTestItems = pgTable(
   ],
 );
 
+
+// LLM-written reasons, one per seed set + recommended artist. seed_key is the normalized seeds,
+// sorted and joined, so "Kokoroko, Tame Impala" and the reverse share reasons. prompt_version is in
+// the key so a changed prompt ignores old reasons. A null reason means the model wasn't sure; it's
+// cached too, so we don't pay to ask again
+export const reasonCache = pgTable(
+  "reason_cache",
+  {
+    seedKey: text("seed_key").notNull(),
+    artistNorm: text("artist_norm").notNull(),
+    promptVersion: text("prompt_version").notNull(),
+    reason: text("reason"),
+    createdAt: createdAt(),
+  },
+  (t) => [primaryKey({ columns: [t.seedKey, t.artistNorm, t.promptVersion] })],
+);

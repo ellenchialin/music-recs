@@ -54,6 +54,16 @@ describe("hitRateLimit", () => {
     expect(keys).toEqual(["search:abc", "search:recent"]);
   });
 
+  // A day-long window starts at midnight UTC, so it's more than an hour old for most of its life
+  it("keeps daily counters for two days", async () => {
+    const daily = { limit: 300, windowMs: 24 * 60 * 60_000 };
+    await hitRateLimit({ db, now: new Date("2026-11-03T09:00:00Z"), random: () => 1 }, "daily:two-days-ago", daily);
+    await hitRateLimit({ db, now: new Date("2026-11-05T09:00:00Z"), random: () => 1 }, "daily:today", daily);
+    await hitRateLimit(deps(at("12:03:10"), () => 0), "search:abc", rule);
+    const keys = (await db.select().from(rateLimits)).map((r) => r.key).sort();
+    expect(keys).toEqual(["daily:today", "search:abc"]);
+  });
+
   it("leaves old windows alone most of the time", async () => {
     await hitRateLimit(deps(at("10:00:00")), "search:old", rule);
     await hitRateLimit(deps(at("12:03:10")), "search:abc", rule);

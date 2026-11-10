@@ -56,7 +56,16 @@ registerEndpoint("/api/previews", async (event) => {
   return found;
 });
 
+// Fake reasons API: a reason for Khruangbin only; records each query
+let reasonRequests: { seeds: string[]; exclude: string[] }[] = [];
+registerEndpoint("/api/reasons", async (event) => {
+  const query = new URLSearchParams(event.path.split("?")[1]);
+  reasonRequests.push({ seeds: query.getAll("seed"), exclude: query.getAll("exclude") });
+  return { reasons: { Khruangbin: "Same hazy, groove-first guitar.", Nowhere: null } };
+});
+
 beforeEach(() => {
+  reasonRequests = [];
   requests = [];
   previewRequests = [];
   failures = {};
@@ -251,4 +260,26 @@ describe("recommendations page", () => {
     expect(previewRequests.filter((a) => a === "Pond")).toHaveLength(3);
     expect(requests).toHaveLength(1);
   });
+
+  it("asks for reasons with the same query once the records are shown", async () => {
+    const page = await open(SEEDS);
+    await vi.waitFor(() => expect(page.text()).toContain("Same hazy, groove-first guitar."));
+    expect(reasonRequests).toEqual([{ seeds: ["Tame Impala", "Kokoroko"], exclude: [] }]);
+  });
+
+  it("falls back to where a record came from when it has no reason", async () => {
+    const page = await open(SEEDS);
+    await vi.waitFor(() => expect(page.text()).toContain("Same hazy, groove-first guitar."));
+    await button(page, "Next record")!.trigger("click");
+    await vi.waitFor(() => expect(page.get('[data-testid="record-reason"]').text()).toBe("Similar to Tame Impala"));
+  });
+
+  it("asks for an explored level's reasons with that level's query", async () => {
+    const page = await open(SEEDS);
+    await vi.waitFor(() => expect(recordNames(page)).toHaveLength(2));
+    await button(page, "Explore artists like Khruangbin")!.trigger("click");
+    await vi.waitFor(() => expect(reasonRequests).toHaveLength(2));
+    expect(reasonRequests[1]).toEqual(requests[1]);
+  });
 });
+

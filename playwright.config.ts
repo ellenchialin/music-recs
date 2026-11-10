@@ -33,6 +33,8 @@ export default defineConfig({
       DATABASE_URL: E2E_DATABASE_URL,
       LASTFM_API_KEY: FAKE_LASTFM_API_KEY,
       RATE_LIMIT_SALT: "e2e-only-salt-not-used-anywhere-else",
+      // Empty turns LLM reasons off, even if the shell running the tests has a real key
+      ANTHROPIC_API_KEY: "",
     },
   },
 });

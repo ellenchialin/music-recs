@@ -113,7 +113,7 @@ Every result is tagged with an `algo_version`.
 | `tracks` | Each artist's track, iTunes ID, preview URL, cover | Built |
 | `visitors` | Anonymous ID, creation time | Built |
 | `rate_limits` | Per-client rate-limit counts, external API budgets and the iTunes breaker | Built |
-| `reason_cache` | Cached recommendation reasons | Planned |
+| `reason_cache` | Cached recommendation reasons (seed set + artist + prompt version) | Built |
 | `blind_tests`, `blind_test_items` | Each round (visitor, seeds, algorithm version, control genre) and its three songs (which were recommended, ratings) | Built |
 
 ## API (draft)
@@ -123,6 +123,7 @@ Every result is tagged with an `algo_version`.
 | GET | `/api/artists/search?q=` | Autocomplete |
 | GET | `/api/recommendations?seed=&exclude=` | Seeds (plus artists to exclude when exploring) → recommendations, with previews only if already cached (others `pending`) |
 | GET | `/api/previews?artist=` | One card's track and preview, for cards left `pending` |
+| GET | `/api/reasons?seed=&exclude=` | LLM-written reasons for the same list (rebuilt on the server), `null` where there's none |
 | POST | `/api/blind-tests` | Start a round |
 | POST | `/api/blind-tests/:id/ratings` | Submit ratings → reveal |
 | GET | `/api/stats` | Eval numbers |
@@ -148,7 +149,7 @@ Every result is tagged with an `algo_version`.
 
 The schedule is tight. If it slips, cut in this order: popularity slider → LLM reasons (use rule-based reasons) → Playwright.
 
-**Status (2026-11-10)**: deployed with the Taste Check, `/api/stats` and link previews. The eval reached 30 visitors (recommended +1.09 over random, 95% CI +0.42 to +1.75) and its table is in the README. Playwright covers the main flow in CI; LLM reasons and the popularity slider are deferred.
+**Status (2026-11-10)**: deployed with the Taste Check, `/api/stats` and link previews. The eval reached 30 visitors (recommended +1.09 over random, 95% CI +0.42 to +1.75) and its table is in the README. Playwright covers the main flow in CI. LLM reasons are built; the popularity slider is deferred.
 
 ## Acceptance criteria
 

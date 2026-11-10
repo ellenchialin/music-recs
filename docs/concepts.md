@@ -389,3 +389,14 @@ It runs twice: desktop, and a phone with Lighthouse's mobile profile (slow 4G, 4
 
 **Scheduled workflows** in a public repo are switched off after 60 days without commits; GitHub emails a warning first.
 
+
+## 17. LLM-written reasons: structured output, grounding and cost control
+
+> **Frontend analogy**: calling an LLM is like calling a third-party API whose response body is written by a person who sometimes improvises. You still validate it with zod, cache it, rate-limit it and have a fallback UI, but you also have to tell it what it may and may not say.
+
+- **Structured output**: instead of asking for "a JSON list, please" and hoping, the request carries a JSON schema (`output_config.format`, built from a zod schema with `zodOutputFormat`). The model can only answer in that shape. We still validate it with our own stricter zod schema (length, known artists), because "valid JSON" isn't the same as "usable text".
+- **Grounding**: the prompt lists what we actually know (the seeds, their Last.fm tags, which seeds each record came from, its rank, its track). The model is told to use only that and well-known genre traits, and to answer `null` when unsure, so an obscure artist gets "Similar to X" instead of an invented fact.
+- **Untrusted input stays on the server**: the browser sends only the same seeds as the recommendations request; the server rebuilds the list from its cache. A client can't make the model write about arbitrary text, and the endpoint can't be used as a free LLM.
+- **Asynchronous, like previews**: records appear first; the reason replaces "Similar to X" when it arrives. The model's 1–3 s never blocks the page.
+- **Cost control in layers**: a cache per seed set and artist (a repeated query costs nothing), a site-wide daily cap (300 calls), a per-IP rate limit, and a monthly spend limit in the Anthropic Console as the last line. Without an API key (tests, CI, E2E) the feature turns itself off.
+- **Prompt version in the cache key**: changing the prompt bumps `REASONS_PROMPT_VERSION`, so old reasons are ignored instead of mixed with new ones.

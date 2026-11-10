@@ -23,6 +23,9 @@ declare global {
 }
 
 test.beforeEach(async ({ context }) => {
+  // Only real visitors should make the site call the LLM; records fall back to "Similar to …".
+  // Reasons load after the records and aren't timed, so the measurements don't change
+  await context.route("**/api/reasons**", (route) => route.fulfill({ json: { reasons: {} } }));
   await recordPreviewProgress(context);
   // Collected in the page from the start, before any of our code runs
   await context.addInitScript(() => {

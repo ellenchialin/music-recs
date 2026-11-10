@@ -1,0 +1,124 @@
+{
+  "input": {
+    "seeds": [
+      {
+        "name": "Tame Impala",
+        "tags": [
+          "Psychedelic Rock",
+          "psychedelic",
+          "indie rock",
+          "australian",
+          "rock"
+        ]
+      }
+    ],
+    "records": [
+      {
+        "artist": "Pond",
+        "sources": [
+          "Tame Impala"
+        ],
+        "track": "Paint Me Silver"
+      },
+      {
+        "artist": "Melody's Echo Chamber",
+        "sources": [
+          "Tame Impala"
+        ],
+        "track": "I Follow You"
+      },
+      {
+        "artist": "GUM",
+        "sources": [
+          "Tame Impala"
+        ],
+        "track": "Glamorous Damage"
+      },
+      {
+        "artist": "Temples",
+        "sources": [
+          "Tame Impala"
+        ],
+        "track": "Shelter Song"
+      },
+      {
+        "artist": "The Holydrug Couple",
+        "sources": [
+          "Tame Impala"
+        ],
+        "track": "Lunes 1 De Abril"
+      },
+      {
+        "artist": "Moses Gunn Collective",
+        "sources": [
+          "Tame Impala"
+        ],
+        "track": "Shalala"
+      },
+      {
+        "artist": "Unknown Mortal Orchestra",
+        "sources": [
+          "Tame Impala"
+        ],
+        "track": "So Good at Being in Trouble"
+      },
+      {
+        "artist": "MGMT",
+        "sources": [
+          "Tame Impala"
+        ],
+        "track": "Kids"
+      },
+      {
+        "artist": "The Strokes",
+        "sources": [
+          "Tame Impala"
+        ],
+        "track": "Reptilia"
+      },
+      {
+        "artist": "Post Animal",
+        "sources": [
+          "Tame Impala"
+        ],
+        "track": "When I Get Home"
+      }
+    ]
+  },
+  "response": {
+    "status": 200,
+    "body": {
+      "model": "claude-haiku-5-5",
+      "id": "msg_011CgtwVigsEnyQWH8d3HV9g",
+      "type": "message",
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "{\"reasons\":[{\"artist\":\"Pond\",\"reason\":\"Woozy psych pop with the same dreamy, sun-faded Aussie swirl\"},{\"artist\":\"Melody's Echo Chamber\",\"reason\":\"Lush, hazy psych pop with heavy reverb and dreamy vocals\"},{\"artist\":\"GUM\",\"reason\":\"Jangly, lo-fi psych pop with a loose, sunny bedroom feel\"},{\"artist\":\"Temples\",\"reason\":\"Sixties-tinged psychedelic rock with swirling, trippy guitars\"},{\"artist\":\"The Holydrug Couple\",\"reason\":\"Hypnotic, spacey psych rock with a slow, rolling groove\"},{\"artist\":\"Moses Gunn Collective\",\"reason\":\"Warm, groovy psych funk with a loose, soulful momentum\"},{\"artist\":\"Unknown Mortal Orchestra\",\"reason\":\"Funky, fuzzy psych rock with odd textures and a laid-back pulse\"},{\"artist\":\"MGMT\",\"reason\":\"Synth-tinged psych pop with bright, trippy, playful energy\"},{\"artist\":\"The Strokes\",\"reason\":\"Gritty indie rock with catchy hooks and a looser, retro edge\"},{\"artist\":\"Post Animal\",\"reason\":\"Sprawling psych rock with jammy, shifting, colorful arrangements\"}]}"
+        }
+      ],
+      "container": null,
+      "stop_reason": "end_turn",
+      "stop_sequence": null,
+      "stop_details": null,
+      "usage": {
+        "input_tokens": 941,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 0
+        },
+        "output_tokens": 459,
+        "output_tokens_details": {
+          "thinking_tokens": 0
+        },
+        "service_tier": "standard",
+        "inference_geo": "global",
+        "speed": "standard"
+      },
+      "diagnostics": null
+    }
+  }
+}

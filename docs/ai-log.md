@@ -442,3 +442,27 @@ Measured on a local production build with real APIs, uncached (desktop): records
 
 Measured on the throttled phone (local production build, 3 runs each): 2.02 s on average with preconnect, 2.12 s without. The gain is within run-to-run noise. Chrome's emulated slow 4G adds its latency per request, not per network round trip, so it doesn't charge for the handshakes that preconnect saves; on a real mobile link the saving should be larger, but this setup can't show it. Most of the 2 s is downloading the start of a 1 MB file at 1.6 Mbps.
 
+## 2026-11-10 · Recommendation reasons
+
+| # | Question | Decision | Status | Reason / alternatives |
+|---|---|---|---|---|
+| 1 | When reasons are written | After the records are on screen, from `/api/reasons`, one Claude Haiku 5.5 call per list; "Similar to …" until then | Adopted (I approved the design) | Inline would add 1–3 s to the list we just made fast |
+| 2 | What the client may send | Only the recommendations query; the server rebuilds the list from its cache | Adopted | Otherwise the endpoint could make the model write about any text, or serve as a free LLM |
+| 3 | Cost control | Cache per seed set + artist + prompt version (nulls cached too), 300 calls a day site-wide (`daily:` counters now survive the hourly cleanup), 20 a minute per IP, and a $5 monthly limit in the Console. Measured: about 900 input and 530 output tokens, roughly $0.0004 a call | Adopted | |
+| 4 | Model settings | Structured output (`zodOutputFormat`) plus our own zod check, thinking off, effort low | Adopted | A line of copy needs no reasoning |
+| 5 | First quality check (6 lists, prompt v1) | Most reasons ran past 80 characters (median 85) and about 3 in 60 got a biographical fact wrong (a hometown, a nationality, an instrument). Prompt v2 asks for 60 characters or fewer and to describe the sound, not the biography | Adopted (I asked for the check) | Every wrong fact was biography; descriptions of the sound held up |
+| 6 | Second check (prompt v2) | No wrong facts found in 56 reasons; median length 67, 3 over 80 (dropped, so those records keep "Similar to …") | Adopted | The model doesn't count characters exactly; the 80-character cap catches the rest |
+| 7 | Marking AI text | A solid ink tag with a four-point star and "AI" before the reason, the reason in full ink rather than the muted color, "AI-written reason" for screen readers, and the sources in the tooltip | Adopted (I chose option A of two) | My first outlined "AI" box was too easy to miss. Option B, a teal "AI'S TAKE" sticker above the name, was more visible but needed about 16px more height |
+| 8 | Swapping "Similar to …" for the reason looked jumpy | While reasons load, the line shows a flat pulsing bar; then either the reason or "Similar to …", never one replaced by the other | Adopted (I asked for it) | No shimmer: the theme has no gradients |
+
+The reasons explain a list the algorithm already chose; they don't change the order, and the Taste Check still measures the algorithm alone.
+| 9 | The AI tag was still too small, the native `title` tooltip slow and unstyled, and the reason cut off on phones with no way to read it | The tag uses the reason's font size. The line is a button that opens a site-styled tooltip with the whole reason and its sources: at once on mouse hover, on tap for touch screens, closed by Escape, a tap outside or changing records | Adopted (I asked for it) | Hover-only would leave phones without the full reason |
+
+## 2026-11-10 · Phone fixes
+
+| # | Question | Decision | Status | Reason / alternatives |
+|---|---|---|---|---|
+| 1 | Every page scrolled a little on iPhone | `app.vue` wrapped pages in `min-h-screen` (100vh), which iOS Safari makes taller than the visible page; now `min-h-dvh` | Adopted | Chrome's phone emulation treats vh and dvh alike, so it only showed on a real iPhone |
+| 2 | The autocomplete list went off the top of the screen with the keyboard up | Its height is fitted to the visible area (`window.visualViewport`), measured from the list's anchored edge, on open and whenever the visible area changes; at least two rows | Adopted | The keyboard shrinks the visible area without changing 100dvh, so CSS alone can't size it |
+| 3 | Component tests failed with "AbortError: The animation was canceled" after the skeleton landed | Test setup marks a cancelled animation's `finished` promise as handled, as browsers do per the Web Animations spec | Adopted | happy-dom rejects it unhandled; the tests passed but Vitest failed the run |
+

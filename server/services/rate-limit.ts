@@ -1,4 +1,4 @@
-import { lt, sql } from "drizzle-orm";
+import { and, like, lt, notLike, or, sql } from "drizzle-orm";
 import type { H3Event } from "h3";
 import { getDb, type Db } from "../db/client";
 import { rateLimits } from "../db/schema";
@@ -13,9 +13,11 @@ import {
   type RateLimitRule,
 } from "../utils/rate-limit";
 
-// Each write has a 1% chance to delete windows older than an hour, so no cron job is needed
+// Each write has a 1% chance to delete windows older than an hour, so no cron job is needed.
+// Keys starting "daily:" count per day, so they're kept two days
 const CLEANUP_PROBABILITY = 0.01;
 const KEEP_MS = 60 * 60 * 1000;
+const KEEP_DAILY_MS = 48 * 60 * 60 * 1000;
 
 type Deps = {
   db: Db;
@@ -36,7 +38,15 @@ export async function hitRateLimit({ db, now, random = Math.random }: Deps, key:
     .returning({ count: rateLimits.count });
 
   if (random() < CLEANUP_PROBABILITY) {
-    await db.delete(rateLimits).where(lt(rateLimits.windowStart, new Date(now.getTime() - KEEP_MS)));
+    const before = (ms: number) => lt(rateLimits.windowStart, new Date(now.getTime() - ms));
+    await db
+      .delete(rateLimits)
+      .where(
+        or(
+          and(notLike(rateLimits.key, "daily:%"), before(KEEP_MS)),
+          and(like(rateLimits.key, "daily:%"), before(KEEP_DAILY_MS)),
+        ),
+      );
   }
 
   return checkLimit(row!.count, rule, now);
@@ -54,6 +64,8 @@ export const RATE_LIMITS = {
   // One per card still pending: 10 a page, and a visitor exploring quickly opens a few pages a minute.
   // Uncached lookups are also capped site-wide by the external budgets
   previews: { limit: 60, windowMs: 60_000 },
+  // One per page of records, like recommendations; the LLM itself is capped site-wide per day
+  reasons: { limit: 20, windowMs: 60_000 },
 } satisfies Record<string, RateLimitRule>;
 
 // Throws 429 with Retry-After when over the limit. Outside Vercel, SSR's internal requests have no

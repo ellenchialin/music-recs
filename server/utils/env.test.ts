@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseDbEnv, parseLastfmEnv, parseRateLimitEnv } from "./env";
+import { parseDbEnv, parseLastfmEnv, parseLlmEnv, parseRateLimitEnv } from "./env";
 
 describe("parseDbEnv", () => {
   it("accepts a postgres URL", () => {
@@ -44,5 +44,21 @@ describe("parseRateLimitEnv", () => {
   it("rejects a missing or short salt without echoing it", () => {
     expect(() => parseRateLimitEnv({})).toThrow(/RATE_LIMIT_SALT/);
     expect(() => parseRateLimitEnv({ RATE_LIMIT_SALT: "short-secret" })).toThrow(/^(?!.*secret).*RATE_LIMIT_SALT/);
+  });
+});
+
+// Reasons are optional: without a key (tests, CI, E2E) the page keeps "Similar to …"
+describe("parseLlmEnv", () => {
+  it("returns the key when it is set", () => {
+    expect(parseLlmEnv({ ANTHROPIC_API_KEY: "sk-ant-test-0123456789" }).apiKey).toBe("sk-ant-test-0123456789");
+  });
+
+  it("turns reasons off when the key is missing or empty", () => {
+    expect(parseLlmEnv({}).apiKey).toBeNull();
+    expect(parseLlmEnv({ ANTHROPIC_API_KEY: "" }).apiKey).toBeNull();
+  });
+
+  it("rejects a key that isn't an Anthropic key without echoing it", () => {
+    expect(() => parseLlmEnv({ ANTHROPIC_API_KEY: "secret-value" })).toThrow(/^(?!.*secret).*ANTHROPIC_API_KEY/);
   });
 });

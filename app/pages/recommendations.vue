@@ -2,6 +2,7 @@
 import { AnimatePresence, motion } from "motion-v";
 import type { RecommendationsResult, SeedNotFoundData } from "~~/shared/types/recommendations";
 import { normalizeArtistName } from "~~/shared/utils/normalize-artist-name";
+import type { CrateCard } from "~/components/RecordCrate.vue";
 import { withPreviews } from "~/utils/card-previews";
 import { canExplore, excludedFor, type Trail } from "~/utils/explore-trail";
 import {
@@ -30,16 +31,20 @@ const api = useApiFetch();
 
 type Loaded = { trail: Trail; notFound: SeedNotFoundData | null; failed: boolean; rateLimited: boolean };
 
+// The query each level was fetched with; /api/reasons is asked with the same one
+type LevelQuery = { seed: string | string[]; exclude?: string[] };
+const levelQueries = useState<Record<string, LevelQuery>>("recommendation-queries", () => ({}));
+
 // Level 0 uses the user's seeds; deeper levels use one artist and exclude everything shown above
 async function fetchLevel(seeds: string[], path: string[], above: Trail): Promise<RecommendationsResult> {
   const key = levelKey(seeds, path);
   const cached = levels.value[key];
   if (cached) return cached;
   const artist = path.at(-1);
-  const result = await api<RecommendationsResult>("/api/recommendations", {
-    query: artist ? { seed: artist, exclude: excludedFor(above, seeds) } : { seed: seeds },
-  });
+  const levelQuery: LevelQuery = artist ? { seed: artist, exclude: excludedFor(above, seeds) } : { seed: seeds };
+  const result = await api<RecommendationsResult>("/api/recommendations", { query: levelQuery });
   levels.value[key] = result;
+  levelQueries.value[key] = levelQuery;
   return result;
 }
 
@@ -138,13 +143,45 @@ function onIndexChange(index: number) {
 
 // The list comes back before uncached previews; fetch those in the browser and merge them in
 const previews = useCardPreviews();
-const cards = computed(() =>
-  currentLevel.value ? withPreviews(currentLevel.value.result.recommendations, previews.loaded.value) : [],
-);
+
+// LLM-written reasons per level, asked for once the records are on screen. Until they arrive the
+// line shows a loading bar; any failure leaves "Similar to …", so errors aren't shown
+const reasons = useState<Record<string, Record<string, string | null>>>("recommendation-reasons", () => ({}));
+const reasonsLoading = computed(() => Boolean(currentLevel.value) && !reasons.value[currentKey.value]);
+const asked = new Set<string>();
+async function loadReasons(key: string) {
+  if (reasons.value[key] || asked.has(key)) return;
+  const levelQuery = levelQueries.value[key];
+  // Shouldn't happen, but never leave the loading bar up for good
+  if (!levelQuery) {
+    reasons.value[key] = {};
+    return;
+  }
+  asked.add(key);
+  try {
+    reasons.value[key] = (await api<{ reasons: Record<string, string | null> }>("/api/reasons", { query: levelQuery })).reasons;
+  } catch {
+    // One try per level is enough; every record falls back to "Similar to …"
+    reasons.value[key] = {};
+  }
+}
+
+const cards = computed<CrateCard[]>(() => {
+  if (!currentLevel.value) return [];
+  const levelReasons = reasons.value[currentKey.value] ?? {};
+  return withPreviews(currentLevel.value.result.recommendations, previews.loaded.value).map((card) => ({
+    ...card,
+    reason: levelReasons[card.artist] ?? null,
+  }));
+});
 onMounted(() => {
   watch(
     () => currentLevel.value?.result,
-    (result) => result && void previews.load(result.recommendations, viewing.value[currentKey.value] ?? 0),
+    (result) => {
+      if (!result) return;
+      void previews.load(result.recommendations, viewing.value[currentKey.value] ?? 0);
+      void loadReasons(currentKey.value);
+    },
     { immediate: true },
   );
 });
@@ -285,6 +322,7 @@ useShareMeta(() => ({
               <RecordCrate
                 :index="viewing[currentKey] ?? 0"
                 :cards="cards"
+                :reasons-loading="reasonsLoading"
                 :can-explore="canExplore(trail)"
                 :exploring="exploring"
                 :notice="exploreMessage"

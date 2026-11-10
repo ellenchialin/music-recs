@@ -102,6 +102,63 @@ describe("RecordCrate", () => {
     expect(wrapper.emitted("retry")).toEqual([["Ezra Collective"]]);
   });
 
+  it("shows where a record came from when it has no reason", async () => {
+    const wrapper = await mountSuspended(RecordCrate, { props: { cards: [{ ...cards[0]!, reason: null }] } });
+    expect(wrapper.get('[data-testid="record-reason"]').text()).toBe("Similar to Tame Impala and Kokoroko");
+  });
+
+  // Only the final line ever shows: a reason or "Similar to …", never one replaced by the other
+  it("shows a loading bar instead of either line while reasons load", async () => {
+    const wrapper = await mountSuspended(RecordCrate, { props: { cards, reasonsLoading: true } });
+    const line = wrapper.get('[data-testid="record-reason"]');
+    expect(line.find('[data-testid="reason-skeleton"]').exists()).toBe(true);
+    expect(line.text()).not.toContain("Similar to");
+    expect(line.text()).toContain("Loading reason");
+  });
+
+  it("shows the record's reason, marked as written by AI", async () => {
+    const withReason = [{ ...cards[0]!, reason: "Same hazy, groove-first guitar." }];
+    const wrapper = await mountSuspended(RecordCrate, { props: { cards: withReason } });
+    const line = wrapper.get('[data-testid="record-reason"]');
+    expect(line.get('[data-testid="ai-tag"]').text()).toBe("AI");
+    expect(line.text()).toContain("Same hazy, groove-first guitar.");
+    expect(line.text()).toContain("AI-written reason");
+    // The browser's own title tooltip is slow and unstyled
+    expect(line.attributes("title")).toBeUndefined();
+  });
+
+  // The line is cut off on narrow screens, so the whole reason and its sources open in a tooltip
+  describe("reason tooltip", () => {
+    const mountWithReason = () =>
+      mountSuspended(RecordCrate, { props: { cards: [{ ...cards[0]!, reason: "Same hazy, groove-first guitar." }] } });
+    const tooltip = (wrapper: Awaited<ReturnType<typeof mountWithReason>>) => wrapper.find('[role="tooltip"]');
+
+    it("opens on hover with the whole reason and where it came from", async () => {
+      const wrapper = await mountWithReason();
+      await wrapper.get('[data-testid="record-reason"]').trigger("pointerenter", { pointerType: "mouse" });
+      expect(tooltip(wrapper).text()).toContain("Same hazy, groove-first guitar.");
+      expect(tooltip(wrapper).text()).toContain("Similar to Tame Impala and Kokoroko");
+      await wrapper.get('[data-testid="record-reason"]').trigger("pointerleave", { pointerType: "mouse" });
+      await vi.waitFor(() => expect(tooltip(wrapper).exists()).toBe(false));
+    });
+
+    // Touch screens have no hover
+    it("opens and closes with a tap, and closes with Escape", async () => {
+      const wrapper = await mountWithReason();
+      const trigger = wrapper.get('[data-testid="record-reason"] button');
+      await trigger.trigger("click");
+      expect(tooltip(wrapper).exists()).toBe(true);
+      expect(trigger.attributes("aria-expanded")).toBe("true");
+      await trigger.trigger("keydown", { key: "Escape" });
+      await vi.waitFor(() => expect(tooltip(wrapper).exists()).toBe(false));
+    });
+
+    it("has nothing to open without a reason", async () => {
+      const wrapper = await mountSuspended(RecordCrate, { props: { cards: [{ ...cards[0]!, reason: null }] } });
+      expect(wrapper.find('[data-testid="record-reason"] button').exists()).toBe(false);
+    });
+  });
+
   // The list arrives before previews; the button waits in place until its preview has loaded
   it("shows a disabled, busy play button while the preview is loading", async () => {
     const wrapper = await mountSuspended(RecordCrate, { props: { cards: [card("Pond", { status: "pending" }, null)] } });
