@@ -3,56 +3,19 @@ import { AnimatePresence, motion } from "motion-v";
 import { MAX_SEEDS, type AddResult } from "~/stores/seeds";
 import { listMaxHeight } from "~/utils/fit-list";
 
-type Suggestion = { name: string; listeners: number };
-
 const props = defineProps<{ locked?: boolean }>();
 
 const store = useSeedsStore();
 const query = ref("");
-const suggestions = ref<Suggestion[]>([]);
+const { suggestions, searching, noMatches, notice: searchNotice, dismiss, reopen } = useArtistSearch(query);
 // Highlighted suggestion; -1 means Enter adds the typed text
 const active = ref(-1);
 const message = ref("");
-const searchNotice = ref("");
 
-// 250ms was too short: normal typing often pauses that long between keys
-const DEBOUNCE_MS = 400;
-const debouncedQuery = refDebounced(query, DEBOUNCE_MS);
-
-const cache = new Map<string, Suggestion[]>();
-const cacheKey = (text: string) => text.trim().toLowerCase().replace(/\s+/g, " ");
-
-// An older request can resolve after a newer one; only the latest is used
-let latestRequest = 0;
-watch(debouncedQuery, async (q) => {
-  const key = cacheKey(q);
-  const id = ++latestRequest;
-  if (key.length < 2) {
-    suggestions.value = [];
-    return;
-  }
-  const cached = cache.get(key);
-  if (cached) {
-    suggestions.value = cached;
-    active.value = -1;
-    return;
-  }
-  try {
-    const result = await $fetch<Suggestion[]>("/api/artists/search", { query: { q: key } });
-    cache.set(key, result);
-    if (id === latestRequest) {
-      suggestions.value = result;
-      active.value = -1;
-      searchNotice.value = "";
-    }
-  } catch (err) {
-    // Failure doesn't block: Enter still adds the typed name
-    if (id !== latestRequest) return;
-    suggestions.value = [];
-    if ((err as { statusCode?: number }).statusCode === 429) {
-      searchNotice.value = "Too many searches. Wait a moment, or press Enter to add the name.";
-    }
-  }
+// The list changes as answers arrive; keep the same name highlighted wherever it moved to
+watch(suggestions, (next, previous) => {
+  const name = previous[active.value]?.name;
+  active.value = name ? next.findIndex((s) => s.name === name) : -1;
 });
 
 const messages: Record<Exclude<AddResult, "added">, string> = {
@@ -66,9 +29,7 @@ function add(name: string) {
   message.value = result === "added" ? "" : messages[result];
   if (result === "added" || result === "duplicate") {
     query.value = "";
-    suggestions.value = [];
     active.value = -1;
-    latestRequest++;
   }
 }
 
@@ -87,7 +48,7 @@ function onKeydown(event: KeyboardEvent) {
     event.preventDefault();
     add(suggestions.value[active.value]?.name ?? query.value);
   } else if (event.key === "Escape") {
-    suggestions.value = [];
+    dismiss();
     active.value = -1;
   }
 }
@@ -98,8 +59,18 @@ async function revealActive() {
   document.getElementById(optionId(active.value))?.scrollIntoView?.({ block: "nearest" });
 }
 
-const listeners = (n: number) => `${new Intl.NumberFormat("en", { notation: "compact" }).format(n)} listeners`;
+// Names we only know from similar-artist lists have no count
+const listeners = (n: number | null) =>
+  n === null ? "" : `${new Intl.NumberFormat("en", { notation: "compact" }).format(n)} listeners`;
 const listboxId = "seed-suggestions";
+
+const hint = computed(
+  () =>
+    message.value ||
+    searchNotice.value ||
+    (noMatches.value ? "No matches. Press Enter to add it anyway." : "") ||
+    (store.isFull ? `You've picked ${MAX_SEEDS} artists` : "Type for suggestions, or press Enter"),
+);
 
 // Keep the open list inside what's visible: on phones the keyboard hides the lower half without
 // changing 100dvh, so the list's CSS height could push its top off screen
@@ -146,18 +117,31 @@ const optionId = (i: number) => `seed-suggestion-${i}`;
       placeholder="e.g. Tame Impala"
       class="mt-2 w-full border-3 border-ink bg-paper short:mt-0 px-4 py-2.5 text-lg sm:py-3 text-ink placeholder:text-ink/50 focus:outline-none focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-ink disabled:opacity-60"
       @keydown="onKeydown"
-      @blur="suggestions = []"
+      @focus="reopen"
+      @blur="dismiss"
     >
     <p id="seed-input-hint" class="mt-2 min-h-5 text-sm font-medium sm:min-h-6 sm:text-base" aria-live="polite">
-      {{ message || searchNotice || (store.isFull ? `You've picked ${MAX_SEEDS} artists` : "Type for suggestions, or press Enter") }}
+      <template v-if="!message && !searchNotice && searching">
+        <motion.svg
+          aria-hidden="true"
+          viewBox="0 0 24 24"
+          class="mr-1.5 inline size-3.5 align-[-2px]"
+          :animate="{ rotate: 360 }"
+          :transition="{ duration: 1, ease: 'linear', repeat: Infinity }"
+        >
+          <circle cx="12" cy="12" r="9" fill="none" stroke-width="3" class="stroke-ink/25" />
+          <path d="M12 3a9 9 0 0 1 9 9" fill="none" stroke-width="3" stroke-linecap="round" class="stroke-ink" />
+        </motion.svg>Searching…
+      </template>
+      <template v-else>{{ hint }}</template>
     </p>
 
     <!-- Opens upward on one-column layouts, where the input sits low (over the decorative turntable) -->
     <AnimatePresence>
       <motion.ul
         v-if="suggestions.length"
-        ref="list"
         :id="listboxId"
+        ref="list"
         role="listbox"
         class="absolute inset-x-0 bottom-full z-10 mb-2 max-h-[min(20rem,45dvh)] overflow-y-auto border-3 border-ink bg-ink text-paper md:landscape:top-full md:landscape:bottom-auto md:landscape:mb-0 md:landscape:-mt-8 lg:top-full lg:bottom-auto lg:mb-0 lg:-mt-8 lg:max-h-[min(18rem,35dvh)]"
         :initial="{ opacity: 0, y: -6 }"

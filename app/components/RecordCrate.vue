@@ -205,7 +205,7 @@ const appleMusicUrl = computed(() => {
                 <motion.span
                   data-testid="reason-skeleton"
                   aria-hidden="true"
-                  class="block h-2.5 w-2/3 bg-ink/15"
+                  class="block h-3.5 w-2/3 bg-ink/15"
                   :animate="{ opacity: [1, 0.4, 1] }"
                   :transition="{ duration: 1.2, ease: 'easeInOut', repeat: Infinity }"
                 />
