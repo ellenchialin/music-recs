@@ -480,3 +480,9 @@ The reasons explain a list the algorithm already chose; they don't change the or
 
 The server-side search cache lives in each Vercel instance's memory, so it rarely hits across visitors; B makes that matter less. It now caches each Last.fm call (`lastfm-artist-search`) rather than whole answers, so changed merging logic is never served stale.
 
+## 2026-11-11 · Previews kept playing on the next page
+
+| # | Question | Decision | Status | Reason / alternatives |
+|---|---|---|---|---|
+| 1 | A preview started on the recommendations page kept playing on the Taste Check | A client plugin stops the shared player whenever the route's path changes; query-only changes (exploring a level) keep playing | Adopted (I reported the bug) | One `<audio>` serves the whole app, so nothing stopped it. Stopping in each page's leave guard would work too, but every new page would have to remember it |
+
