@@ -1,5 +1,7 @@
 # Music Recs
 
+![Music Recs: pick 1–3 artists you love, get recommendations you can preview](public/og-image.png)
+
 **Live demo: [musicrecs.ellenchen.dev](https://musicrecs.ellenchen.dev/)**
 
 Pick up to three artists you love and get ten records to flip through, each with a 30-second preview. From any record you can **explore** one level deeper, up to three levels, and every level shows artists you haven't seen yet. No account and no sign-in.
@@ -18,15 +20,9 @@ Pick up to three artists you love and get ten records to flip through, each with
 
 ## How it works
 
-```mermaid
-flowchart LR
-  UI["Nuxt pages<br/>(Vue 3, Pinia)"] -->|GET /api/recommendations<br/>GET /api/previews| Route
-  Route["API route<br/>rate limit + zod"] --> Service["Service<br/>seeds → candidates → previews"]
-  Service --> Algo["recommend()<br/>pure functions"]
-  Service --> Cache["Postgres cache<br/>30-day TTL"]
-  Cache -->|miss| Lastfm["Last.fm<br/>similar artists, top tracks"]
-  Cache -->|miss| Itunes["iTunes Search<br/>previews, covers"]
-```
+![Architecture: Nuxt pages call API routes (rate limit, zod); the Recommendations, Reasons and Taste Check services read and write a Postgres cache on Neon, which calls Last.fm and iTunes on a miss; Reasons optionally calls Claude Haiku](docs/diagrams/architecture.png)
+
+<sub>Source: [`docs/diagrams/architecture.html`](docs/diagrams/architecture.html), drawn with the [diagram-design](https://github.com/cathrynlavery/diagram-design) skill in the site's own colors.</sub>
 
 1. **Similar artists**: for each seed, take Last.fm's similar-artists list (cached in Postgres for 30 days).
 2. **Merge by rank**: combine the lists with Reciprocal Rank Fusion, a common way search engines merge ranked lists. Rank *r* in a seed's list scores `1 / (5 + r)`, summed across seeds. Using ranks instead of raw similarity scores keeps one seed from taking most of the spots, while artists similar to several seeds still rank highest.

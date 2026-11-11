@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Music Recs · Architecture</title>
+  <!-- Source for docs/diagrams/architecture.png (README). Drawn with the diagram-design skill in the
+       site's own theme: the tokens below mirror @theme in app/assets/css/main.css -->
+  <link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@100..125,500..900&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --color-pink: #f8527e;
+      --color-ink: #131f39;
+      --color-ink-soft: #29374d;
+      --color-paper: #f2efe9;
+      --color-paper-muted: #b7bccb;
+      --color-teal: #1ec8bc;
+      --color-plum: #533852;
+      --font-display: "Archivo", "Noto Sans TC", system-ui, sans-serif;
+      --font-sans: "Noto Sans TC", system-ui, sans-serif;
+    }
+    body {
+      font-family: var(--font-sans);
+      background: var(--color-pink);
+      color: var(--color-ink);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 3rem 1rem;
+    }
+    .frame { max-width: 1200px; width: 100%; }
+    .eyebrow {
+      font-family: var(--font-display);
+      font-stretch: 125%;
+      font-weight: 800;
+      font-size: 0.7rem;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      margin-bottom: 0.5rem;
+    }
+    h1 {
+      font-family: var(--font-display);
+      font-stretch: 125%;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      font-size: clamp(1.5rem, 2.4vw + 0.75rem, 2rem);
+      margin-bottom: 1.5rem;
+    }
+    .scroll { overflow-x: auto; }
+    svg { width: 100%; min-width: 960px; display: block; }
+
+    svg .name { font-family: var(--font-display); font-stretch: 125%; font-weight: 700; font-size: 12px; letter-spacing: -0.02em; }
+    svg .sub { font-family: var(--font-sans); font-weight: 500; font-size: 9.5px; }
+    svg .tag { font-family: var(--font-display); font-stretch: 125%; font-weight: 800; font-size: 7px; letter-spacing: 0.08em; }
+    svg .eyebrow-svg { font-family: var(--font-display); font-stretch: 125%; font-weight: 800; font-size: 9px; letter-spacing: 0.14em; }
+    svg .legend { font-family: var(--font-sans); font-weight: 500; font-size: 10px; }
+  </style>
+</head>
+<body>
+  <div class="frame">
+    <p class="eyebrow">Architecture</p>
+    <h1>How Music Recs works</h1>
+
+    <div class="scroll">
+    <svg viewBox="0 52 960 500" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="architecture-title architecture-desc">
+      <title id="architecture-title">How Music Recs works</title>
+      <desc id="architecture-desc">Nuxt pages call API routes that rate-limit and validate each request; three services build recommendations, write optional AI reasons with Claude Haiku, and run the Taste Check, all backed by a Postgres cache that calls Last.fm and iTunes on a miss.</desc>
+      <defs>
+        <marker id="architecture-arrow" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto">
+          <polygon points="0 0, 10 4, 0 8" fill="#131f39"/>
+        </marker>
+      </defs>
+
+      <rect y="52" width="960" height="500" fill="#f8527e"/>
+
+      <!-- Zones -->
+      <rect x="192" y="76" width="392" height="380" fill="none" stroke="#131f39" stroke-width="2" stroke-dasharray="2,5"/>
+      <rect x="204" y="69" width="168" height="14" fill="#f8527e"/>
+      <text x="212" y="80" class="eyebrow-svg" fill="#131f39">VERCEL · NUXT SERVER</text>
+
+      <rect x="792" y="76" width="160" height="344" fill="none" stroke="#131f39" stroke-width="2" stroke-dasharray="2,5"/>
+      <rect x="804" y="69" width="92" height="14" fill="#f8527e"/>
+      <text x="812" y="80" class="eyebrow-svg" fill="#131f39">EXTERNAL</text>
+
+      <!-- Arrows (before nodes). Main path: pages → routes → recommendations → cache -->
+      <line x1="160" y1="280" x2="206" y2="280" stroke="#131f39" stroke-width="3" marker-end="url(#architecture-arrow)"/>
+      <line x1="344" y1="280" x2="398" y2="280" stroke="#131f39" stroke-width="3" marker-end="url(#architecture-arrow)"/>
+      <line x1="568" y1="280" x2="622" y2="280" stroke="#131f39" stroke-width="3" marker-end="url(#architecture-arrow)"/>
+
+      <path d="M 344,264 H 364 Q 372,264 372,256 V 160 Q 372,152 380,152 H 398" fill="none" stroke="#131f39" stroke-width="2" marker-end="url(#architecture-arrow)"/>
+      <path d="M 344,296 H 364 Q 372,296 372,304 V 400 Q 372,408 380,408 H 398" fill="none" stroke="#131f39" stroke-width="2" marker-end="url(#architecture-arrow)"/>
+
+      <path d="M 568,164 H 664 Q 672,164 672,172 V 246" fill="none" stroke="#131f39" stroke-width="2" marker-end="url(#architecture-arrow)"/>
+      <path d="M 568,408 H 664 Q 672,408 672,400 V 314" fill="none" stroke="#131f39" stroke-width="2" marker-end="url(#architecture-arrow)"/>
+
+      <line x1="568" y1="140" x2="806" y2="140" stroke="#131f39" stroke-width="2" stroke-dasharray="8,5" marker-end="url(#architecture-arrow)"/>
+
+      <line x1="760" y1="264" x2="806" y2="264" stroke="#131f39" stroke-width="2" marker-end="url(#architecture-arrow)"/>
+      <path d="M 760,296 H 776 Q 784,296 784,304 V 364 Q 784,372 792,372 H 806" fill="none" stroke="#131f39" stroke-width="2" marker-end="url(#architecture-arrow)"/>
+
+      <!-- Node: Nuxt pages -->
+      <rect x="32" y="248" width="128" height="64" fill="#f2efe9" stroke="#131f39" stroke-width="3"/>
+      <rect x="40" y="256" width="60" height="12" fill="none" stroke="#131f39" stroke-width="1.5"/>
+      <text x="70" y="265" class="tag" fill="#131f39" text-anchor="middle">BROWSER</text>
+      <text x="96" y="290" class="name" fill="#131f39" text-anchor="middle">Nuxt pages</text>
+      <text x="96" y="304" class="sub" fill="#29374d" text-anchor="middle">Vue 3 · Pinia</text>
+
+      <!-- Node: API routes -->
+      <rect x="208" y="248" width="136" height="64" fill="#f2efe9" stroke="#131f39" stroke-width="3"/>
+      <rect x="216" y="256" width="52" height="12" fill="none" stroke="#131f39" stroke-width="1.5"/>
+      <text x="242" y="265" class="tag" fill="#131f39" text-anchor="middle">ROUTES</text>
+      <text x="276" y="290" class="name" fill="#131f39" text-anchor="middle">API routes</text>
+      <text x="276" y="304" class="sub" fill="#29374d" text-anchor="middle">rate limit · zod</text>
+
+      <!-- Node: Reasons -->
+      <rect x="400" y="120" width="168" height="64" fill="#f2efe9" stroke="#131f39" stroke-width="3"/>
+      <rect x="408" y="128" width="60" height="12" fill="none" stroke="#131f39" stroke-width="1.5"/>
+      <text x="438" y="137" class="tag" fill="#131f39" text-anchor="middle">SERVICE</text>
+      <text x="484" y="162" class="name" fill="#131f39" text-anchor="middle">Reasons</text>
+      <text x="484" y="176" class="sub" fill="#29374d" text-anchor="middle">one LLM call per list</text>
+
+      <!-- Node: Recommendations (focal) -->
+      <rect x="400" y="248" width="168" height="64" fill="#1ec8bc" stroke="#131f39" stroke-width="3"/>
+      <rect x="408" y="256" width="36" height="12" fill="none" stroke="#131f39" stroke-width="1.5"/>
+      <text x="426" y="265" class="tag" fill="#131f39" text-anchor="middle">CORE</text>
+      <text x="484" y="290" class="name" fill="#131f39" text-anchor="middle">Recommendations</text>
+      <text x="484" y="304" class="sub" fill="#131f39" text-anchor="middle">RRF merge · pure functions</text>
+
+      <!-- Node: Taste Check -->
+      <rect x="400" y="376" width="168" height="64" fill="#f2efe9" stroke="#131f39" stroke-width="3"/>
+      <rect x="408" y="384" width="36" height="12" fill="none" stroke="#131f39" stroke-width="1.5"/>
+      <text x="426" y="393" class="tag" fill="#131f39" text-anchor="middle">EVAL</text>
+      <text x="484" y="418" class="name" fill="#131f39" text-anchor="middle">Taste Check</text>
+      <text x="484" y="432" class="sub" fill="#29374d" text-anchor="middle">blind test · 1–5 ratings</text>
+
+      <!-- Node: Postgres -->
+      <rect x="624" y="248" width="136" height="64" fill="#533852" stroke="#131f39" stroke-width="3"/>
+      <rect x="632" y="256" width="36" height="12" fill="none" stroke="#f2efe9" stroke-width="1.5"/>
+      <text x="650" y="265" class="tag" fill="#f2efe9" text-anchor="middle">NEON</text>
+      <text x="692" y="290" class="name" fill="#f2efe9" text-anchor="middle">Postgres</text>
+      <text x="692" y="304" class="sub" fill="#f2efe9" text-anchor="middle">cache · 30-day TTL</text>
+
+      <!-- Node: Claude Haiku -->
+      <rect x="808" y="108" width="128" height="64" fill="#131f39" stroke="#131f39" stroke-width="3"/>
+      <rect x="816" y="116" width="32" height="12" fill="none" stroke="#f2efe9" stroke-width="1.5"/>
+      <text x="832" y="125" class="tag" fill="#f2efe9" text-anchor="middle">LLM</text>
+      <text x="872" y="150" class="name" fill="#f2efe9" text-anchor="middle">Claude Haiku</text>
+      <text x="872" y="164" class="sub" fill="#b7bccb" text-anchor="middle">one-line reasons</text>
+
+      <!-- Node: Last.fm -->
+      <rect x="808" y="232" width="128" height="64" fill="#131f39" stroke="#131f39" stroke-width="3"/>
+      <rect x="816" y="240" width="32" height="12" fill="none" stroke="#f2efe9" stroke-width="1.5"/>
+      <text x="832" y="249" class="tag" fill="#f2efe9" text-anchor="middle">API</text>
+      <text x="872" y="274" class="name" fill="#f2efe9" text-anchor="middle">Last.fm</text>
+      <text x="872" y="288" class="sub" fill="#b7bccb" text-anchor="middle">similar, top tracks</text>
+
+      <!-- Node: iTunes Search -->
+      <rect x="808" y="340" width="128" height="64" fill="#131f39" stroke="#131f39" stroke-width="3"/>
+      <rect x="816" y="348" width="32" height="12" fill="none" stroke="#f2efe9" stroke-width="1.5"/>
+      <text x="832" y="357" class="tag" fill="#f2efe9" text-anchor="middle">API</text>
+      <text x="872" y="382" class="name" fill="#f2efe9" text-anchor="middle">iTunes Search</text>
+      <text x="872" y="396" class="sub" fill="#b7bccb" text-anchor="middle">previews, covers</text>
+
+      <!-- Legend strip -->
+      <line x1="32" y1="484" x2="928" y2="484" stroke="#131f39" stroke-width="1.5"/>
+      <text x="32" y="504" class="eyebrow-svg" fill="#131f39">LEGEND</text>
+
+      <rect x="32" y="518" width="14" height="10" fill="#1ec8bc" stroke="#131f39" stroke-width="1.5"/>
+      <text x="52" y="527" class="legend" fill="#131f39">Core service</text>
+      <rect x="148" y="518" width="14" height="10" fill="#f2efe9" stroke="#131f39" stroke-width="1.5"/>
+      <text x="168" y="527" class="legend" fill="#131f39">App code</text>
+      <rect x="248" y="518" width="14" height="10" fill="#533852" stroke="#131f39" stroke-width="1.5"/>
+      <text x="268" y="527" class="legend" fill="#131f39">Database</text>
+      <rect x="348" y="518" width="14" height="10" fill="#131f39" stroke="#131f39" stroke-width="1.5"/>
+      <text x="368" y="527" class="legend" fill="#131f39">External API</text>
+
+      <line x1="476" y1="523" x2="504" y2="523" stroke="#131f39" stroke-width="3" marker-end="url(#architecture-arrow)"/>
+      <text x="512" y="527" class="legend" fill="#131f39">Main request path</text>
+      <line x1="632" y1="523" x2="660" y2="523" stroke="#131f39" stroke-width="2" marker-end="url(#architecture-arrow)"/>
+      <text x="668" y="527" class="legend" fill="#131f39">Request</text>
+      <line x1="736" y1="523" x2="764" y2="523" stroke="#131f39" stroke-width="2" stroke-dasharray="8,5" marker-end="url(#architecture-arrow)"/>
+      <text x="772" y="527" class="legend" fill="#131f39">Optional (API key, daily cap)</text>
+    </svg>
+    </div>
+  </div>
+</body>
+</html>
