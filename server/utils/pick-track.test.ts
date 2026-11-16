@@ -55,4 +55,20 @@ describe("pickTrack", () => {
   it("returns null when the artist is not in the results", () => {
     expect(pickTrack(utadaResults, { artist: "宇多田ヒカル", title: "First Love" })).toBeNull();
   });
+
+  // Real case: Last.fm spells "Altin Gün", iTunes "Altın Gün"; exact matching missed it in every store
+  it("matches an artist whose name differs only by accents", () => {
+    const tracks = [track(1, "Goca Dünya", "Altın Gün")];
+    expect(pickTrack(tracks, { artist: "Altin Gün", title: "Goca Dünya" })?.id).toBe(1);
+  });
+
+  it("matches a title that differs only by accents", () => {
+    const tracks = [track(1, "Café del Mar", "Energy 52")];
+    expect(pickTrack(tracks, { artist: "Energy 52", title: "Cafe del Mar" })?.id).toBe(1);
+  });
+
+  it("prefers the exact spelling over a lookalike", () => {
+    const tracks = [track(1, "Hoppípolla", "Sigur Ros"), track(2, "Hoppípolla", "Sigur Rós")];
+    expect(pickTrack(tracks, { artist: "Sigur Rós", title: "Hoppípolla" })?.id).toBe(2);
+  });
 });

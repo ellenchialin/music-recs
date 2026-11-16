@@ -1,21 +1,10 @@
 import type { ArtistSearchResult } from "../lastfm/schemas";
+import { lookalikeKey } from "../../shared/utils/lookalike-key";
 
 export type ArtistSuggestion = { name: string; listeners: number };
 
 // Below this it's usually a misspelled duplicate ("radıohead" has 117 listeners)
 const MIN_LISTENERS = 1000;
-
-// Key for spotting lookalikes: strip accents (é → e, İ → I), treat dotless ı as i, lowercase, collapse spaces.
-// Only for comparing; the displayed name is unchanged
-function lookalikeKey(name: string): string {
-  return name
-    .normalize("NFKD")
-    .replace(/\p{M}/gu, "")
-    .replace(/ı/g, "i")
-    .trim()
-    .toLowerCase()
-    .replace(/\s+/g, " ");
-}
 
 // Last.fm search results → autocomplete and "did you mean" suggestions.
 // Keeps Last.fm's relevance order; among lookalikes keeps the one with the most listeners
