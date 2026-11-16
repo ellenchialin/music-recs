@@ -223,4 +223,38 @@ describe("RecordCrate", () => {
     expect(wrapper.text()).toContain("No new artists here — try another record");
     expect(button(wrapper, "Explore artists like Khruangbin")).toBeUndefined();
   });
+
+  describe("covers", () => {
+    const itunes = (name: string) => `https://is1-ssl.mzstatic.com/image/thumb/${name}.jpg/600x600bb.jpg`;
+    const withArt = [
+      card("Khruangbin", { status: "available", url: "https://audio.example/khruangbin.m4a" }, { title: "Maria También", artworkUrl: itunes("khruangbin") }),
+      card("Pond", { status: "unavailable" }, { title: "Paint Me Silver", artworkUrl: itunes("pond") }),
+    ];
+    // Changing an img's src blanks it until the new file arrives, so each size is its own img
+    const sizes = (wrapper: Awaited<ReturnType<typeof mountCrate>>, name: string) =>
+      wrapper.findAll(`img[src*="/${name}.jpg/"]`).map((img) => img.attributes("src")!.match(/\/(\d+x\d+bb\.\w+)$/)![1]);
+    const mountWithArt = () => mountSuspended(RecordCrate, { props: { cards: withArt } });
+
+
+    // On a slow phone, about 10 full-size JPEG covers loading with the records held up the first
+    // preview by ~2 s. A 1×1 cover (about 0.8 KB) stretched underneath fills each slot with its
+    // colour while the WebP covers load
+    it("fills every cover with its colour and loads it small, and the current one full size", async () => {
+      const wrapper = await mountWithArt();
+      expect(sizes(wrapper, "khruangbin")).toEqual(["1x1bb.jpg", "300x300bb.webp", "600x600bb.webp"]);
+      expect(sizes(wrapper, "pond")).toEqual(["1x1bb.jpg", "300x300bb.webp"]);
+    });
+
+    it("moves the full-size cover with the current record", async () => {
+      const wrapper = await mountWithArt();
+      await button(wrapper, "Next record").trigger("click");
+      expect(sizes(wrapper, "khruangbin")).toEqual(["1x1bb.jpg", "300x300bb.webp"]);
+      expect(sizes(wrapper, "pond")).toEqual(["1x1bb.jpg", "300x300bb.webp", "600x600bb.webp"]);
+    });
+  });
+
+  it("names each cover once for screen readers", async () => {
+    const wrapper = await mountCrate();
+    expect(wrapper.findAll('img[alt="Album cover for Khruangbin Hit by Khruangbin"]')).toHaveLength(1);
+  });
 });

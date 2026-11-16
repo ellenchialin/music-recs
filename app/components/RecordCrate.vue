@@ -153,14 +153,24 @@ const appleMusicUrl = computed(() => {
               <circle cx="100" cy="100" r="5" class="fill-paper" />
             </svg>
           </motion.div>
-          <img
-            v-if="card.track?.artworkUrl"
-            :src="card.track.artworkUrl"
-            :alt="`Album cover for ${card.track.title} by ${card.artist}`"
-            class="pointer-events-none size-full object-cover"
-            draggable="false"
-            :loading="Math.abs(i - active) > 2 ? 'lazy' : 'eager'"
-          >
+          <!-- On a slow phone, every cover as a 600 px JPEG held up the first preview by about 2 s. Now
+               each starts as its 1×1 cover stretched into a flat fill of its colour (~0.8 KB), and sharp
+               WebP covers (about a third of the JPEG) fade in over it: 300 px for every record, 600 px
+               on top for the current one. Each size is its own img, because changing an img's src
+               blanks it until the new file arrives -->
+          <div v-if="card.track?.artworkUrl" class="relative size-full">
+            <img
+              :src="coverUrl(card.track.artworkUrl, 1, 'jpg')"
+              :alt="`Album cover for ${card.track.title} by ${card.artist}`"
+              class="pointer-events-none size-full object-cover"
+              draggable="false"
+            >
+            <CoverImage
+              :src="coverUrl(card.track.artworkUrl, 300, 'webp')"
+              :loading="Math.abs(i - active) > 2 ? 'lazy' : 'eager'"
+            />
+            <CoverImage v-if="i === active" :src="coverUrl(card.track.artworkUrl, 600, 'webp')" />
+          </div>
           <div v-else aria-hidden="true" class="flex size-full items-center justify-center bg-plum">
             <span class="font-wide text-[calc(var(--cover)*0.32)] leading-none font-black text-paper">{{ card.artist.charAt(0) }}</span>
           </div>
