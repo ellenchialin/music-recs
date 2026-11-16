@@ -68,7 +68,7 @@ Recommended songs scored about one point higher on a five-point scale, and the w
 
 ## Engineering notes
 
-- **Test-driven**: about 290 tests, plus Playwright end-to-end and a daily smoke test of the live site against Core Web Vitals and Nielsen's response-time limits. The algorithm and rate limiting are pure functions with unit tests; caching and services run against a real test database; pages and components are tested in a simulated browser. External APIs are never called in tests: recorded fixtures stand in for them.
+- **Test-driven**: about 290 tests, plus Playwright end-to-end and a smoke test of the live site after each deploy and weekly against Core Web Vitals and Nielsen's response-time limits. The algorithm and rate limiting are pure functions with unit tests; caching and services run against a real test database; pages and components are tested in a simulated browser. External APIs are never called in tests: recorded fixtures stand in for them.
 - **Show the list, then fill it in**: an uncached recommendation used to take 4–5 s because every preview was looked up before answering. Now the records appear in about 2 s (1.1 s of it the turntable animation) and each preview follows on its own.
 - **Caching that won't lie**: "iTunes has no preview" is cached (so we don't ask again for 30 days); "iTunes is down" is not (so the preview comes back when it recovers).
 - **Rate limiting**: fixed one-minute windows counted atomically in Postgres, because serverless instances don't share memory. IPv6 clients are grouped by /64, `x-forwarded-for` is trusted only behind Vercel's proxy, and only a salted hash of the IP is stored.
@@ -116,7 +116,7 @@ Open http://localhost:3000.
 |---|---|
 | `pnpm test` | All Vitest tests (needs `pnpm db:up` for the database tests) |
 | `pnpm test:e2e` | Build, then run the Playwright tests (needs `pnpm db:up`; once: `pnpm exec playwright install chromium`) |
-| `pnpm test:smoke` | Times each step on the live site (desktop and a throttled phone) against budgets from Core Web Vitals and Nielsen's response-time limits. Also runs daily in GitHub Actions |
+| `pnpm test:smoke` | Times each step on the live site (desktop and a throttled phone) against budgets from Core Web Vitals and Nielsen's response-time limits. Also runs in GitHub Actions after each production deploy and weekly |
 | `pnpm typecheck` / `pnpm lint` | Type check and lint |
 | `pnpm db:studio` | Browse the cached data in Drizzle Studio |
 | `pnpm record:lastfm` / `pnpm record:itunes` | Re-record API fixtures from the real APIs |

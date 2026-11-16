@@ -369,7 +369,7 @@ E2E answers "does the code work?" with a fake outside world. The smoke test answ
 |---|---|---|
 | Against | The build of this commit, on localhost | Whatever is deployed |
 | Outside APIs | Seeded cache, outside calls refused | Real Last.fm and iTunes |
-| When | Every push (CI) | Daily (scheduled workflow) and by hand |
+| When | Every push (CI) | After each production deploy, weekly, and by hand |
 | Fails because | The code is wrong | The code, Vercel, Neon, Last.fm or iTunes is wrong or slow |
 
 Timing only means something in the smoke test.

@@ -1,10 +1,12 @@
 name: Smoke test
 
-# Times the main flow on the live site once a day against per-phase budgets, with real Last.fm and iTunes behind it.
-# Not on push: it tests what's deployed, and each run costs real API calls
+# Times the main flow on the live site against per-phase budgets, with real Last.fm and iTunes behind it.
+# After each production deploy (Vercel reports it as a commit status, not a GitHub deployment) and
+# once a week for outside changes (Last.fm, iTunes, Neon). Not on push: that would test the old deploy
 on:
+  status:
   schedule:
-    - cron: "17 2 * * *"
+    - cron: "17 2 * * 1"
   workflow_dispatch:
 
 permissions:
@@ -12,7 +14,16 @@ permissions:
 
 jobs:
   live:
+    # Every commit status fires `status`; only Vercel's success on main is a production deploy
+    if: >-
+      github.event_name != 'status' ||
+      (github.event.context == 'Vercel' && github.event.state == 'success' && contains(github.event.branches.*.name, 'main'))
     runs-on: ubuntu-latest
+    # A second deploy while a run is going: test the newer one. On the job, not the workflow, so the
+    # status events this job skips (Vercel's "pending", other contexts) can't cancel a running test
+    concurrency:
+      group: smoke
+      cancel-in-progress: true
     steps:
       - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v6

@@ -3,9 +3,10 @@ import { expect, test } from "@playwright/test";
 import { addArtist, recordPreviewProgress } from "../helpers/browser";
 import { BUDGETS, rate, reportTable, type Measured } from "./budgets";
 
-// One artist per day, in turn. With more artists than the cache's 30 days, the first run of the day
-// (desktop) usually finds its artist uncached and measures the slow path; mobile runs next and
-// finds it cached, so it measures the phone and network rather than the APIs
+// One artist per day, in turn. With more artists than the cache's 30 days (and 31 days apart from
+// 7, so weekly runs still cycle through all of them), the first run of a day (desktop) usually finds
+// its artist uncached and measures the slow path; mobile runs next and finds it cached, so it
+// measures the phone and network rather than the APIs. A second deploy the same day measures cached
 const ARTISTS = [
   "Tame Impala", "Kokoroko", "Khruangbin", "Radiohead", "Arctic Monkeys", "Phoebe Bridgers", "Mac DeMarco",
   "Bon Iver", "Beach House", "The National", "Vampire Weekend", "Fleet Foxes", "Alvvays", "Mitski",
