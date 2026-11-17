@@ -34,6 +34,7 @@ Decisions already made are in `docs/ai-log.md`. When the spec and a decision dis
 3. "Explore from here" on a record digs one level deeper (the URL gains `&explore=…`), up to 3 levels. The breadcrumb `Home › seeds › Pond` goes back to any level, the browser's Back button works too, and Home returns with the seeds for editing.
 4. A popularity setting (Obscure / Balanced / Mainstream, `&popularity=…`) re-ranks the recommendations; Explore and the Taste Check keep the setting.
 5. The Taste Check (`/taste-check`, linked from the recommendations page as "Fit your taste? →"): a blind test. Listen to 3 songs, rate each 1–5, then see which ones were picked for you.
+6. The results page (`/stats`, linked after a round): everyone's ratings for the current algorithm version, then per popularity setting and per version.
 
 ## Features
 

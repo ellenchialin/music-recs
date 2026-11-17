@@ -340,6 +340,7 @@ The page is called Taste Check (`/taste-check`); the method behind it is a blind
 - **A round** (`pickRound`): one or two recommended songs plus control songs, three in all, shuffled. Randomness is passed in so tests can pin it.
 - **Secrets stay on the server**: the client gets only preview URLs until the round is rated. `is_recommended` is in the database, not in the response.
 - **One rating per round**: the round is claimed with a single conditional update (`… WHERE rated_at IS NULL RETURNING id`), so two concurrent submissions can't both count. Another visitor's round answers 404, not 403, so round IDs can't be probed.
+- **The results page** (`/stats`): the same numbers for everyone, per algorithm version and per popularity setting (`computeGroupStats` does the per-visitor math for any grouping). It leads with one figure, not a chart, because the question has a one-number answer.
 - **The eval** (`computeStats`): each visitor's recommended average minus their control average, then the mean across visitors, so one person playing twenty rounds counts once. The 95% confidence interval uses Student's t; with few visitors it's honestly wide.
 - **CSRF**: these are the first routes that write with a cookie. The visitor cookie is `SameSite=Lax` and `httpOnly`, and POSTs whose `Origin` isn't this site get a 403.
 

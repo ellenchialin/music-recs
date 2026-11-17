@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { computeStats, pickRound, pickTopTag, type RatedItem } from "./blind-test";
+import { computeGroupStats, computeStats, pickRound, pickTopTag, type RatedItem } from "./blind-test";
 
 // A random() that returns these values in order, so picks are predictable
 const sequence = (...values: number[]) => {
@@ -132,3 +132,34 @@ describe("computeStats", () => {
     ]);
   });
 });
+
+describe("computeGroupStats", () => {
+  const rated = (visitorId: string, group: string, isRecommended: boolean, rating: number) => ({ visitorId, group, isRecommended, rating });
+
+  it("computes each group on its own, in the order asked for", () => {
+    const stats = computeGroupStats(
+      [
+        rated("a", "mainstream", true, 5),
+        rated("a", "mainstream", false, 3),
+        rated("b", "obscure", true, 2),
+        rated("b", "obscure", false, 4),
+      ],
+      ["obscure", "balanced", "mainstream"],
+    );
+
+    // No rounds were played on "balanced", so it's left out
+    expect(stats.map((s) => [s.group, s.difference])).toEqual([["obscure", -2], ["mainstream", 2]]);
+  });
+
+  it("counts a visitor in every group they played", () => {
+    const stats = computeGroupStats([
+      rated("a", "obscure", true, 4),
+      rated("a", "obscure", false, 3),
+      rated("a", "mainstream", true, 2),
+      rated("a", "mainstream", false, 3),
+    ]);
+
+    expect(stats.map((s) => [s.group, s.visitors, s.difference])).toEqual([["mainstream", 1, -1], ["obscure", 1, 1]]);
+  });
+});
+

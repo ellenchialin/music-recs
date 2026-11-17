@@ -32,4 +32,15 @@ test("plays a blind round, rates it and reveals which songs were picked", async 
   // Every song got the same score, so the averages tie
   await expect(page.getByText(/songs picked for them averaged 4\.0 out of 5, random picks 4\.0\. Too close to call/)).toBeVisible();
   await expect(page.getByRole("button", { name: "Play another round" })).toBeVisible();
+
+  // The round just rated is now part of everyone's results
+  await page.getByRole("link", { name: "See everyone's results →" }).click();
+  await expect(page).toHaveURL("/stats?seed=Radiohead");
+  await expect(page.getByRole("heading", { name: "Does it work?" })).toBeVisible();
+  await expect(page.getByTestId("average-bar")).toHaveText(["Picked for you4.0", "Random pick4.0"]);
+
+  // And back to the list, without starting over from home
+  await page.getByRole("link", { name: "Back to your recommendations" }).click();
+  await expect(page).toHaveURL("/recommendations?seed=Radiohead");
+  await expect(page.getByRole("heading", { name: "Recommended for you" })).toBeVisible();
 });

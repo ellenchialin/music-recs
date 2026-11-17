@@ -43,7 +43,7 @@ Recommendations are easy to show and hard to prove, so the site measures itself.
 3. **One visitor, one vote**: each visitor's own difference (recommended average − random average) is computed first and then averaged across visitors, so one person playing twenty rounds counts once.
 4. **Honest uncertainty**: a 95% confidence interval (Student's t) decides what the page says. Until it excludes zero, it says there's no clear difference yet.
 
-Live numbers: [`/api/stats`](https://musicrecs.ellenchen.dev/api/stats). Known limit: clearing cookies makes a new visitor, so the count is an upper bound on real people.
+Live numbers: the [results page](https://musicrecs.ellenchen.dev/stats) (or [`/api/stats`](https://musicrecs.ellenchen.dev/api/stats) as JSON), per algorithm version and per popularity setting. Known limit: clearing cookies makes a new visitor, so the count is an upper bound on real people.
 
 ### Results (algorithm v2, 2026-11-10)
 
@@ -69,7 +69,7 @@ Recommended songs scored about one point higher on a five-point scale, and the w
 
 ## Engineering notes
 
-- **Test-driven**: about 380 tests, plus Playwright end-to-end and a smoke test of the live site after each deploy and weekly against Core Web Vitals and Nielsen's response-time limits. The algorithm and rate limiting are pure functions with unit tests; caching and services run against a real test database; pages and components are tested in a simulated browser. External APIs are never called in tests: recorded fixtures stand in for them.
+- **Test-driven**: about 430 tests, plus Playwright end-to-end and a smoke test of the live site after each deploy and weekly against Core Web Vitals and Nielsen's response-time limits. The algorithm and rate limiting are pure functions with unit tests; caching and services run against a real test database; pages and components are tested in a simulated browser. External APIs are never called in tests: recorded fixtures stand in for them.
 - **Show the list, then fill it in**: an uncached recommendation used to take 4–5 s because every preview was looked up before answering. Now the records appear in about 2 s (1.1 s of it the turntable animation) and each preview follows on its own.
 - **Caching that won't lie**: "iTunes has no preview" is cached (so we don't ask again for 30 days); "iTunes is down" is not (so the preview comes back when it recovers).
 - **Rate limiting**: fixed one-minute windows counted atomically in Postgres, because serverless instances don't share memory. IPv6 clients are grouped by /64, `x-forwarded-for` is trusted only behind Vercel's proxy, and only a salted hash of the IP is stored.
@@ -126,7 +126,7 @@ Open http://localhost:3000.
 
 ```
 app/                 Vue pages, components, composables and stores
-  pages/             index (pick artists), recommendations (the crate), taste-check (the blind test)
+  pages/             index (pick artists), recommendations (the crate), taste-check (the blind test), stats (results)
   components/        RecordCrate, SeedInput, SunTurntable, VinylRecord
 server/
   api/               HTTP routes: validation, rate limiting, error mapping
@@ -142,7 +142,6 @@ docs/                Decision log, concept notes, exercises
 ## What's next
 
 - **More eval data**: keep the results table current as more people play, and compare algorithm versions once there's a v3.
-- **A public results page**: the blind-test numbers per algorithm version and popularity setting, on the site itself.
 
 ## Credits
 

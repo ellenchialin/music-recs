@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { tasteCheckLocation, homeLocation, parseRecommendationsQuery, recommendationsLocation, seedsLabel } from "./recommendations-route";
+import { resultsLocation, tasteCheckLocation, homeLocation, parseRecommendationsQuery, recommendationsLocation, seedsLabel } from "./recommendations-route";
 
 describe("parseRecommendationsQuery", () => {
   it("reads one or many seeds and the explore path", () => {
@@ -55,6 +55,13 @@ describe("links", () => {
     expect(recommendationsLocation(["A"], [], "balanced")).toEqual({ path: "/recommendations", query: { seed: ["A"] } });
     expect(tasteCheckLocation(["A"], "mainstream")).toEqual({ path: "/taste-check", query: { seed: ["A"], popularity: "mainstream" } });
     expect(tasteCheckLocation(["A"], "balanced")).toEqual({ path: "/taste-check", query: { seed: ["A"] } });
+  });
+
+  // So the results page can lead back to the visitor's own recommendations
+  it("builds the results location, with the seeds and setting when there are any", () => {
+    expect(resultsLocation(["A", "B"], "obscure")).toEqual({ path: "/stats", query: { seed: ["A", "B"], popularity: "obscure" } });
+    expect(resultsLocation(["A"])).toEqual({ path: "/stats", query: { seed: ["A"] } });
+    expect(resultsLocation([])).toEqual({ path: "/stats", query: {} });
   });
 
   it("builds the home location with the seeds", () => {

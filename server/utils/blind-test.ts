@@ -1,4 +1,5 @@
 import { normalizeArtistName } from "../../shared/utils/normalize-artist-name";
+import type { RatingStats, VersionStats } from "../../shared/types/stats";
 import { tagKey } from "./tag-key";
 
 export type Song = { artist: string; title: string; previewUrl: string };
@@ -69,17 +70,9 @@ export function pickRound({
 
 export type RatedItem = { visitorId: string; algoVersion: string; isRecommended: boolean; rating: number };
 
-export type VersionStats = {
-  algoVersion: string;
-  visitors: number;
-  ratings: number;
-  recommendedMean: number;
-  controlMean: number;
-  // All three are means over visitors, so difference = recommendedMean − controlMean
-  difference: number;
-  // 95% confidence interval for `difference`; null with fewer than two visitors
-  ci: [number, number] | null;
-};
+export type { VersionStats };
+export type GroupedItem = Omit<RatedItem, "algoVersion"> & { group: string };
+export type GroupStats = RatingStats & { group: string };
 
 const mean = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / xs.length;
 
@@ -101,26 +94,35 @@ function confidenceInterval(values: number[]): [number, number] | null {
 // Each visitor counts once: average their own ratings per kind first, so one heavy player
 // can't outweigh everyone. Visitors who rated only one kind are left out
 export function computeStats(items: RatedItem[]): VersionStats[] {
-  const byVersion = new Map<string, Map<string, RatedItem[]>>();
-  for (const item of items) {
-    const visitors = byVersion.get(item.algoVersion) ?? new Map<string, RatedItem[]>();
-    visitors.set(item.visitorId, [...(visitors.get(item.visitorId) ?? []), item]);
-    byVersion.set(item.algoVersion, visitors);
-  }
+  return computeGroupStats(items.map(({ algoVersion, ...item }) => ({ ...item, group: algoVersion }))).map(
+    ({ group, ...stats }) => ({ algoVersion: group, ...stats }),
+  );
+}
 
-  return [...byVersion.entries()]
-    .sort(([a], [b]) => a.localeCompare(b))
-    .flatMap(([algoVersion, visitors]) => {
+// The same statistics for any grouping (algorithm version, slider setting). Groups come back in
+// `order` when given, by name otherwise; a group nobody fully rated is left out
+export function computeGroupStats(items: GroupedItem[], order?: readonly string[]): GroupStats[] {
+  const byGroup = new Map<string, Map<string, GroupedItem[]>>();
+  for (const item of items) {
+    const visitors = byGroup.get(item.group) ?? new Map<string, GroupedItem[]>();
+    visitors.set(item.visitorId, [...(visitors.get(item.visitorId) ?? []), item]);
+    byGroup.set(item.group, visitors);
+  }
+  const position = (group: string) => (order ? order.indexOf(group) : 0);
+
+  return [...byGroup.entries()]
+    .sort(([a], [b]) => position(a) - position(b) || a.localeCompare(b))
+    .flatMap(([group, visitors]) => {
       const included = [...visitors.values()].filter((v) => v.some((i) => i.isRecommended) && v.some((i) => !i.isRecommended));
       if (included.length === 0) return [];
       const ratings = included.flat();
-      const ratingsOf = (rec: boolean, list: RatedItem[]) => list.filter((i) => i.isRecommended === rec).map((i) => i.rating);
+      const ratingsOf = (rec: boolean, list: GroupedItem[]) => list.filter((i) => i.isRecommended === rec).map((i) => i.rating);
       const recommended = included.map((v) => mean(ratingsOf(true, v)));
       const control = included.map((v) => mean(ratingsOf(false, v)));
       const differences = recommended.map((r, i) => r - control[i]!);
       return [
         {
-          algoVersion,
+          group,
           visitors: included.length,
           ratings: ratings.length,
           recommendedMean: mean(recommended),

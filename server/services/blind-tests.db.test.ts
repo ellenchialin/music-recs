@@ -12,6 +12,7 @@ import {
   NotEnoughSongsError,
   createBlindTest,
   getBlindTestStats,
+  getPopularityStats,
   rateBlindTest,
 } from "./blind-tests";
 
@@ -171,5 +172,27 @@ describe("getBlindTestStats", () => {
 
     const [stats] = await getBlindTestStats(db);
     expect(stats).toMatchObject({ algoVersion: "v2", visitors: 1, ratings: 3 });
+  });
+
+  it("compares the slider's settings for the current algorithm version", async () => {
+    const play = async (popularity: "obscure" | "balanced" | "mainstream", ratings: number[]) => {
+      const visitorId = randomUUID();
+      const round = await createBlindTest(deps(), { visitorId, seeds, popularity });
+      await rateBlindTest({ db, now }, { visitorId, testId: round.id, ratings });
+      return round.id;
+    };
+    await play("mainstream", [5, 5, 5]);
+    await play("balanced", [4, 4, 4]);
+    await play("balanced", [2, 2, 2]);
+    // An older version's rounds don't belong in this comparison
+    const old = await play("obscure", [1, 1, 1]);
+    await db.update(blindTests).set({ algoVersion: "v1" }).where(eq(blindTests.id, old));
+
+    const stats = await getPopularityStats(db);
+
+    expect(stats.map((s) => [s.popularity, s.visitors, s.recommendedMean])).toEqual([
+      ["balanced", 2, 3],
+      ["mainstream", 1, 5],
+    ]);
   });
 });

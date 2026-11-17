@@ -1,99 +1,116 @@
 <script setup lang="ts">
-import { motion } from "motion-v";
-import { describeOverall, describeRound } from "~/utils/taste-check-copy";
-import { homeLocation, parseRecommendationsQuery, recommendationsLocation, seedsLabel } from "~/utils/recommendations-route";
+import { motion } from 'motion-v'
+import type { StatsResult, VersionStats } from '~~/shared/types/stats'
+import { describeOverall, describeRound } from '~/utils/taste-check-copy'
+import {
+  homeLocation,
+  parseRecommendationsQuery,
+  recommendationsLocation,
+  resultsLocation,
+  seedsLabel
+} from '~/utils/recommendations-route'
 
 // /taste-check?seed=…(&popularity=…): a blind test of three unnamed songs, rated 1–5, then revealed. A round is created only on
 // Start, so crawlers opening the page don't create rounds
 
-type Song = { position: number; previewUrl: string };
-type Revealed = { position: number; artist: string; title: string; isRecommended: boolean; rating: number };
-type VersionStats = {
-  algoVersion: string;
-  visitors: number;
-  recommendedMean: number;
-  controlMean: number;
-  difference: number;
-  ci: [number, number] | null;
-};
+type Song = { position: number; previewUrl: string }
+type Revealed = {
+  position: number
+  artist: string
+  title: string
+  isRecommended: boolean
+  rating: number
+}
+const route = useRoute()
+const query = computed(() => parseRecommendationsQuery(route.query))
+const player = usePreviewPlayer()
 
-const route = useRoute();
-const query = computed(() => parseRecommendationsQuery(route.query));
-const player = usePreviewPlayer();
+const phase = ref<'intro' | 'starting' | 'rating' | 'revealing' | 'revealed'>(
+  'intro'
+)
+const roundId = ref('')
+const songs = ref<Song[]>([])
+const ratings = ref<(number | null)[]>([null, null, null])
+const revealed = ref<Revealed[]>([])
+const error = ref('')
+const stats = ref<VersionStats | null>(null)
 
-const phase = ref<"intro" | "starting" | "rating" | "revealing" | "revealed">("intro");
-const roundId = ref("");
-const songs = ref<Song[]>([]);
-const ratings = ref<(number | null)[]>([null, null, null]);
-const revealed = ref<Revealed[]>([]);
-const error = ref("");
-const stats = ref<VersionStats | null>(null);
-
-const allRated = computed(() => ratings.value.every((r) => r !== null));
-const resultFor = (position: number) => revealed.value.find((r) => r.position === position);
+const allRated = computed(() => ratings.value.every((r) => r !== null))
+const resultFor = (position: number) =>
+  revealed.value.find((r) => r.position === position)
 
 function messageFor(err: unknown) {
-  const status = (err as { statusCode?: number }).statusCode;
-  if (status === 429) return "Too many requests — try again in a minute";
-  if (status === 422) return "Not enough songs with previews for these artists. Try other artists.";
-  return "Something went wrong — try again in a moment";
+  const status = (err as { statusCode?: number }).statusCode
+  if (status === 429) return 'Too many requests — try again in a minute'
+  if (status === 422)
+    return 'Not enough songs with previews for these artists. Try other artists.'
+  return 'Something went wrong — try again in a moment'
 }
 
 async function start() {
-  if (!query.value) return;
-  player.stop();
-  phase.value = "starting";
-  error.value = "";
+  if (!query.value) return
+  player.stop()
+  phase.value = 'starting'
+  error.value = ''
   try {
-    const round = await $fetch<{ id: string; songs: Song[] }>("/api/blind-tests", {
-      method: "POST",
-      body: { seeds: query.value.seeds, popularity: query.value.popularity },
-    });
-    roundId.value = round.id;
-    songs.value = round.songs;
-    ratings.value = round.songs.map(() => null);
-    revealed.value = [];
-    phase.value = "rating";
+    const round = await $fetch<{ id: string; songs: Song[] }>(
+      '/api/blind-tests',
+      {
+        method: 'POST',
+        body: { seeds: query.value.seeds, popularity: query.value.popularity }
+      }
+    )
+    roundId.value = round.id
+    songs.value = round.songs
+    ratings.value = round.songs.map(() => null)
+    revealed.value = []
+    phase.value = 'rating'
   } catch (err) {
-    error.value = messageFor(err);
-    phase.value = "intro";
+    error.value = messageFor(err)
+    phase.value = 'intro'
   }
 }
 
 async function reveal() {
-  if (!allRated.value) return;
-  player.stop();
-  phase.value = "revealing";
-  error.value = "";
+  if (!allRated.value) return
+  player.stop()
+  phase.value = 'revealing'
+  error.value = ''
   try {
-    revealed.value = await $fetch<Revealed[]>(`/api/blind-tests/${roundId.value}/ratings`, {
-      method: "POST",
-      body: { ratings: ratings.value },
-    });
-    phase.value = "revealed";
-    void loadStats();
+    revealed.value = await $fetch<Revealed[]>(
+      `/api/blind-tests/${roundId.value}/ratings`,
+      {
+        method: 'POST',
+        body: { ratings: ratings.value }
+      }
+    )
+    phase.value = 'revealed'
+    void loadStats()
   } catch (err) {
-    error.value = messageFor(err);
-    phase.value = "rating";
+    error.value = messageFor(err)
+    phase.value = 'rating'
   }
 }
 
 async function loadStats() {
   try {
-    const result = await $fetch<{ versions: VersionStats[] }>("/api/stats");
-    stats.value = result.versions.at(-1) ?? null;
+    const result = await $fetch<StatsResult>('/api/stats')
+    stats.value = result.versions.at(-1) ?? null
   } catch {
-    stats.value = null;
+    stats.value = null
   }
 }
 
-const roundSummary = computed(() => (revealed.value.length ? describeRound(revealed.value) : ""));
+const roundSummary = computed(() =>
+  revealed.value.length ? describeRound(revealed.value) : ''
+)
 
-useHead({ title: "Taste Check · Music Recs" });
+useHead({ title: 'Taste Check · Music Recs' })
 useShareMeta(() => ({
-  title: "Do these picks fit your taste?",
-  description: "Play three unnamed songs, rate each one, then see which were picked for you and which were random.",
-}));
+  title: 'Do these picks fit your taste?',
+  description:
+    'Play three unnamed songs, rate each one, then see which were picked for you and which were random.'
+}))
 </script>
 
 <template>
@@ -102,11 +119,18 @@ useShareMeta(() => ({
       <nav aria-label="Breadcrumb" class="overflow-x-auto">
         <ol class="flex items-center gap-2 text-base whitespace-nowrap">
           <li>
-            <NuxtLink :to="homeLocation(query?.seeds ?? [])" class="font-bold underline underline-offset-4">Home</NuxtLink>
+            <NuxtLink
+              :to="homeLocation(query?.seeds ?? [])"
+              class="font-bold underline underline-offset-4"
+              >Home</NuxtLink
+            >
           </li>
           <li v-if="query" class="flex items-center gap-2">
             <span aria-hidden="true">›</span>
-            <NuxtLink :to="recommendationsLocation(query.seeds, [], query.popularity)" class="font-bold underline underline-offset-4">
+            <NuxtLink
+              :to="recommendationsLocation(query.seeds, [], query.popularity)"
+              class="font-bold underline underline-offset-4"
+            >
               {{ seedsLabel(query.seeds) }}
             </NuxtLink>
           </li>
@@ -118,37 +142,99 @@ useShareMeta(() => ({
       </nav>
     </header>
 
-    <main class="mx-auto flex min-h-0 w-full max-w-2xl flex-1 flex-col px-4 pt-4 pb-4 sm:px-8 sm:pt-6 sm:pb-6">
+    <main
+      class="mx-auto flex min-h-0 w-full max-w-2xl flex-1 flex-col px-4 pt-4 pb-4 sm:px-8 sm:pt-6 sm:pb-6"
+    >
       <section v-if="!query">
-        <h1 class="font-wide text-4xl font-black sm:text-5xl">Pick an artist first</h1>
-        <p class="mt-3 text-lg">Choose 1–3 artists you love, then take the Taste Check.</p>
-        <NuxtLink to="/" class="mt-6 inline-block border-3 border-ink bg-teal px-5 py-2.5 font-wide text-lg font-black">
+        <h1 class="font-wide text-4xl font-black sm:text-5xl">
+          Pick an artist first
+        </h1>
+        <p class="mt-3 text-lg">
+          Choose 1–3 artists you love, then take the Taste Check.
+        </p>
+        <NuxtLink
+          to="/"
+          class="mt-6 inline-block border-3 border-ink bg-teal px-5 py-2.5 font-wide text-lg font-black"
+        >
           Back to home
         </NuxtLink>
       </section>
 
       <template v-else>
-        <h1 class="font-wide text-[clamp(1.75rem,7vw,3rem)] leading-tight font-black">Taste Check</h1>
+        <h1
+          class="font-wide text-[clamp(1.75rem,7vw,3rem)] leading-tight font-black"
+        >
+          Taste Check
+        </h1>
         <!-- Before starting: what the test answers for the listener, then how it works.
              While rating, one line of instructions instead, so the round fits one screen -->
         <template v-if="phase === 'intro' || phase === 'starting'">
           <p class="mt-2 text-base font-medium sm:text-lg">
-            Are these picks really better for you than random popular songs in the same genre? Find out with your own
-            ears, without names getting in the way.
+            Are these picks really better for you than random popular songs in
+            the same genre? Find out with your own ears, without names getting
+            in the way.
           </p>
-          <ol data-testid="check-steps" class="mt-4 flex flex-col gap-1 text-base">
-            <li><strong>1.</strong> Play three songs. You won't see who they're by.</li>
+          <ol
+            data-testid="check-steps"
+            class="mt-4 flex flex-col gap-1 text-base"
+          >
+            <li>
+              <strong>1.</strong> Play three songs. You won't see who they're
+              by.
+            </li>
             <li><strong>2.</strong> Rate each one from 1 to 5.</li>
-            <li><strong>3.</strong> See which were recommended for {{ seedsLabel(query.seeds) }} and which were random picks.</li>
+            <li>
+              <strong>3.</strong> See which were recommended for
+              {{ seedsLabel(query.seeds) }} and which were random picks.
+            </li>
           </ol>
-          <p class="mt-3 text-sm">Ratings are anonymous. They're how this site measures whether its recommendations work.</p>
+          <!-- Extra information, not a step: set apart by a rule and a label in the same ink-block
+               style as the records' "AI" tag -->
+          <aside
+            aria-labelledby="ratings-note"
+            class="mt-4 border-l-3 border-ink pl-3"
+          >
+            <p
+              id="ratings-note"
+              class="inline-flex items-center gap-1.5 bg-ink py-0.5 px-1.5 text-xs leading-5 font-black tracking-wide text-paper uppercase"
+            >
+              <!-- An inverted round badge, so the "i" reads as an icon and not as a letter of the label.
+                   Round like the play buttons, the theme's other circles besides the sun -->
+              <span
+                aria-hidden="true"
+                class="flex size-4 shrink-0 items-center justify-center rounded-full bg-paper text-ink"
+              >
+                <svg viewBox="0 0 10 10" class="size-3 fill-current">
+                  <path d="M3.75 0.5h2.5v2.25h-2.5zM3.75 4h2.5v5.5h-2.5z" />
+                </svg>
+              </span>
+              About your ratings
+            </p>
+            <p class="mt-1.5 text-sm">
+              Ratings are anonymous. They're how this site measures whether its
+              recommendations work.
+              <NuxtLink
+                :to="resultsLocation(query.seeds, query.popularity)"
+                class="font-bold whitespace-nowrap underline underline-offset-4"
+                >See everyone's results →</NuxtLink
+              >
+            </p>
+          </aside>
         </template>
         <p v-else-if="phase !== 'revealed'" class="mt-2 text-base sm:text-lg">
           Play each song and rate it, then reveal which were picked for you.
         </p>
-        <p v-else class="mt-2 text-base font-medium sm:text-lg">{{ roundSummary }}</p>
+        <p v-else class="mt-2 text-base font-medium sm:text-lg">
+          {{ roundSummary }}
+        </p>
 
-        <p v-if="error" role="alert" class="mt-4 border-3 border-ink bg-paper px-4 py-3 font-bold text-ink">{{ error }}</p>
+        <p
+          v-if="error"
+          role="alert"
+          class="mt-4 border-3 border-ink bg-paper px-4 py-3 font-bold text-ink"
+        >
+          {{ error }}
+        </p>
 
         <div v-if="phase === 'intro' || phase === 'starting'" class="mt-6">
           <motion.button
@@ -159,7 +245,7 @@ useShareMeta(() => ({
             :transition="spring.snappy"
             @click="start"
           >
-            {{ phase === "starting" ? "Finding songs…" : "Start" }}
+            {{ phase === 'starting' ? 'Finding songs…' : 'Start' }}
           </motion.button>
         </div>
 
@@ -171,7 +257,10 @@ useShareMeta(() => ({
               data-testid="check-song"
               class="flex flex-wrap items-center gap-x-3 gap-y-2 border-3 border-ink bg-paper p-3 text-ink sm:gap-x-4"
               v-bind="fadeUp"
-              :transition="{ ...spring.smooth, delay: song.position * staggerStep }"
+              :transition="{
+                ...spring.smooth,
+                delay: song.position * staggerStep
+              }"
             >
               <button
                 type="button"
@@ -180,8 +269,15 @@ useShareMeta(() => ({
                 class="flex size-12 shrink-0 items-center justify-center rounded-full bg-teal text-ink"
                 @click="player.toggle(song.previewUrl)"
               >
-                <svg aria-hidden="true" viewBox="0 0 12 12" class="size-5 fill-current">
-                  <path v-if="player.playingUrl.value === song.previewUrl" d="M2 1h3v10H2zM7 1h3v10H7z" />
+                <svg
+                  aria-hidden="true"
+                  viewBox="0 0 12 12"
+                  class="size-5 fill-current"
+                >
+                  <path
+                    v-if="player.playingUrl.value === song.previewUrl"
+                    d="M2 1h3v10H2zM7 1h3v10H7z"
+                  />
                   <path v-else d="M3 1l8 5-8 5z" />
                 </svg>
               </button>
@@ -193,17 +289,31 @@ useShareMeta(() => ({
                   class="truncate font-bold"
                   :initial="{ opacity: 0, y: 6 }"
                   :animate="{ opacity: 1, y: 0 }"
-                  :transition="{ ...spring.smooth, delay: song.position * staggerStep }"
+                  :transition="{
+                    ...spring.smooth,
+                    delay: song.position * staggerStep
+                  }"
                 >
-                  {{ resultFor(song.position)!.artist }} — {{ resultFor(song.position)!.title }}
+                  {{ resultFor(song.position)!.artist }} —
+                  {{ resultFor(song.position)!.title }}
                 </motion.p>
-                <p v-else class="font-bold whitespace-nowrap">Song {{ song.position + 1 }}</p>
+                <p v-else class="font-bold whitespace-nowrap">
+                  Song {{ song.position + 1 }}
+                </p>
                 <p
                   v-if="resultFor(song.position)"
                   class="mt-1 inline-block border-3 border-ink px-2 text-xs whitespace-nowrap font-black tracking-wide uppercase"
-                  :class="resultFor(song.position)!.isRecommended ? 'bg-teal' : 'bg-paper'"
+                  :class="
+                    resultFor(song.position)!.isRecommended
+                      ? 'bg-teal'
+                      : 'bg-paper'
+                  "
                 >
-                  {{ resultFor(song.position)!.isRecommended ? "Picked for you" : "Random pick" }}
+                  {{
+                    resultFor(song.position)!.isRecommended
+                      ? 'Picked for you'
+                      : 'Random pick'
+                  }}
                 </p>
               </div>
 
@@ -215,8 +325,14 @@ useShareMeta(() => ({
               >
                 {{ resultFor(song.position)!.rating }}/5
               </p>
-              <fieldset v-else class="flex gap-1" :disabled="phase !== 'rating'">
-                <legend class="sr-only">Rate song {{ song.position + 1 }} from 1 to 5</legend>
+              <fieldset
+                v-else
+                class="flex gap-1"
+                :disabled="phase !== 'rating'"
+              >
+                <legend class="sr-only">
+                  Rate song {{ song.position + 1 }} from 1 to 5
+                </legend>
                 <label v-for="score in 5" :key="score" class="cursor-pointer">
                   <input
                     v-model="ratings[song.position]"
@@ -224,10 +340,11 @@ useShareMeta(() => ({
                     class="peer sr-only"
                     :name="`rating-${song.position}`"
                     :value="score"
-                  >
+                  />
                   <span
                     class="flex size-8 items-center justify-center border-3 border-ink font-black sm:size-9 peer-checked:bg-ink peer-checked:text-paper peer-focus-visible:outline-3 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-ink"
-                  >{{ score }}</span>
+                    >{{ score }}</span
+                  >
                 </label>
               </fieldset>
             </motion.li>
@@ -243,7 +360,7 @@ useShareMeta(() => ({
               :transition="spring.snappy"
               @click="reveal"
             >
-              {{ phase === "revealing" ? "Revealing…" : "Reveal" }}
+              {{ phase === 'revealing' ? 'Revealing…' : 'Reveal' }}
             </motion.button>
             <template v-else>
               <motion.button
@@ -255,14 +372,29 @@ useShareMeta(() => ({
               >
                 Play another round
               </motion.button>
-              <NuxtLink :to="recommendationsLocation(query.seeds, [], query.popularity)" class="font-bold underline underline-offset-4">
+              <NuxtLink
+                :to="recommendationsLocation(query.seeds, [], query.popularity)"
+                class="font-bold underline underline-offset-4"
+              >
                 Back to recommendations
               </NuxtLink>
             </template>
-            <p v-if="phase === 'rating' && !allRated" class="text-base font-medium">Rate all three to reveal</p>
+            <p
+              v-if="phase === 'rating' && !allRated"
+              class="text-base font-medium"
+            >
+              Rate all three to reveal
+            </p>
           </div>
 
-          <p v-if="phase === 'revealed' && stats" class="mt-4 text-base">{{ describeOverall(stats) }}</p>
+          <p v-if="phase === 'revealed'" class="mt-4 text-base">
+            <template v-if="stats">{{ describeOverall(stats) }}</template>
+            <NuxtLink
+              :to="resultsLocation(query.seeds, query.popularity)"
+              class="font-bold whitespace-nowrap underline underline-offset-4"
+              >See everyone's results →</NuxtLink
+            >
+          </p>
         </template>
       </template>
     </main>

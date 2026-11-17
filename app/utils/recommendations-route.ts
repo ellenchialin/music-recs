@@ -57,6 +57,11 @@ export function tasteCheckLocation(seeds: string[], popularity: Popularity = DEF
   return { path: "/taste-check", query: { seed: seeds, ...popularityQuery(popularity) } };
 }
 
+// Everyone's results. The seeds only lead back: the numbers are the same for every visitor
+export function resultsLocation(seeds: string[], popularity: Popularity = DEFAULT_POPULARITY): RouteLocationRaw {
+  return { path: "/stats", query: seeds.length ? { seed: seeds, ...popularityQuery(popularity) } : {} };
+}
+
 export function seedsLabel(seeds: string[]): string {
   return seeds.join(" + ");
 }

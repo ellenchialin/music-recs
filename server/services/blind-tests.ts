@@ -6,9 +6,11 @@ import type { LastfmClient } from "../lastfm/client";
 import { getArtist } from "../cache/lastfm";
 import { getTagChart } from "../cache/tag-charts";
 import { getArtistTrack } from "../cache/tracks";
-import { computeStats, pickRound, pickTopTag, type Song, type VersionStats } from "../utils/blind-test";
+import { computeGroupStats, computeStats, pickRound, pickTopTag, type Song } from "../utils/blind-test";
+import { ALGO_VERSION } from "../utils/recommend/recommend";
 import { mapLimit } from "../utils/map-limit";
-import { DEFAULT_POPULARITY, type Popularity } from "../../shared/types/popularity";
+import { DEFAULT_POPULARITY, POPULARITY_SETTINGS, type Popularity } from "../../shared/types/popularity";
+import type { PopularityStats, VersionStats } from "../../shared/types/stats";
 import { normalizeArtistName } from "../../shared/utils/normalize-artist-name";
 import { getRecommendations } from "./recommendations";
 
@@ -151,4 +153,22 @@ export async function getBlindTestStats(db: Db): Promise<VersionStats[]> {
     // A version's stats are about its plain ranking; slider rounds are compared separately
     .where(and(isNotNull(blindTests.ratedAt), isNotNull(blindTestItems.rating), eq(blindTests.popularity, DEFAULT_POPULARITY)));
   return computeStats(rows.map((r) => ({ ...r, rating: r.rating! })));
+}
+
+// The current algorithm version's rated rounds per slider setting, in slider order
+export async function getPopularityStats(db: Db): Promise<PopularityStats[]> {
+  const rows = await db
+    .select({
+      visitorId: blindTests.visitorId,
+      group: blindTests.popularity,
+      isRecommended: blindTestItems.isRecommended,
+      rating: blindTestItems.rating,
+    })
+    .from(blindTestItems)
+    .innerJoin(blindTests, eq(blindTestItems.testId, blindTests.id))
+    .where(and(isNotNull(blindTests.ratedAt), isNotNull(blindTestItems.rating), eq(blindTests.algoVersion, ALGO_VERSION)));
+  return computeGroupStats(rows.map((r) => ({ ...r, rating: r.rating! })), POPULARITY_SETTINGS).map(({ group, ...stats }) => ({
+    popularity: group as Popularity,
+    ...stats,
+  }));
 }

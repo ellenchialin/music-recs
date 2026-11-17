@@ -71,6 +71,18 @@ describe("taste check page", () => {
     expect(page.text()).toContain("Play each song and rate it");
   });
 
+  // Where the visitor reads the question the results answer
+  // A side note apart from the steps, so it doesn't read as part of how to play
+  it("explains where ratings go in a side note that links to everyone's results", async () => {
+    const page = await open();
+    const note = page.get('aside[aria-labelledby="ratings-note"]');
+    expect(note.get("#ratings-note").text()).toBe("About your ratings");
+    expect(note.text()).toContain("Ratings are anonymous.");
+    const link = note.findAll("a").find((a) => a.text() === "See everyone's results →");
+    expect(link?.attributes("href")).toBe("/stats?seed=Tame+Impala");
+    expect(page.get('[data-testid="check-steps"]').text()).not.toContain("anonymous");
+  });
+
   // A crawler opening the page shouldn't create rounds
   it("waits for Start before creating a round", async () => {
     const page = await open();
@@ -103,6 +115,8 @@ describe("taste check page", () => {
     expect(songs[0]).toContain("Picked for you");
     expect(songs[1]).toContain("Random pick");
     expect(page.text()).toContain("The picks won this round.");
+    // After their own result, a way to everyone's
+    expect(page.findAll("a").find((a) => a.text().includes("See everyone's results"))?.attributes("href")).toBe("/stats?seed=Tame+Impala");
   });
 
   it("explains when there aren't enough songs for these artists", async () => {

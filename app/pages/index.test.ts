@@ -43,6 +43,12 @@ describe("index page", () => {
     expect(title.findAll("span").map((s) => s.text())).toEqual(["Music", "Recs"]);
   });
 
+  // Recommend is the one action here; the results are linked from the Taste Check instead
+  it("doesn't link away from picking artists", async () => {
+    const page = await open();
+    expect(page.findAll("a").some((a) => a.attributes("href") === "/stats")).toBe(false);
+  });
+
   it("shows no placeholder text before any artist is added", async () => {
     const page = await open();
     expect(page.text()).not.toContain("Your artists will appear here");
