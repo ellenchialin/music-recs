@@ -26,6 +26,8 @@ const artists: Record<string, { tags: string[]; similar?: [string, number][] }> 
 };
 const tagChart = ["Tame Impala", "Pond", "Oasis", "Blur", "Pulp", "Suede"];
 
+const chartCalls = { count: 0 };
+
 function fakeClients({ noPreview = [] as string[] } = {}) {
   const find = (name: string) => Object.entries(artists).find(([n]) => normalizeArtistName(n) === normalizeArtistName(name));
   const lastfm: Pick<LastfmClient, "getInfo" | "getSimilar" | "getTopTracks" | "searchArtists" | "getTagTopArtists"> = {
@@ -37,7 +39,10 @@ function fakeClients({ noPreview = [] as string[] } = {}) {
     getSimilar: async (name) => (find(name)?.[1].similar ?? []).map(([n, match]) => ({ name: n, mbid: null, match })),
     getTopTracks: async (name) => [{ name: `${name} Hit`, mbid: null, playcount: 1, listeners: 1 }],
     searchArtists: async () => [],
-    getTagTopArtists: async () => tagChart.map((name) => ({ name, mbid: null })),
+    getTagTopArtists: async () => {
+      chartCalls.count++;
+      return tagChart.map((name) => ({ name, mbid: null }));
+    },
   };
   // Search terms are "<artist> <top track>", and the top track is "<artist> Hit"
   const itunes: Pick<ItunesClient, "searchTracks"> = {
@@ -55,7 +60,8 @@ const deps = (options?: Parameters<typeof fakeClients>[0]) => ({ db, now, random
 const seeds = ["Tame Impala", "Kokoroko"];
 
 beforeEach(async () => {
-  await db.execute(sql`truncate artists, tracks, visitors, rate_limits restart identity cascade`);
+  await db.execute(sql`truncate artists, tracks, tag_charts, visitors, rate_limits restart identity cascade`);
+  chartCalls.count = 0;
 });
 
 describe("createBlindTest", () => {
@@ -82,6 +88,13 @@ describe("createBlindTest", () => {
     for (const artist of recommended) expect(["Pond", "GUM", "Temples", "Ezra Collective"]).toContain(artist);
     // Seeds and recommended artists are on the tag chart too, but never in the control group
     for (const artist of control) expect(["Oasis", "Blur", "Pulp", "Suede"]).toContain(artist);
+  });
+
+  it("asks Last.fm for the genre chart once, then reuses it for later rounds", async () => {
+    await createBlindTest(deps(), { visitorId: randomUUID(), seeds });
+    await createBlindTest(deps(), { visitorId: randomUUID(), seeds });
+
+    expect(chartCalls.count).toBe(1);
   });
 
   it("fails clearly when there aren't enough songs with previews", async () => {

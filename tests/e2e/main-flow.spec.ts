@@ -1,20 +1,5 @@
-import { expect, test } from "@playwright/test";
-import { addArtist, previewPlayedTo, recordPreviewProgress } from "../helpers/browser";
-import { PREVIEW_ORIGIN, silentWav } from "./outside-world";
-
-const wav = silentWav();
-
-test.beforeEach(async ({ context }) => {
-  // Nothing may reach the real outside world: previews get a WAV, everything else is blocked
-  await context.route(
-    (url) => url.hostname !== "localhost",
-    (route) =>
-      route.request().url().startsWith(PREVIEW_ORIGIN)
-        ? route.fulfill({ contentType: "audio/wav", body: wav })
-        : route.abort(),
-  );
-  await recordPreviewProgress(context);
-});
+import { addArtist, previewPlayedTo } from "../helpers/browser";
+import { expect, test } from "./fixtures";
 
 test("picks an artist, gets recommendations and hears a preview", async ({ page }) => {
   // Typing would trigger autocomplete, which calls Last.fm; SeedInput's component tests cover it

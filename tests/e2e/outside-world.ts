@@ -1,3 +1,5 @@
+import type { BrowserContext } from "@playwright/test";
+
 // Shared by the config, the seed (server side) and the tests (browser side), without importing
 // server code into the browser tests
 
@@ -40,4 +42,17 @@ export function silentWav(seconds = 2, sampleRate = 8000) {
   buffer.write("data", 36);
   buffer.writeUInt32LE(samples * 2, 40);
   return buffer;
+}
+
+// Nothing the browser asks for may reach the real outside world: previews get a WAV, everything
+// else is blocked
+export async function fakeOutsideWorld(context: BrowserContext) {
+  const wav = silentWav();
+  await context.route(
+    (url) => url.hostname !== "localhost",
+    (route) =>
+      route.request().url().startsWith(PREVIEW_ORIGIN)
+        ? route.fulfill({ contentType: "audio/wav", body: wav })
+        : route.abort(),
+  );
 }

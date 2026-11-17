@@ -4,6 +4,7 @@ import { blindTestItems, blindTests, visitors } from "../db/schema";
 import type { ItunesClient } from "../itunes/client";
 import type { LastfmClient } from "../lastfm/client";
 import { getArtist } from "../cache/lastfm";
+import { getTagChart } from "../cache/tag-charts";
 import { getArtistTrack } from "../cache/tracks";
 import { computeStats, pickRound, pickTopTag, type Song, type VersionStats } from "../utils/blind-test";
 import { mapLimit } from "../utils/map-limit";
@@ -61,10 +62,10 @@ export async function createBlindTest(
   if (!controlTag) throw new NotEnoughSongsError();
 
   const taken = new Set([...result.seeds, ...result.recommendations.map((r) => r.artist)].map(normalizeArtistName));
-  const chart = (await deps.lastfm.getTagTopArtists(controlTag)).filter((a) => !taken.has(normalizeArtistName(a.name)));
+  const chart = (await getTagChart(deps, controlTag)).filter((name) => !taken.has(normalizeArtistName(name)));
   const candidates: string[] = [];
   while (candidates.length < CONTROL_CANDIDATES && chart.length) {
-    candidates.push(chart.splice(Math.floor(random() * chart.length), 1)[0]!.name);
+    candidates.push(chart.splice(Math.floor(random() * chart.length), 1)[0]!);
   }
   const control = (
     await mapLimit(candidates, CONCURRENCY, async (artist): Promise<Song | null> => {

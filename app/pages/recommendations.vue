@@ -235,7 +235,14 @@ useShareMeta(() => ({
           </li>
           <li v-for="(crumb, i) in crumbs" :key="i" class="flex items-center gap-2">
             <span aria-hidden="true">›</span>
-            <NuxtLink v-if="i < crumbs.length - 1" :to="crumb.to" class="font-bold underline underline-offset-4">
+            <!-- The router ignores the query when marking a link exact-active, so without this every
+                 level's link to its parent would also claim to be the current page -->
+            <NuxtLink
+              v-if="i < crumbs.length - 1"
+              :to="crumb.to"
+              :aria-current="undefined"
+              class="font-bold underline underline-offset-4"
+            >
               {{ crumb.label }}
             </NuxtLink>
             <span v-else aria-current="page" class="font-bold">{{ crumb.label }}</span>

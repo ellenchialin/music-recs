@@ -43,6 +43,13 @@
       "when": 1794299144092,
       "tag": "0005_reason_cache",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1794889224508,
+      "tag": "0006_tag_charts",
+      "breakpoints": true
     }
   ]
 }

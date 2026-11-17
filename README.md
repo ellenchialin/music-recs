@@ -37,7 +37,7 @@ Every result is tagged with an algorithm version so blind-test ratings can compa
 
 Recommendations are easy to show and hard to prove, so the site measures itself.
 
-1. **A fair opponent**: each round mixes one or two recommended songs with popular songs from the seeds' most common Last.fm genre tag, so recommendations can't win just by being the right style.
+1. **A fair opponent**: each round mixes one or two recommended songs with popular songs from the seeds' most common Last.fm genre tag (its chart cached for 30 days), so recommendations can't win just by being the right style.
 2. **Blind**: names and covers stay hidden until you've rated all three; which songs were recommended never leaves the server before that.
 3. **One visitor, one vote**: each visitor's own difference (recommended average − random average) is computed first and then averaged across visitors, so one person playing twenty rounds counts once.
 4. **Honest uncertainty**: a 95% confidence interval (Student's t) decides what the page says. Until it excludes zero, it says there's no clear difference yet.
@@ -63,12 +63,12 @@ Recommended songs scored about one point higher on a five-point scale, and the w
 | Database | **Postgres 17** + **Drizzle ORM** | Caches Last.fm and iTunes data and stores rate-limit counters. Docker locally, Neon in production |
 | Validation | **zod** | Every external API response and every request is validated and reshaped at the boundary, so bad data never reaches the algorithm |
 | Data | **Last.fm API**, **iTunes Search API** | No user sign-in needed. Spotify was ruled out: its development mode now allows only a few users. Deezer was ruled out: it isn't available in Taiwan |
-| Tests | **Vitest** + `@nuxt/test-utils`, **Playwright** | Three Vitest projects: pure functions in Node, database tests against a real Postgres, components in happy-dom. Playwright drives the production build in Chromium for the main flow, with the cache seeded from recorded fixtures so no outside API is called |
+| Tests | **Vitest** + `@nuxt/test-utils`, **Playwright** | Three Vitest projects: pure functions in Node, database tests against a real Postgres, components in happy-dom. Playwright drives the production build in Chromium through the three main flows (pick an artist and hear a preview, Explore, the Taste Check), with the cache seeded from recorded fixtures so no outside API is called |
 | Hosting | **Vercel** + **Neon** | Serverless deploys with a managed Postgres |
 
 ## Engineering notes
 
-- **Test-driven**: about 290 tests, plus Playwright end-to-end and a smoke test of the live site after each deploy and weekly against Core Web Vitals and Nielsen's response-time limits. The algorithm and rate limiting are pure functions with unit tests; caching and services run against a real test database; pages and components are tested in a simulated browser. External APIs are never called in tests: recorded fixtures stand in for them.
+- **Test-driven**: about 380 tests, plus Playwright end-to-end and a smoke test of the live site after each deploy and weekly against Core Web Vitals and Nielsen's response-time limits. The algorithm and rate limiting are pure functions with unit tests; caching and services run against a real test database; pages and components are tested in a simulated browser. External APIs are never called in tests: recorded fixtures stand in for them.
 - **Show the list, then fill it in**: an uncached recommendation used to take 4–5 s because every preview was looked up before answering. Now the records appear in about 2 s (1.1 s of it the turntable animation) and each preview follows on its own.
 - **Caching that won't lie**: "iTunes has no preview" is cached (so we don't ask again for 30 days); "iTunes is down" is not (so the preview comes back when it recovers).
 - **Rate limiting**: fixed one-minute windows counted atomically in Postgres, because serverless instances don't share memory. IPv6 clients are grouped by /64, `x-forwarded-for` is trusted only behind Vercel's proxy, and only a salted hash of the IP is stored.
@@ -141,7 +141,6 @@ docs/                Decision log, concept notes, exercises
 ## What's next
 
 - **More eval data**: keep the results table current as more people play, and compare algorithm versions once there's a v3.
-- **More end-to-end tests**: Explore and the Taste Check. The main flow (pick an artist → recommendations → hear a preview) is covered.
 - **A mainstream ↔ obscure slider** (deferred).
 
 ## Credits

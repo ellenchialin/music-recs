@@ -124,6 +124,8 @@ What was learned on the last project all shows up here:
 - **Transaction**: refreshing a stale similar list means "delete the old rows, write the new ones, update `similar_fetched_at`". Think of restocking a shelf. Without a transaction, the clerk clears the old stock while the new stock is still on the cart: a customer walking in now (a concurrent request) sees an empty shelf and gets empty recommendations, and if the clerk is called away halfway (the write fails), the shelf stays empty until the next refetch. With a transaction, it's like restocking behind a curtain: everyone sees either the old shelf or the new one, and a failure halfway rolls everything back, leaving the old list in place.
 - **`now` is passed in**: dependency injection again. Tests can pass "31 days later" without mocking the system clock.
 
+Genre charts follow the same steps in `server/cache/tag-charts.ts`, with one difference: an empty chart isn't stored. A cached empty list would look fresh for 30 days and fail every Taste Check round in that genre, while asking again costs one call.
+
 **See it**: open `artists` and `artist_similar` in `pnpm db:studio`. The first lookup of an artist makes 2 API calls (about 700ms); the second makes none (about 3ms).
 
 ### Answer with what's cached, fetch the rest after
@@ -322,7 +324,7 @@ The page is called Taste Check (`/taste-check`); the method behind it is a blind
 
 > **Frontend analogy**: an A/B test, except the user rates both variants without knowing which is which. Hiding names and covers keeps "this is the recommended one" from biasing the rating.
 
-- **Control group**: popular artists from the seeds' most common Last.fm tag (`pickTopTag`, counting "j-pop" and "JPop" as one), minus the seeds and the recommended artists. Same genre, so recommendations can't win just by being the right style.
+- **Control group**: popular artists from the seeds' most common Last.fm tag (`pickTopTag`, counting "j-pop" and "JPop" as one), minus the seeds and the recommended artists. Same genre, so recommendations can't win just by being the right style. The chart is cached in `tag_charts` (`getTagChart`, same cache-aside as section 6), so a round costs no extra Last.fm call once a genre has been seen.
 - **A round** (`pickRound`): one or two recommended songs plus control songs, three in all, shuffled. Randomness is passed in so tests can pin it.
 - **Secrets stay on the server**: the client gets only preview URLs until the round is rated. `is_recommended` is in the database, not in the response.
 - **One rating per round**: the round is claimed with a single conditional update (`… WHERE rated_at IS NULL RETURNING id`), so two concurrent submissions can't both count. Another visitor's round answers 404, not 403, so round IDs can't be probed.
@@ -348,11 +350,13 @@ E2E tests are slow (seconds each) and have more ways to break, so there are only
 
 The browser only talks to our server; our server talks to Last.fm and iTunes. Playwright's `page.route` can only intercept the browser's own requests, so it can't fake the server's calls. Instead the test uses the cache from section 6:
 
-1. **Seed** (`tests/e2e/global-setup.ts`, run once before the tests): empty every table, then run the real `getRecommendations` once against fake clients that serve the recorded fixtures. It fills `artists`, `artist_similar` and `tracks` in a separate database, `music_e2e`, exactly as a real request would. The seed refuses any database that isn't local, and checks that every card got a preview, since `getRecommendations` turns a failed preview into an error card instead of throwing.
+1. **Seed** (`tests/e2e/global-setup.ts`, run once before the tests): empty every table, then run the real cache code against fake clients that serve the recorded fixtures: `getRecommendations` for Radiohead, again for one Explore level from its first record (made-up similar artists), and `getTagChart` plus `getArtistTrack` for the Taste Check's genre chart. It fills `artists`, `artist_similar`, `tracks` and `tag_charts` in a separate database, `music_e2e`, exactly as real requests would. The seed refuses any database that isn't local, and checks that every card got a preview, since `getRecommendations` turns a failed preview into an error card instead of throwing.
 2. **Serve**: the built server runs against `music_e2e` with a fake Last.fm key, and its outside requests go through a proxy that refuses every connection (`NODE_USE_ENV_PROXY`, which Node 24's `fetch` honors). Every lookup is a cache hit; a miss fails at once instead of quietly using the real API.
 3. **In the browser**: `context.route` answers the preview URLs with a short generated WAV file and blocks every other outside request. Autocomplete (`/api/artists/search`) is answered with an empty list, since it would call Last.fm and is covered by component tests.
 
-Seeding through the real cache code rather than hand-written `INSERT`s means the seed can't drift from the schema or the cache's rules.
+Seeding through the real cache code rather than hand-written `INSERT`s means the seed can't drift from the schema or the cache's rules. It also means a flow can only be tested end to end if everything it fetches is cached: the Taste Check called Last.fm's genre chart live on every Start, so the chart got its own cache table before it could get an E2E test.
+
+The three tests (`main-flow`, `explore`, `taste-check`) each cover one main flow: pick an artist and hear a preview; explore a level deeper and come back through the breadcrumb; play a blind round, rate it and reveal it.
 
 ### Two things that differ from component tests
 

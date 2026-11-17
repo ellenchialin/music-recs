@@ -111,6 +111,7 @@ Every result is tagged with an `algo_version`.
 | `artists` | Last.fm artists: name, MusicBrainz ID, listeners, tags, fetch time | Built |
 | `artist_similar` | Similarity between artists | Built |
 | `tracks` | Each artist's track, iTunes ID, preview URL, cover | Built |
+| `tag_charts` | Last.fm's top artists per genre, where the Taste Check's random picks come from | Built |
 | `visitors` | Anonymous ID, creation time | Built |
 | `rate_limits` | Per-client rate-limit counts, external API budgets and the iTunes breaker | Built |
 | `reason_cache` | Cached recommendation reasons (seed set + artist + prompt version) | Built |

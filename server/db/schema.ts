@@ -64,6 +64,15 @@ export const tracks = pgTable("tracks", {
   fetchedAt: timestamp("fetched_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+// Cached Last.fm genre charts, where the Taste Check draws its random picks from. Keyed by the
+// tag with case and punctuation dropped, so "J-Pop" and "jpop" share a chart. Refetched after 30 days
+export const tagCharts = pgTable("tag_charts", {
+  tagKey: text("tag_key").primaryKey(),
+  // Names in chart order; nothing else about these artists is needed
+  artists: text("artists").array().notNull(),
+  fetchedAt: timestamp("fetched_at", { withTimezone: true }).notNull(),
+});
+
 // Rate-limit counts, one row per key ("api:ip hash") per window. In Postgres because serverless
 // instances don't share memory. Only salted IP hashes are stored
 export const rateLimits = pgTable(

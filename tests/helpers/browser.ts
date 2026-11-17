@@ -40,3 +40,12 @@ export async function addArtist(page: Page, name: string) {
     await expect(page.getByRole("button", { name: `Remove ${name}` })).toBeVisible({ timeout: 1000 });
   }).toPass();
 }
+
+// Server-rendered buttons show up before Vue attaches their handlers, and a click in between is
+// lost. Nuxt flips isHydrating once the whole page, async parts included, has hydrated
+export async function waitForHydration(page: Page) {
+  await page.waitForFunction(() => {
+    const root = document.querySelector("#__nuxt") as (Element & { __vue_app__?: { $nuxt?: { isHydrating?: boolean } } }) | null;
+    return root?.__vue_app__?.$nuxt?.isHydrating === false;
+  });
+}

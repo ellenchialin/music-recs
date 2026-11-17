@@ -1,11 +1,11 @@
 import { normalizeArtistName } from "../../shared/utils/normalize-artist-name";
+import { tagKey } from "./tag-key";
 
 export type Song = { artist: string; title: string; previewUrl: string };
 export type RoundSong = Song & { isRecommended: boolean };
 
 // Last.fm tags are user-entered; these describe the listener, not the music
 const NOT_GENRES = new Set(["seenlive", "favorites", "favourites", "favorite", "favourite", "albumsiown", "spotify"]);
-const tagKey = (tag: string) => tag.toLowerCase().replace(/[^\p{L}\p{N}]/gu, "");
 
 // The genre the control songs come from: the tag shared by the most seeds, counting spellings
 // like "j-pop" and "JPop" as one. Ties go to the first seed's order
