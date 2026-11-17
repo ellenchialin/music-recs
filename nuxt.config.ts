@@ -57,6 +57,11 @@ export default defineNuxtConfig({
   typescript: {
     strict: true,
   },
+  // Lets the database client find the request it's running for, to report query times in
+  // Server-Timing (server/plugins/request-timing.ts)
+  nitro: {
+    experimental: { asyncContext: true },
+  },
   $production: {
     routeRules: { "/**": { headers: securityHeaders } },
   },

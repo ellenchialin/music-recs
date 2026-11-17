@@ -404,3 +404,25 @@ It runs twice: desktop, and a phone with Lighthouse's mobile profile (slow 4G, 4
 - **Asynchronous, like previews**: records appear first; the reason replaces "Similar to X" when it arrives. The model's 1–3 s never blocks the page.
 - **Cost control in layers**: a cache per seed set and artist (a repeated query costs nothing), a site-wide daily cap (300 calls), a per-IP rate limit, and a monthly spend limit in the Anthropic Console as the last line. Without an API key (tests, CI, E2E) the feature turns itself off.
 - **Prompt version in the cache key**: changing the prompt bumps `REASONS_PROMPT_VERSION`, so old reasons are ignored instead of mixed with new ones.
+
+## 18. Server-Timing: the server's own stopwatch
+
+> **Frontend analogy**: the network panel shows how long a request took from the browser's side, like a stopwatch on the outside of a box. `Server-Timing` is the server writing on the box what happened inside: "800 ms in total, 600 of it waiting for the database".
+
+Every response carries a header such as:
+
+```
+Server-Timing: total;dur=812.4, db;dur=640.2;desc="3 queries", db-first;dur=601.5, instance;desc="up 1.4 s"
+```
+
+Chrome shows it in DevTools → Network → a request → Timing, under "Server Timing".
+
+- **`db`** is the time in queries, measured from asking the connection pool to getting the result, so it includes waiting for a free connection or opening a new one. **`db-first`** is the first query alone, where a cold connection shows up.
+- **`instance`** is how long the server process had been running. "up 1.4 s" means the request landed on a fresh instance (a cold start).
+
+**How a query finds its request.** The database client is shared by every request an instance serves, so when a query finishes it has to know which request to add its time to. Nitro's `experimental.asyncContext` uses Node's `AsyncLocalStorage`, which works like React context but for async code: whatever runs during a request, however deep or after however many `await`s, can call `useEvent()` and get that request. Queries outside a request (the wake-up `select 1` that runs after the response) find none and aren't counted.
+
+**Timing a lazy query.** A postgres.js query is a Promise that only starts when something calls `then()` (`await` does). `timeQueries` wraps the client's `unsafe` method, which drizzle uses for every query, and times each query from `then()` to its result.
+
+**See it**: open the live site with DevTools on the Network tab, pick an `/api/previews` request and look at its Timing tab, or run `curl -sI "https://musicrecs.ellenchen.dev/api/stats" | grep -i server-timing`.
+
