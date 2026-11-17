@@ -174,20 +174,6 @@ useShareMeta(() => ({
             the same genre? Find out with your own ears, without names getting
             in the way.
           </p>
-          <ol
-            data-testid="check-steps"
-            class="mt-4 flex flex-col gap-1 text-base"
-          >
-            <li>
-              <strong>1.</strong> Play three songs. You won't see who they're
-              by.
-            </li>
-            <li><strong>2.</strong> Rate each one from 1 to 5.</li>
-            <li>
-              <strong>3.</strong> See which were recommended for
-              {{ seedsLabel(query.seeds) }} and which were random picks.
-            </li>
-          </ol>
           <!-- Extra information, not a step: set apart by a rule and a label in the same ink-block
                style as the records' "AI" tag -->
           <aside
@@ -220,6 +206,20 @@ useShareMeta(() => ({
               >
             </p>
           </aside>
+          <ol
+            data-testid="check-steps"
+            class="mt-4 flex flex-col gap-1 text-base"
+          >
+            <li>
+              <strong>1.</strong> Play three songs. You won't see who they're
+              by.
+            </li>
+            <li><strong>2.</strong> Rate each one from 1 to 5.</li>
+            <li>
+              <strong>3.</strong> See which were recommended for
+              {{ seedsLabel(query.seeds) }} and which were random picks.
+            </li>
+          </ol>
         </template>
         <p v-else-if="phase !== 'revealed'" class="mt-2 text-base sm:text-lg">
           Play each song and rate it, then reveal which were picked for you.
