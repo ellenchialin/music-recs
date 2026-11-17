@@ -4,16 +4,18 @@ import { mergeCandidates } from "./merge-candidates";
 import type { Candidate, ExcludedArtist, SeedSimilarity } from "./types";
 
 // Bump whenever the ranking rules change: blind-test ratings are stored with the version.
-// v1: summed match. v2: summed rank scores (Reciprocal Rank Fusion)
+// v1: summed match. v2: summed rank scores (Reciprocal Rank Fusion).
+// The popularity slider didn't bump it: "balanced" is exactly v2, and rounds store their setting
 export const ALGO_VERSION = "v2";
 
-const DEFAULT_LIMIT = 10;
+// How many records a list shows
+export const RECOMMENDATION_LIMIT = 10;
 
 // Merge → exclude → take the top N
 export function recommend({
   seeds,
   exclude = [],
-  limit = DEFAULT_LIMIT,
+  limit = RECOMMENDATION_LIMIT,
 }: {
   seeds: SeedSimilarity[];
   // When exploring: the original seeds and artists shown on earlier levels

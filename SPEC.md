@@ -32,7 +32,7 @@ Decisions already made are in `docs/ai-log.md`. When the spec and a decision dis
 1. Open the home page (`/`), enter 1–3 artists you like (with autocomplete) and press Recommend.
 2. The recommendations page (`/recommendations?seed=…`, one screen, no scrolling) shows 10 records: cover, title, a 30-second preview and a one-line reason.
 3. "Explore from here" on a record digs one level deeper (the URL gains `&explore=…`), up to 3 levels. The breadcrumb `Home › seeds › Pond` goes back to any level, the browser's Back button works too, and Home returns with the seeds for editing.
-4. A mainstream ↔ obscure slider changes the recommendations. (Deferred.)
+4. A popularity setting (Obscure / Balanced / Mainstream, `&popularity=…`) re-ranks the recommendations; Explore and the Taste Check keep the setting.
 5. The Taste Check (`/taste-check`, linked from the recommendations page as "Fit your taste? →"): a blind test. Listen to 3 songs, rate each 1–5, then see which ones were picked for you.
 
 ## Features
@@ -51,7 +51,7 @@ The algorithm lives in `server/utils/recommend/` as pure functions:
 1. Get Last.fm's similar artists (with a `match` score) for each seed.
 2. Merge candidates: similar to more seeds and more similar scores higher.
 3. Exclude the seeds themselves (and, when exploring, artists shown on earlier levels).
-4. Popularity: weight by the log of listener counts. [Deferrable]
+4. Popularity (only off Balanced): look up Last.fm listener counts for the 30 most similar candidates and re-rank them by similarity rank plus popularity rank, weighted double; Balanced is the plain ranking and makes no extra calls.
 5. Take one track per artist and get its preview and cover from iTunes (trying the Taiwan, US and Japan stores in order). Without a preview, show "No preview" and no play button.
 
 Every result is tagged with an `algo_version`.
@@ -115,7 +115,7 @@ Every result is tagged with an `algo_version`.
 | `visitors` | Anonymous ID, creation time | Built |
 | `rate_limits` | Per-client rate-limit counts, external API budgets and the iTunes breaker | Built |
 | `reason_cache` | Cached recommendation reasons (seed set + artist + prompt version) | Built |
-| `blind_tests`, `blind_test_items` | Each round (visitor, seeds, algorithm version, control genre) and its three songs (which were recommended, ratings) | Built |
+| `blind_tests`, `blind_test_items` | Each round (visitor, seeds, algorithm version, popularity setting, control genre) and its three songs (which were recommended, ratings) | Built |
 
 ## API (draft)
 

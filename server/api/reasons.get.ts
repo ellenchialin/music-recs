@@ -9,11 +9,11 @@ import { recommendationsQuery } from "../services/recommendations-query";
 // so the page keeps "Similar to …"
 export default defineEventHandler(async (event) => {
   await enforceRateLimit(event, "reasons");
-  const { seeds, exclude } = await getValidatedQuery(event, (query) => recommendationsQuery.parse(query));
+  const { seeds, exclude, popularity } = await getValidatedQuery(event, (query) => recommendationsQuery.parse(query));
   try {
     const reasons = await getReasons(
       { db: getDb(), lastfm: getLastfmClient(), itunes: getItunesClient(), now: new Date(), writer: getReasonsWriter() },
-      { seeds, exclude },
+      { seeds, exclude, popularity },
     );
     return { reasons };
   } catch (err) {

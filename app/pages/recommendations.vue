@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { AnimatePresence, motion } from "motion-v";
+import { DEFAULT_POPULARITY, type Popularity } from "~~/shared/types/popularity";
 import type { RecommendationsResult, SeedNotFoundData } from "~~/shared/types/recommendations";
 import { normalizeArtistName } from "~~/shared/utils/normalize-artist-name";
 import type { CrateCard } from "~/components/RecordCrate.vue";
@@ -13,35 +14,38 @@ import {
   tasteCheckLocation,
 } from "~/utils/recommendations-route";
 
-// /recommendations?seed=…&explore=…: the URL decides everything, so Back goes up a level
+// /recommendations?seed=…&explore=…&popularity=…: the URL decides everything, so Back goes up a level
 
 const route = useRoute();
 const router = useRouter();
 const query = computed(() => parseRecommendationsQuery(route.query));
 
-// Every level fetched so far, keyed by seeds + path, so going back never refetches.
+// Every level fetched so far, keyed by seeds + path + slider setting, so going back never refetches.
 // useState also carries server-fetched results to the browser
 const levels = useState<Record<string, RecommendationsResult>>("recommendation-levels", () => ({}));
 // The record being viewed on each level
 const viewing = useState<Record<string, number>>("recommendation-viewing", () => ({}));
-const levelKey = (seeds: string[], path: string[]) =>
-  JSON.stringify([seeds.map(normalizeArtistName), path.map(normalizeArtistName)]);
+const levelKey = (seeds: string[], path: string[], popularity: Popularity) =>
+  JSON.stringify([seeds.map(normalizeArtistName), path.map(normalizeArtistName), popularity]);
 
 const api = useApiFetch();
 
 type Loaded = { trail: Trail; notFound: SeedNotFoundData | null; failed: boolean; rateLimited: boolean };
 
 // The query each level was fetched with; /api/reasons is asked with the same one
-type LevelQuery = { seed: string | string[]; exclude?: string[] };
+type LevelQuery = { seed: string | string[]; exclude?: string[]; popularity?: Popularity };
 const levelQueries = useState<Record<string, LevelQuery>>("recommendation-queries", () => ({}));
 
 // Level 0 uses the user's seeds; deeper levels use one artist and exclude everything shown above
-async function fetchLevel(seeds: string[], path: string[], above: Trail): Promise<RecommendationsResult> {
-  const key = levelKey(seeds, path);
+async function fetchLevel(seeds: string[], path: string[], above: Trail, popularity: Popularity): Promise<RecommendationsResult> {
+  const key = levelKey(seeds, path, popularity);
   const cached = levels.value[key];
   if (cached) return cached;
   const artist = path.at(-1);
-  const levelQuery: LevelQuery = artist ? { seed: artist, exclude: excludedFor(above, seeds) } : { seed: seeds };
+  const levelQuery: LevelQuery = {
+    ...(artist ? { seed: artist, exclude: excludedFor(above, seeds) } : { seed: seeds }),
+    ...(popularity === DEFAULT_POPULARITY ? {} : { popularity }),
+  };
   const result = await api<RecommendationsResult>("/api/recommendations", { query: levelQuery });
   levels.value[key] = result;
   levelQueries.value[key] = levelQuery;
@@ -54,7 +58,7 @@ async function load(q: NonNullable<typeof query.value>): Promise<Loaded> {
   try {
     for (let depth = 0; depth <= q.explore.length; depth++) {
       const path = q.explore.slice(0, depth);
-      const result = await fetchLevel(q.seeds, path, trail);
+      const result = await fetchLevel(q.seeds, path, trail, q.popularity);
       // A shared link whose level has nothing new anymore: stop at the level above
       if (depth > 0 && !result.recommendations.length) break;
       trail.push({ artist: path.at(-1) ?? null, result, index: 0 });
@@ -79,9 +83,19 @@ const { data, status, refresh } = useAsyncData(
 const trail = computed(() => data.value?.trail ?? []);
 const currentLevel = computed(() => trail.value.at(-1));
 const currentKey = computed(() =>
-  query.value ? levelKey(query.value.seeds, query.value.explore.slice(0, trail.value.length - 1)) : "",
+  query.value
+    ? levelKey(query.value.seeds, query.value.explore.slice(0, trail.value.length - 1), currentLevel.value?.result.popularity ?? query.value.popularity)
+    : "",
 );
 const loadingFirst = computed(() => status.value === "pending" && !data.value);
+// A new slider setting is being fetched while the previous list stays on screen
+const resorting = computed(() => status.value === "pending" && Boolean(data.value));
+
+// replace, not push: Back keeps meaning "up a level", and the picker itself undoes a setting
+function setPopularity(popularity: Popularity) {
+  const q = query.value;
+  if (q) void router.replace(recommendationsLocation(q.seeds, q.explore, popularity));
+}
 
 // Coming from home, hold the turntable even if data is instant, so it doesn't flash past like an
 // afterimage. Direct visits (reload, shared link) show results right away
@@ -118,14 +132,14 @@ async function explore(artist: string) {
   exploreMessage.value = "";
   const path = [...q.explore.slice(0, trail.value.length - 1), artist];
   try {
-    const result = await fetchLevel(q.seeds, path, trail.value);
+    const result = await fetchLevel(q.seeds, path, trail.value, q.popularity);
     if (!result.recommendations.length) {
       exploreMessage.value = "No new artists here — try another record";
       return;
     }
     direction.value = 1;
     await nextTick();
-    await router.push(recommendationsLocation(q.seeds, path));
+    await router.push(recommendationsLocation(q.seeds, path, q.popularity));
   } catch (err) {
     exploreMessage.value =
       (err as { statusCode?: number }).statusCode === 429
@@ -188,12 +202,12 @@ onMounted(() => {
 
 function useSuggestion(seed: string, suggestion: string) {
   const seeds = query.value?.seeds.map((s) => (s === seed ? suggestion : s)) ?? [suggestion];
-  void router.replace(recommendationsLocation(seeds));
+  void router.replace(recommendationsLocation(seeds, [], query.value?.popularity));
 }
 
 function removeMissing(seed: string) {
   const seeds = query.value?.seeds.filter((s) => s !== seed) ?? [];
-  void router.replace(seeds.length ? recommendationsLocation(seeds) : homeLocation([]));
+  void router.replace(seeds.length ? recommendationsLocation(seeds, [], query.value?.popularity) : homeLocation([]));
 }
 
 // Home › Tame Impala + Kokoroko › Pond › GUM
@@ -201,17 +215,19 @@ const crumbs = computed(() => {
   const q = query.value;
   if (!q) return [];
   return [
-    { label: seedsLabel(q.seeds), to: recommendationsLocation(q.seeds) },
+    { label: seedsLabel(q.seeds), to: recommendationsLocation(q.seeds, [], q.popularity) },
     ...trail.value.slice(1).map((level, i) => ({
       label: level.artist!,
-      to: recommendationsLocation(q.seeds, q.explore.slice(0, i + 1)),
+      to: recommendationsLocation(q.seeds, q.explore.slice(0, i + 1), q.popularity),
     })),
   ];
 });
 
-// Move focus to the heading on level change so screen reader users know the content changed
+// Move focus to the heading on level change so screen reader users know the content changed.
+// Not when only the slider setting changed: that would pull focus out of the picker mid-choice
 const heading = ref<HTMLElement | null>(null);
-watch(currentKey, async () => {
+const placeKey = computed(() => JSON.stringify([query.value?.seeds, query.value?.explore.slice(0, trail.value.length - 1)]));
+watch(placeKey, async () => {
   await nextTick();
   heading.value?.focus({ preventScroll: true });
 });
@@ -250,7 +266,7 @@ useShareMeta(() => ({
         </ol>
       </nav>
       <!-- Always tests the original seeds' recommendations, whichever level is showing -->
-      <NuxtLink v-if="query" :to="tasteCheckLocation(query.seeds)" class="shrink-0 font-bold whitespace-nowrap underline underline-offset-4">
+      <NuxtLink v-if="query" :to="tasteCheckLocation(query.seeds, query.popularity)" class="shrink-0 font-bold whitespace-nowrap underline underline-offset-4">
         Fit your taste? →
       </NuxtLink>
     </header>
@@ -306,17 +322,28 @@ useShareMeta(() => ({
         <button type="button" class="mt-4 border-3 border-ink bg-teal px-4 py-2 font-bold" @click="refresh()">Try again</button>
       </section>
 
-      <section v-else-if="currentLevel" :aria-busy="exploring" class="flex min-h-0 flex-1 flex-col">
-        <h1
-          ref="heading"
-          tabindex="-1"
-          class="shrink-0 truncate font-wide text-[clamp(1.375rem,6vw,3rem)] leading-tight font-black focus:outline-none short-landscape:text-2xl"
-        >
-          {{ currentLevel.artist ? `More like ${currentLevel.artist}` : "Recommended for you" }}
-        </h1>
+      <section v-else-if="currentLevel" :aria-busy="exploring || resorting" class="flex min-h-0 flex-1 flex-col">
+        <!-- The picker sits beside the heading, and wraps under it on narrow screens -->
+        <div class="flex shrink-0 flex-wrap items-end justify-between gap-x-6 gap-y-2">
+          <h1
+            ref="heading"
+            tabindex="-1"
+            class="min-w-0 truncate font-wide text-[clamp(1.375rem,6vw,3rem)] leading-tight font-black focus:outline-none short-landscape:text-2xl"
+          >
+            {{ currentLevel.artist ? `More like ${currentLevel.artist}` : "Recommended for you" }}
+          </h1>
+          <PopularityPicker :model-value="query.popularity" :busy="resorting" @update:model-value="setPopularity" />
+        </div>
 
-        <!-- Side covers overflow and are clipped by main's overflow-x-clip. One crate per level (key) -->
-        <motion.div v-bind="fadeUp" :transition="spring.smooth" class="mt-4 min-h-0 flex-1 sm:mt-6">
+        <!-- Side covers overflow and are clipped by main's overflow-x-clip. One crate per level (key).
+             Dimmed while a new slider setting loads, since the old list stays up meanwhile -->
+        <motion.div
+          v-bind="fadeUp"
+          :animate="{ opacity: resorting ? 0.5 : 1, y: 0 }"
+          :transition="spring.smooth"
+          data-testid="crate"
+          class="mt-4 min-h-0 flex-1 sm:mt-6"
+        >
           <AnimatePresence mode="wait" :initial="false">
             <motion.div
               :key="currentKey"

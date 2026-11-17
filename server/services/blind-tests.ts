@@ -8,6 +8,7 @@ import { getTagChart } from "../cache/tag-charts";
 import { getArtistTrack } from "../cache/tracks";
 import { computeStats, pickRound, pickTopTag, type Song, type VersionStats } from "../utils/blind-test";
 import { mapLimit } from "../utils/map-limit";
+import { DEFAULT_POPULARITY, type Popularity } from "../../shared/types/popularity";
 import { normalizeArtistName } from "../../shared/utils/normalize-artist-name";
 import { getRecommendations } from "./recommendations";
 
@@ -47,10 +48,10 @@ const CONCURRENCY = 3;
 
 export async function createBlindTest(
   deps: Deps,
-  { visitorId, seeds }: { visitorId: string; seeds: string[] },
+  { visitorId, seeds, popularity }: { visitorId: string; seeds: string[]; popularity?: Popularity },
 ): Promise<{ id: string; songs: { position: number; previewUrl: string }[] }> {
   const random = deps.random ?? Math.random;
-  const result = await getRecommendations(deps, { seeds });
+  const result = await getRecommendations(deps, { seeds, popularity });
 
   const recommended: Song[] = result.recommendations.flatMap((r) =>
     r.preview.status === "available" && r.track ? [{ artist: r.artist, title: r.track.title, previewUrl: r.preview.url }] : [],
@@ -81,7 +82,14 @@ export async function createBlindTest(
     await tx.insert(visitors).values({ id: visitorId }).onConflictDoNothing();
     const [test] = await tx
       .insert(blindTests)
-      .values({ visitorId, seeds: result.seeds, algoVersion: result.algoVersion, controlTag, createdAt: deps.now })
+      .values({
+        visitorId,
+        seeds: result.seeds,
+        algoVersion: result.algoVersion,
+        popularity: result.popularity,
+        controlTag,
+        createdAt: deps.now,
+      })
       .returning({ id: blindTests.id });
     await tx.insert(blindTestItems).values(round.map((song, position) => ({ testId: test!.id, position, ...song })));
     return test!.id;
@@ -140,6 +148,7 @@ export async function getBlindTestStats(db: Db): Promise<VersionStats[]> {
     })
     .from(blindTestItems)
     .innerJoin(blindTests, eq(blindTestItems.testId, blindTests.id))
-    .where(and(isNotNull(blindTests.ratedAt), isNotNull(blindTestItems.rating)));
+    // A version's stats are about its plain ranking; slider rounds are compared separately
+    .where(and(isNotNull(blindTests.ratedAt), isNotNull(blindTestItems.rating), eq(blindTests.popularity, DEFAULT_POPULARITY)));
   return computeStats(rows.map((r) => ({ ...r, rating: r.rating! })));
 }

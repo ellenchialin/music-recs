@@ -50,6 +50,13 @@
       "when": 1794889224508,
       "tag": "0006_tag_charts",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1794895561199,
+      "tag": "0007_blind_test_popularity",
+      "breakpoints": true
     }
   ]
 }

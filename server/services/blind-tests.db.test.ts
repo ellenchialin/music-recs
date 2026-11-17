@@ -97,6 +97,16 @@ describe("createBlindTest", () => {
     expect(chartCalls.count).toBe(1);
   });
 
+  it("stores the slider setting the round was played with, balanced unless told otherwise", async () => {
+    const plain = await createBlindTest(deps(), { visitorId: randomUUID(), seeds });
+    const obscure = await createBlindTest(deps(), { visitorId: randomUUID(), seeds, popularity: "obscure" });
+
+    const [plainRow] = await db.select().from(blindTests).where(eq(blindTests.id, plain.id));
+    const [obscureRow] = await db.select().from(blindTests).where(eq(blindTests.id, obscure.id));
+    expect(plainRow?.popularity).toBe("balanced");
+    expect(obscureRow?.popularity).toBe("obscure");
+  });
+
   it("fails clearly when there aren't enough songs with previews", async () => {
     const noPreview = ["Pond", "GUM", "Temples", "Ezra Collective"];
     await expect(createBlindTest(deps({ noPreview }), { visitorId: randomUUID(), seeds })).rejects.toBeInstanceOf(NotEnoughSongsError);
@@ -148,5 +158,18 @@ describe("getBlindTestStats", () => {
     const rec = reveal.filter((r) => r.isRecommended).map((r) => r.rating!);
     const ctl = reveal.filter((r) => !r.isRecommended).map((r) => r.rating!);
     expect(stats!.difference).toBeCloseTo(mean(rec) - mean(ctl), 6);
+  });
+
+  // The version's number is about the plain ranking; slider rounds are compared separately
+  it("leaves rounds played off the middle of the slider out of the version's stats", async () => {
+    const balanced = randomUUID();
+    const first = await createBlindTest(deps(), { visitorId: balanced, seeds });
+    await rateBlindTest({ db, now }, { visitorId: balanced, testId: first.id, ratings: [5, 4, 2] });
+    const obscure = randomUUID();
+    const second = await createBlindTest(deps(), { visitorId: obscure, seeds, popularity: "obscure" });
+    await rateBlindTest({ db, now }, { visitorId: obscure, testId: second.id, ratings: [1, 1, 1] });
+
+    const [stats] = await getBlindTestStats(db);
+    expect(stats).toMatchObject({ algoVersion: "v2", visitors: 1, ratings: 3 });
   });
 });

@@ -230,6 +230,18 @@ v2 uses **Reciprocal Rank Fusion** (a common way search engines merge result lis
 
 **The cost**: ranks throw away how large `match` was. If a seed's whole list is weak (its #1 is only 0.2), its #1 still counts as much as another seed's #1.
 
+### The popularity setting: a second ranking, merged the same way
+
+> **Frontend analogy**: sorting a table by two columns at once. Sorting by "similar" then by "popular" would let one column win outright; instead each row gets points for its place in both orders, and the points are added.
+
+Obscure and Mainstream re-order the 30 most similar candidates (`rerankByPopularity` in `server/utils/recommend/popularity.ts`). Each candidate scores `1 / (5 + similarity rank) + 2 / (5 + popularity rank)`: the same rank formula as merging seeds, for the same reason. Listener counts run from hundreds to millions, so any formula using the raw number is decided by the biggest artist; ranks only ask "who's ahead of whom".
+
+- **Why a pool of 30**: every candidate needs one Last.fm call for its listener count, so the pool has to be small; and anything outside the 30 most similar isn't a good recommendation however popular it is.
+- **Why Balanced costs nothing**: it skips the whole step, so the default list is exactly algorithm v2 and makes no extra calls.
+- **Why popularity counts double**: at equal weight, swapping two artists' places in the two orders is an exact tie and the setting hardly changes the list.
+
+**See it**: `curl -s "http://localhost:3000/api/recommendations?seed=Tame%20Impala&popularity=obscure"`, then the same with `mainstream`, and compare the artists.
+
 ## 10. The home page: SSR, localStorage and autocomplete
 
 ### The SSR localStorage trap (`skipHydrate`)

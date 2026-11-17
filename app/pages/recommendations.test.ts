@@ -7,6 +7,8 @@ import RecommendationsPage from "./recommendations.vue";
 // Fake API: "Kokoroco" (misspelled) → 404; user seeds → Khruangbin, Nowhere; exploring X →
 // "X Friend 1", "X Friend 2"; exploring Nowhere → nothing new. Records every request
 let requests: { seeds: string[]; exclude: string[] }[] = [];
+// The slider setting each request carried (null in the middle), in the same order as `requests`
+let popularityRequests: (string | null)[] = [];
 let gate: Promise<void> | null = null;
 let throttled = false;
 const card = (artist: string): RecommendationCard => ({
@@ -24,6 +26,7 @@ registerEndpoint("/api/recommendations", async (event) => {
   const seeds = query.getAll("seed");
   const exclude = query.getAll("exclude");
   requests.push({ seeds, exclude });
+  popularityRequests.push(query.get("popularity"));
   if (throttled) throw createError({ statusCode: 429, statusMessage: "Too many requests, try again in a minute" });
   if (seeds.includes("Kokoroco")) {
     throw createError({ statusCode: 404, data: { seed: "Kokoroco", suggestions: ["Kokoroko", "LocoRoco"] } });
@@ -32,6 +35,7 @@ registerEndpoint("/api/recommendations", async (event) => {
   const artists = !exclude.length ? ["Khruangbin", "Nowhere"] : seed === "Nowhere" ? [] : [`${seed} Friend 1`, `${seed} Friend 2`];
   const result: RecommendationsResult = {
     algoVersion: "v2",
+    popularity: (query.get("popularity") as RecommendationsResult["popularity"] | null) ?? "balanced",
     seeds,
     recommendations: seed === "Slow Lane" ? ["Pond", "MGMT"].map(pendingCard) : artists.map(card),
   };
@@ -58,15 +62,19 @@ registerEndpoint("/api/previews", async (event) => {
 
 // Fake reasons API: a reason for Khruangbin only; records each query
 let reasonRequests: { seeds: string[]; exclude: string[] }[] = [];
+let reasonPopularity: (string | null)[] = [];
 registerEndpoint("/api/reasons", async (event) => {
   const query = new URLSearchParams(event.path.split("?")[1]);
   reasonRequests.push({ seeds: query.getAll("seed"), exclude: query.getAll("exclude") });
+  reasonPopularity.push(query.get("popularity"));
   return { reasons: { Khruangbin: "Same hazy, groove-first guitar.", Nowhere: null } };
 });
 
 beforeEach(() => {
   reasonRequests = [];
+  reasonPopularity = [];
   requests = [];
+  popularityRequests = [];
   previewRequests = [];
   failures = {};
   gate = null;
@@ -281,5 +289,80 @@ describe("recommendations page", () => {
     await vi.waitFor(() => expect(reasonRequests).toHaveLength(2));
     expect(reasonRequests[1]).toEqual(requests[1]);
   });
-});
 
+describe("popularity setting", () => {
+  const setting = (page: Page, value: string) => page.get(`input[name="popularity"][value="${value}"]`);
+  const checked = (page: Page) =>
+    page.findAll('input[name="popularity"]').find((input) => (input.element as HTMLInputElement).checked)?.attributes("value");
+
+  it("starts in the middle and asks for the plain ranking", async () => {
+    const page = await open(SEEDS);
+    await vi.waitFor(() => expect(recordNames(page)).toHaveLength(2));
+
+    expect(checked(page)).toBe("balanced");
+    expect(popularityRequests).toEqual([null]);
+  });
+
+  it("re-ranks when a setting is chosen, and keeps it in the URL", async () => {
+    const page = await open(SEEDS);
+    await vi.waitFor(() => expect(recordNames(page)).toHaveLength(2));
+
+    await setting(page, "obscure").setValue(true);
+
+    await vi.waitFor(() => expect(popularityRequests).toEqual([null, "obscure"]));
+    expect(currentQuery()).toEqual({ ...SEEDS_QUERY, popularity: "obscure" });
+    expect(checked(page)).toBe("obscure");
+  });
+
+  it("opens a shared link with its setting", async () => {
+    const page = await open(`${SEEDS}&popularity=mainstream`);
+    await vi.waitFor(() => expect(recordNames(page)).toHaveLength(2));
+
+    expect(checked(page)).toBe("mainstream");
+    expect(popularityRequests).toEqual(["mainstream"]);
+  });
+
+  it("carries the setting into Explore, the breadcrumb, reasons and the Taste Check link", async () => {
+    const page = await open(`${SEEDS}&popularity=obscure`);
+    await vi.waitFor(() => expect(recordNames(page)).toHaveLength(2));
+    const tasteCheck = page.findAll("a").find((a) => a.text().includes("Fit your taste?"))!;
+    expect(tasteCheck.attributes("href")).toBe("/taste-check?seed=Tame+Impala&seed=Kokoroko&popularity=obscure");
+
+    await button(page, "Explore artists like Khruangbin")!.trigger("click");
+
+    await vi.waitFor(() => expect(heading(page)).toBe("More like Khruangbin"));
+    expect(currentQuery()).toEqual({ ...SEEDS_QUERY, explore: ["Khruangbin"], popularity: "obscure" });
+    expect(popularityRequests).toEqual(["obscure", "obscure"]);
+    expect(crumbLink(page, "Tame Impala + Kokoroko").attributes("href")).toBe(
+      "/recommendations?seed=Tame+Impala&seed=Kokoroko&popularity=obscure",
+    );
+    await vi.waitFor(() => expect(reasonPopularity).toEqual(["obscure", "obscure"]));
+  });
+
+  it("marks the list busy while a new setting loads", async () => {
+    const page = await open(SEEDS);
+    await vi.waitFor(() => expect(recordNames(page)).toHaveLength(2));
+    let release = () => {};
+    gate = new Promise((resolve) => (release = resolve));
+
+    await setting(page, "obscure").setValue(true);
+
+    await vi.waitFor(() => expect(page.get("section[aria-busy]").attributes("aria-busy")).toBe("true"));
+    expect(page.get("fieldset").attributes("aria-busy")).toBe("true");
+    release();
+    await vi.waitFor(() => expect(page.get("section[aria-busy]").attributes("aria-busy")).toBe("false"));
+  });
+
+  it("goes back to the plain ranking without refetching it", async () => {
+    const page = await open(SEEDS);
+    await vi.waitFor(() => expect(recordNames(page)).toHaveLength(2));
+    await setting(page, "mainstream").setValue(true);
+    await vi.waitFor(() => expect(popularityRequests).toHaveLength(2));
+
+    await setting(page, "balanced").setValue(true);
+
+    await vi.waitFor(() => expect(currentQuery()).toEqual(SEEDS_QUERY));
+    expect(popularityRequests).toHaveLength(2);
+  });
+});
+});

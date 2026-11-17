@@ -4,6 +4,7 @@ import { MAX_EXPLORE_DEPTH, backTo, canExplore, excludedFor, exploreFrom, type T
 
 const result = (...artists: string[]): RecommendationsResult => ({
   algoVersion: "v2",
+  popularity: "balanced",
   seeds: [],
   recommendations: artists.map((artist) => ({
     artist,

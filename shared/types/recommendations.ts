@@ -1,3 +1,5 @@
+import type { Popularity } from "./popularity";
+
 // GET /api/recommendations response, shared by server and client
 
 // "error" isn't cached and may work on retry; "unavailable" means no store has a preview;
@@ -25,6 +27,8 @@ export type CardPreview = { track: CardTrack | null; preview: Preview };
 
 export type RecommendationsResult = {
   algoVersion: string;
+  // The slider setting this list was ranked with
+  popularity: Popularity;
   seeds: string[];
   recommendations: RecommendationCard[];
 };

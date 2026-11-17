@@ -3,7 +3,7 @@ import { motion } from "motion-v";
 import { describeOverall, describeRound } from "~/utils/taste-check-copy";
 import { homeLocation, parseRecommendationsQuery, recommendationsLocation, seedsLabel } from "~/utils/recommendations-route";
 
-// /taste-check?seed=…: a blind test of three unnamed songs, rated 1–5, then revealed. A round is created only on
+// /taste-check?seed=…(&popularity=…): a blind test of three unnamed songs, rated 1–5, then revealed. A round is created only on
 // Start, so crawlers opening the page don't create rounds
 
 type Song = { position: number; previewUrl: string };
@@ -47,7 +47,7 @@ async function start() {
   try {
     const round = await $fetch<{ id: string; songs: Song[] }>("/api/blind-tests", {
       method: "POST",
-      body: { seeds: query.value.seeds },
+      body: { seeds: query.value.seeds, popularity: query.value.popularity },
     });
     roundId.value = round.id;
     songs.value = round.songs;
@@ -106,7 +106,7 @@ useShareMeta(() => ({
           </li>
           <li v-if="query" class="flex items-center gap-2">
             <span aria-hidden="true">›</span>
-            <NuxtLink :to="recommendationsLocation(query.seeds)" class="font-bold underline underline-offset-4">
+            <NuxtLink :to="recommendationsLocation(query.seeds, [], query.popularity)" class="font-bold underline underline-offset-4">
               {{ seedsLabel(query.seeds) }}
             </NuxtLink>
           </li>
@@ -255,7 +255,7 @@ useShareMeta(() => ({
               >
                 Play another round
               </motion.button>
-              <NuxtLink :to="recommendationsLocation(query.seeds)" class="font-bold underline underline-offset-4">
+              <NuxtLink :to="recommendationsLocation(query.seeds, [], query.popularity)" class="font-bold underline underline-offset-4">
                 Back to recommendations
               </NuxtLink>
             </template>

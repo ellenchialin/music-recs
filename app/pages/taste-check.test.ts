@@ -76,7 +76,7 @@ describe("taste check page", () => {
     const page = await open();
     expect(started).toEqual([]);
     await start(page);
-    expect(started).toEqual([{ seeds: ["Tame Impala"] }]);
+    expect(started).toEqual([{ seeds: ["Tame Impala"], popularity: "balanced" }]);
   });
 
   it("plays songs without showing who they're by", async () => {
@@ -115,5 +115,15 @@ describe("taste check page", () => {
     const page = await open("/taste-check");
     expect(page.text()).toContain("Pick an artist first");
     expect(button(page, "Start")).toBeUndefined();
+  });
+
+  it("tests the list's slider setting and links back to it", async () => {
+    const page = await open("/taste-check?seed=Tame%20Impala&popularity=obscure");
+
+    await start(page);
+
+    expect(started).toEqual([{ seeds: ["Tame Impala"], popularity: "obscure" }]);
+    const back = page.findAll('nav[aria-label="Breadcrumb"] a').find((a) => a.text() === "Tame Impala")!;
+    expect(back.attributes("href")).toBe("/recommendations?seed=Tame+Impala&popularity=obscure");
   });
 });

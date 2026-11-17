@@ -5,17 +5,18 @@ import { enforceRateLimit } from "../services/rate-limit";
 import { SeedNotFoundError, getRecommendations } from "../services/recommendations";
 import { recommendationsQuery } from "../services/recommendations-query";
 
-// GET /api/recommendations?seed=Tame%20Impala&seed=Kokoroko (&exclude=… when exploring).
+// GET /api/recommendations?seed=Tame%20Impala&seed=Kokoroko (&exclude=… when exploring,
+// &popularity=obscure|mainstream for the slider).
 // Rate-limits, validates, calls the service and maps errors to status codes
 export default defineEventHandler(async (event) => {
   await enforceRateLimit(event, "recommendations");
-  const { seeds, exclude } = await getValidatedQuery(event, (query) => recommendationsQuery.parse(query));
+  const { seeds, exclude, popularity } = await getValidatedQuery(event, (query) => recommendationsQuery.parse(query));
 
   try {
     return await getRecommendations(
       { db: getDb(), lastfm: getLastfmClient(), itunes: getItunesClient(), now: new Date() },
       // Answer as soon as the list is known; the page fetches uncached previews from /api/previews
-      { seeds, exclude, previews: "cached" },
+      { seeds, exclude, popularity, previews: "cached" },
     );
   } catch (err) {
     // 404 with similar names the page can suggest

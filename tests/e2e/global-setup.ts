@@ -35,6 +35,12 @@ export default async function setup() {
     const level0 = await getRecommendations(deps, { seeds: ["Radiohead"] });
     assertComplete("Radiohead", level0.recommendations);
 
+    // The slider: the further down the plain list, the more listeners, so Mainstream brings the
+    // last record to the front
+    level0.recommendations.forEach((r, i) => LISTENERS.set(normalizeArtistName(r.artist), (i + 1) * 1000));
+    const mainstream = await getRecommendations(deps, { seeds: ["Radiohead"], popularity: "mainstream" });
+    assertComplete("Radiohead, mainstream", mainstream.recommendations);
+
     // Explore from the first record, with the same exclude list the page sends
     const first = level0.recommendations[0]!.artist;
     const exclude = ["Radiohead", ...level0.recommendations.map((r) => r.artist)];
@@ -80,11 +86,14 @@ const CONTROL = Array.from({ length: 6 }, (_, i) => ({ name: `Chart Artist ${i +
 // There are no fixtures for every recommended artist's top track, so each gets one made-up
 // song whose preview is served by the tests
 const TITLE = "E2E Song";
-// Any other artist is one the test explores from: made-up info and twelve made-up similar
-// artists, so the next level shows only new names
+// Listener counts for the slider, filled in by the seed above
+const LISTENERS = new Map<string, number>();
+
+// Any other artist is a slider candidate or the one the test explores from: made-up info and
+// twelve made-up similar artists, so the next level shows only new names
 const isRadiohead = (name: string) => normalizeArtistName(name) === "radiohead";
 const lastfm: Pick<LastfmClient, "getInfo" | "getSimilar" | "getTopTracks" | "searchArtists"> = {
-  getInfo: async (name) => (isRadiohead(name) ? recorded.getInfo(name) : { name, mbid: null, listeners: 1000, tags: ["rock"] }),
+  getInfo: async (name) => (isRadiohead(name) ? recorded.getInfo(name) : { name, mbid: null, listeners: LISTENERS.get(normalizeArtistName(name)) ?? 1000, tags: ["rock"] }),
   getSimilar: async (name, options) =>
     isRadiohead(name)
       ? recorded.getSimilar(name, options)

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { DEFAULT_POPULARITY, POPULARITY_SETTINGS } from "../../shared/types/popularity";
 
 // ?seed=Tame%20Impala&seed=Kokoroko&exclude=Pond. h3 gives a string for one value and an array
 // for several; normalize to arrays
@@ -10,7 +11,9 @@ export const recommendationsQuery = z.object({
   seed: oneOrMany.pipe(z.array(z.string()).min(1).max(3)),
   // Seeds plus artists shown on earlier levels: 3 + 10 × 3 levels fits well within 60
   exclude: oneOrMany.pipe(z.array(z.string()).max(60)).default([]),
-}).transform(({ seed, exclude }) => ({ seeds: seed, exclude }));
+  // The mainstream ↔ obscure slider
+  popularity: z.enum(POPULARITY_SETTINGS).default(DEFAULT_POPULARITY),
+}).transform(({ seed, exclude, popularity }) => ({ seeds: seed, exclude, popularity }));
 
 // GET /api/previews?artist=Pond: one card's preview, for cards the list left "pending"
 export const previewQuery = z.object({ artist: artistName });

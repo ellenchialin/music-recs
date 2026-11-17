@@ -13,7 +13,7 @@ const db = getDb();
 const now = new Date("2026-11-04T12:00:00Z");
 
 // A small fake world both fake clients answer from, counting calls
-type FakeArtist = { name: string; mbid?: string; similar?: [string, number][]; top?: string };
+type FakeArtist = { name: string; mbid?: string; similar?: [string, number][]; top?: string; listeners?: number };
 type FakePreview = "found" | "none" | "error";
 
 function fakeWorld(
@@ -29,7 +29,7 @@ function fakeWorld(
       calls.lastfm++;
       const a = find(name);
       if (!a) throw notFound();
-      return { name: a.name, mbid: a.mbid ?? null, listeners: 1000, tags: [] };
+      return { name: a.name, mbid: a.mbid ?? null, listeners: a.listeners ?? 1000, tags: [] };
     },
     getSimilar: async (name) => {
       calls.lastfm++;
@@ -195,6 +195,72 @@ describe("getRecommendations with cached previews only", () => {
 
     const byArtist = Object.fromEntries(result.recommendations.map((r) => [r.artist, r.preview.status]));
     expect(byArtist).toEqual({ Pond: "pending", MGMT: "available", Khruangbin: "pending" });
+  });
+});
+
+describe("getRecommendations with the popularity slider", () => {
+  // Most similar first; "Unlisted" has no Last.fm page, so its listener lookup fails
+  const sliderWorld = () =>
+    fakeWorld([
+      { name: "Seed", similar: [["Niche", 0.9], ["Middle", 0.8], ["Huge", 0.7], ["Unlisted", 0.6]] },
+      { name: "Niche", listeners: 900 },
+      { name: "Middle", listeners: 80_000 },
+      { name: "Huge", listeners: 5_000_000 },
+    ]);
+  const artistsOf = (result: Awaited<ReturnType<typeof getRecommendations>>) => result.recommendations.map((r) => r.artist);
+
+  it("puts widely heard artists first for mainstream and little-heard ones first for obscure", async () => {
+    const { lastfm, itunes } = sliderWorld();
+    const deps = { db, lastfm, itunes, now };
+
+    const mainstream = await getRecommendations(deps, { seeds: ["Seed"], popularity: "mainstream", previews: "cached" });
+    const obscure = await getRecommendations(deps, { seeds: ["Seed"], popularity: "obscure", previews: "cached" });
+
+    // The artist without a listener count stays in the list, after the others
+    expect(artistsOf(mainstream)).toEqual(["Huge", "Middle", "Niche", "Unlisted"]);
+    expect(artistsOf(obscure)).toEqual(["Niche", "Middle", "Huge", "Unlisted"]);
+    expect(mainstream.popularity).toBe("mainstream");
+  });
+
+  it("keeps the similarity order and looks up no listener counts when balanced", async () => {
+    const { lastfm, itunes, calls } = sliderWorld();
+
+    const result = await getRecommendations({ db, lastfm, itunes, now }, { seeds: ["Seed"], previews: "cached" });
+
+    expect(artistsOf(result)).toEqual(["Niche", "Middle", "Huge", "Unlisted"]);
+    expect(result.popularity).toBe("balanced");
+    // The seed's info and its similar list, nothing per candidate
+    expect(calls.lastfm).toBe(2);
+  });
+
+  it("looks up each candidate's listener count once, then answers from the cache", async () => {
+    const { lastfm, itunes, calls } = fakeWorld([
+      { name: "Seed", similar: [["Niche", 0.9], ["Huge", 0.8]] },
+      { name: "Niche", listeners: 900 },
+      { name: "Huge", listeners: 5_000_000 },
+    ]);
+    const deps = { db, lastfm, itunes, now };
+    await getRecommendations(deps, { seeds: ["Seed"], popularity: "mainstream", previews: "cached" });
+    expect(calls.lastfm).toBe(4);
+
+    await getRecommendations(deps, { seeds: ["Seed"], popularity: "obscure", previews: "cached" });
+
+    expect(calls.lastfm).toBe(4);
+  });
+
+  it("chooses among the 30 most similar artists only", async () => {
+    const similar = Array.from({ length: 35 }, (_, i) => [`Artist ${String(i + 1).padStart(2, "0")}`, 1 - i / 100] as [string, number]);
+    const { lastfm, itunes } = fakeWorld([
+      { name: "Seed", similar },
+      ...similar.map(([name], i) => ({ name, listeners: (i + 1) * 1000 })),
+    ]);
+
+    const result = await getRecommendations({ db, lastfm, itunes, now }, { seeds: ["Seed"], popularity: "mainstream", previews: "cached" });
+
+    // Artists 31–35 have the most listeners but aren't similar enough to be considered
+    expect(artistsOf(result)).toHaveLength(10);
+    expect(artistsOf(result)[0]).toBe("Artist 30");
+    for (const name of ["Artist 31", "Artist 35"]) expect(artistsOf(result)).not.toContain(name);
   });
 });
 

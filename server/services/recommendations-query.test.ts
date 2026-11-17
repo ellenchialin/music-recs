@@ -3,13 +3,14 @@ import { previewQuery, recommendationsQuery } from "./recommendations-query";
 
 describe("recommendationsQuery", () => {
   it("turns one seed into a list", () => {
-    expect(recommendationsQuery.parse({ seed: "Tame Impala" })).toEqual({ seeds: ["Tame Impala"], exclude: [] });
+    expect(recommendationsQuery.parse({ seed: "Tame Impala" })).toEqual({ seeds: ["Tame Impala"], exclude: [], popularity: "balanced" });
   });
 
   it("keeps several seeds in order and trims them", () => {
     expect(recommendationsQuery.parse({ seed: [" Tame Impala ", "Kokoroko"] })).toEqual({
       seeds: ["Tame Impala", "Kokoroko"],
       exclude: [],
+      popularity: "balanced",
     });
   });
 
@@ -22,6 +23,12 @@ describe("recommendationsQuery", () => {
   it("rejects empty or very long names", () => {
     expect(recommendationsQuery.safeParse({ seed: "  " }).success).toBe(false);
     expect(recommendationsQuery.safeParse({ seed: "x".repeat(201) }).success).toBe(false);
+  });
+
+  it("accepts a slider setting and refuses anything else", () => {
+    expect(recommendationsQuery.parse({ seed: "GUM", popularity: "obscure" }).popularity).toBe("obscure");
+    expect(recommendationsQuery.parse({ seed: "GUM", popularity: "mainstream" }).popularity).toBe("mainstream");
+    expect(recommendationsQuery.safeParse({ seed: "GUM", popularity: "louder" }).success).toBe(false);
   });
 
   it("accepts artists to exclude, one or many", () => {

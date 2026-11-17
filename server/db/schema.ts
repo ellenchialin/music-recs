@@ -1,4 +1,5 @@
 import { sql } from "drizzle-orm";
+import { POPULARITY_SETTINGS } from "../../shared/types/popularity";
 import { bigint, boolean, check, integer, pgTable, primaryKey, real, text, timestamp, uuid } from "drizzle-orm/pg-core";
 
 const createdAt = () => timestamp("created_at", { withTimezone: true }).notNull().defaultNow();
@@ -86,19 +87,26 @@ export const rateLimits = pgTable(
 );
 
 // One blind-test round: three songs played without names, rated 1–5, then revealed
-export const blindTests = pgTable("blind_tests", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  visitorId: uuid("visitor_id")
-    .notNull()
-    .references(() => visitors.id, { onDelete: "cascade" }),
-  seeds: text("seeds").array().notNull(),
-  algoVersion: text("algo_version").notNull(),
-  // The genre the control songs came from
-  controlTag: text("control_tag").notNull(),
-  createdAt: createdAt(),
-  // null until rated; a round can be rated once
-  ratedAt: timestamp("rated_at", { withTimezone: true }),
-});
+export const blindTests = pgTable(
+  "blind_tests",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    visitorId: uuid("visitor_id")
+      .notNull()
+      .references(() => visitors.id, { onDelete: "cascade" }),
+    seeds: text("seeds").array().notNull(),
+    algoVersion: text("algo_version").notNull(),
+    // The slider setting the recommended songs were ranked with; rounds from before the slider
+    // were all the plain ranking
+    popularity: text("popularity", { enum: POPULARITY_SETTINGS }).notNull().default("balanced"),
+    // The genre the control songs came from
+    controlTag: text("control_tag").notNull(),
+    createdAt: createdAt(),
+    // null until rated; a round can be rated once
+    ratedAt: timestamp("rated_at", { withTimezone: true }),
+  },
+  (t) => [check("blind_tests_popularity_known", sql`${t.popularity} in ('obscure', 'balanced', 'mainstream')`)],
+);
 
 // The round's songs. is_recommended never leaves the server before the round is rated
 export const blindTestItems = pgTable(

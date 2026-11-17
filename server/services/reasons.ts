@@ -3,6 +3,7 @@ import { getArtist } from "../cache/lastfm";
 import { getCachedArtistTrack } from "../cache/tracks";
 import { reasonCache } from "../db/schema";
 import { REASONS_PROMPT_VERSION, pickReasons, seedKey, type ReasonsInput, type ReasonsOutput } from "../utils/reasons-prompt";
+import type { Popularity } from "../../shared/types/popularity";
 import { normalizeArtistName } from "../../shared/utils/normalize-artist-name";
 import { hitRateLimit } from "./rate-limit";
 import { getRecommendations } from "./recommendations";
@@ -24,10 +25,10 @@ const TAGS_PER_SEED = 5;
 
 export async function getReasons(
   deps: Deps,
-  { seeds, exclude = [] }: { seeds: string[]; exclude?: string[] },
+  { seeds, exclude = [], popularity }: { seeds: string[]; exclude?: string[]; popularity?: Popularity },
 ): Promise<Record<string, string | null>> {
   const { db } = deps;
-  const list = await getRecommendations(deps, { seeds, exclude, previews: "cached" });
+  const list = await getRecommendations(deps, { seeds, exclude, popularity, previews: "cached" });
   const records = list.recommendations;
   if (records.length === 0) return {};
 

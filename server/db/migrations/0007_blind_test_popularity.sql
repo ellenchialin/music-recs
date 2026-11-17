@@ -1,0 +1,2 @@
+ALTER TABLE "blind_tests" ADD COLUMN "popularity" text DEFAULT 'balanced' NOT NULL;--> statement-breakpoint
+ALTER TABLE "blind_tests" ADD CONSTRAINT "blind_tests_popularity_known" CHECK ("blind_tests"."popularity" in ('obscure', 'balanced', 'mainstream'));
