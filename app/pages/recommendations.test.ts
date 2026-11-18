@@ -60,19 +60,30 @@ registerEndpoint("/api/previews", async (event) => {
   return found;
 });
 
-// Fake reasons API: a reason for Khruangbin only; records each query
+// Fake reasons API, streamed like the real one: a reason for Khruangbin, none for Nowhere.
+// reasonsMode "fail" stops after Khruangbin; "limit" says the day's AI calls are used up.
+// Records each query, and which record was on screen (first)
 let reasonRequests: { seeds: string[]; exclude: string[] }[] = [];
 let reasonPopularity: (string | null)[] = [];
+let reasonFirst: (string | null)[] = [];
+let reasonsMode: "ok" | "fail" | "limit" = "ok";
+const sse = (event: string, data: object) => `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
 registerEndpoint("/api/reasons", async (event) => {
   const query = new URLSearchParams(event.path.split("?")[1]);
   reasonRequests.push({ seeds: query.getAll("seed"), exclude: query.getAll("exclude") });
   reasonPopularity.push(query.get("popularity"));
-  return { reasons: { Khruangbin: "Same hazy, groove-first guitar.", Nowhere: null } };
+  reasonFirst.push(query.get("first"));
+  if (reasonsMode === "limit") return sse("stopped", { why: "limit" });
+  const khruangbin = sse("reason", { artist: "Khruangbin", reason: "Same hazy, groove-first guitar." });
+  if (reasonsMode === "fail") return khruangbin + sse("stopped", { why: "failed" });
+  return khruangbin + sse("reason", { artist: "Nowhere", reason: null }) + sse("done", {});
 });
 
 beforeEach(() => {
   reasonRequests = [];
   reasonPopularity = [];
+  reasonFirst = [];
+  reasonsMode = "ok";
   requests = [];
   popularityRequests = [];
   previewRequests = [];
@@ -289,6 +300,36 @@ describe("recommendations page", () => {
     await vi.waitFor(() => expect(reasonRequests).toHaveLength(2));
     expect(reasonRequests[1]).toEqual(requests[1]);
   });
+
+describe("reasons", () => {
+  const reasonLine = (page: Page) => page.get('[data-testid="record-reason"]');
+
+  it("asks for the record on screen first", async () => {
+    const page = await open(SEEDS);
+    await vi.waitFor(() => expect(reasonLine(page).text()).toContain("Same hazy, groove-first guitar."));
+    expect(reasonFirst).toEqual(["Khruangbin"]);
+  });
+
+  it("offers a retry for records the stream didn't reach, then asks again for those", async () => {
+    reasonsMode = "fail";
+    const page = await open(SEEDS);
+    await vi.waitFor(() => expect(reasonLine(page).text()).toContain("Same hazy, groove-first guitar."));
+    await button(page, "Next record")!.trigger("click");
+    await vi.waitFor(() => expect(reasonLine(page).text()).toContain("Couldn't find the words"));
+
+    reasonsMode = "ok";
+    await reasonLine(page).get("button").trigger("click");
+
+    await vi.waitFor(() => expect(reasonLine(page).text()).toBe("Similar to Tame Impala"));
+    expect(reasonFirst).toEqual(["Khruangbin", "Nowhere"]);
+  });
+
+  it("says the AI is resting once the day's calls are used up", async () => {
+    reasonsMode = "limit";
+    const page = await open(SEEDS);
+    await vi.waitFor(() => expect(reasonLine(page).text()).toBe("Similar to Tame Impala · AI's resting today"));
+  });
+});
 
 describe("popularity setting", () => {
   const setting = (page: Page, value: string) => page.get(`input[name="popularity"][value="${value}"]`);

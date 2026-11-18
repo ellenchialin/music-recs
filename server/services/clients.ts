@@ -24,7 +24,7 @@ export function getItunesClient() {
   return itunes;
 }
 
-// null without ANTHROPIC_API_KEY: reasons are optional. The daily cap lives in getReasons
+// null without ANTHROPIC_API_KEY: reasons are optional. The daily cap lives in streamReasons
 let reasonsWriter: ReasonsWriter | null | undefined;
 export function getReasonsWriter(): ReasonsWriter | null {
   if (reasonsWriter === undefined) {

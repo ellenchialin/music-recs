@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { previewQuery, recommendationsQuery } from "./recommendations-query";
+import { previewQuery, reasonsQuery, recommendationsQuery } from "./recommendations-query";
 
 describe("recommendationsQuery", () => {
   it("turns one seed into a list", () => {
@@ -58,3 +58,19 @@ describe("previewQuery", () => {
     }
   });
 });
+
+describe("reasonsQuery", () => {
+  it("takes the same query as the list, plus the record on screen", () => {
+    expect(reasonsQuery.parse({ seed: "GUM", exclude: "Pond", popularity: "obscure", first: " Khruangbin " })).toEqual({
+      seeds: ["GUM"],
+      exclude: ["Pond"],
+      popularity: "obscure",
+      first: "Khruangbin",
+    });
+  });
+
+  it("works without a record on screen", () => {
+    expect(reasonsQuery.parse({ seed: "GUM" }).first).toBeUndefined();
+  });
+});
+

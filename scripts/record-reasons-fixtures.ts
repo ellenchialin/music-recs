@@ -28,10 +28,11 @@ const deps = {
   now: new Date(),
 };
 
+// The first answer's raw event stream, as the API sent it
 let recorded: unknown = null;
 const recordingFetch = async (input: string | URL | Request, init?: RequestInit) => {
   const res = await fetch(input, init);
-  recorded ??= { status: res.status, body: await res.clone().json() };
+  recorded ??= { status: res.status, events: await res.clone().text() };
   return res;
 };
 const writer = createReasonsWriter({ apiKey, fetch: recordingFetch });
@@ -49,9 +50,8 @@ for (const [i, seeds] of seedSets.entries()) {
       })),
     ),
   };
-  const output = await writer.write(input);
   console.log(`\n## ${seeds.join(" + ")} (${REASONS_MODEL})`);
-  for (const { artist, reason } of output.reasons) console.log(`- ${artist}: ${reason ?? "(null)"}`);
+  for await (const { artist, reason } of writer.stream(input)) console.log(`- ${artist}: ${reason ?? "(null)"}`);
   if (i === 0) {
     await writeFile(new URL("reasons-tame-impala.json", outDir), JSON.stringify({ input, response: recorded }, null, 2) + "\n");
   }

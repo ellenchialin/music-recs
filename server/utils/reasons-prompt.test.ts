@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { MAX_REASON_LENGTH, TARGET_REASON_LENGTH, buildReasonsPrompt, pickReasons, seedKey, type ReasonsInput } from "./reasons-prompt";
+import { MAX_REASON_LENGTH, TARGET_REASON_LENGTH, buildReasonsPrompt, seedKey, usableReason, type ReasonsInput } from "./reasons-prompt";
 
 const input: ReasonsInput = {
   seeds: [
@@ -38,41 +38,16 @@ describe("buildReasonsPrompt", () => {
   });
 });
 
-describe("pickReasons", () => {
-  const artists = ["Khruangbin", "Pond", "MGMT"];
-
-  it("matches reasons to the requested artists by normalized name", () => {
-    const picked = pickReasons({ reasons: [{ artist: "khruangbin ", reason: " Same hazy, groove-first guitar. " }] }, artists);
-    expect(picked.get("khruangbin")).toBe("Same hazy, groove-first guitar.");
+describe("usableReason", () => {
+  it("trims a reason", () => {
+    expect(usableReason(" Same hazy, groove-first guitar. ")).toBe("Same hazy, groove-first guitar.");
   });
 
-  // Omitted artists are cached as null too, so we don't pay to ask about them again
-  it("gives every requested artist an entry, null when the model had nothing", () => {
-    const picked = pickReasons({ reasons: [{ artist: "Pond", reason: null }] }, artists);
-    expect([...picked.entries()]).toEqual([
-      ["khruangbin", null],
-      ["pond", null],
-      ["mgmt", null],
-    ]);
-  });
-
-  it("ignores artists that weren't asked about", () => {
-    const picked = pickReasons({ reasons: [{ artist: "Someone Else", reason: "Great band." }] }, artists);
-    expect(picked.has("someone else")).toBe(false);
-  });
-
-  it("drops reasons that are empty, too long or more than one line", () => {
-    const picked = pickReasons(
-      {
-        reasons: [
-          { artist: "Khruangbin", reason: "  " },
-          { artist: "Pond", reason: "x".repeat(MAX_REASON_LENGTH + 1) },
-          { artist: "MGMT", reason: "Line one\nline two" },
-        ],
-      },
-      artists,
-    );
-    expect([...picked.values()]).toEqual([null, null, null]);
+  it("drops reasons that are missing, empty, too long or more than one line", () => {
+    expect(usableReason(null)).toBeNull();
+    expect(usableReason("  ")).toBeNull();
+    expect(usableReason("x".repeat(MAX_REASON_LENGTH + 1))).toBeNull();
+    expect(usableReason("Line one\nline two")).toBeNull();
   });
 });
 

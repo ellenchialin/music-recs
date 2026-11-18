@@ -32,7 +32,7 @@ Pick up to three artists you love and get ten records to flip through, each with
 4. **Popularity** (optional): Obscure or Mainstream looks up Last.fm listener counts for the 30 most similar candidates and re-ranks them by rank again: similarity rank plus popularity rank, the latter weighted double. Balanced is the plain ranking and makes no extra calls.
 5. **Previews**: for each of the top 10, take Last.fm's top track and find it on iTunes, trying the Taiwan, US and Japan stores in turn (stores localize artist names, e.g. BoA is 寶兒 in Taiwan). A small tiered matcher prefers the original title, then a version of it, and never a different artist's song. The list doesn't wait for this: it answers with cached previews, and the page fetches the rest from `/api/previews`, nearest record first, while the Play button shows a spinner.
 
-6. **Reasons**: once the records are on screen, Claude Haiku 5.5 writes a one-line reason for each, marked "AI", in one call per list. It's told to describe the sound rather than biography and to answer null when unsure; reasons are cached per seed set and capped at 300 calls a day site-wide. Without an API key, or past the cap, records keep "Similar to …".
+6. **Reasons**: once the records are on screen, Claude Haiku 5.5 writes a one-line reason for each, marked "AI", in one call per list, streamed to the page so each reason shows as soon as it's written, the record on screen first. It's told to describe the sound rather than biography and to answer null when unsure; reasons are cached per seed set and capped at 300 calls a day site-wide. Every outcome has its own line: "Finding the words…" while writing, "Similar to …" when the model had nothing it was sure of, a note when the day's AI calls are used up, and a Retry that asks again only for the records still missing when the stream fails or takes too long.
 
 Every result is tagged with an algorithm version, and every Taste Check round with its popularity setting, so blind-test ratings can compare both.
 
@@ -102,7 +102,7 @@ Requirements: Node 24, pnpm, Docker, and a free [Last.fm API key](https://www.la
 cp .env.example .env
 ```
 
-Fill in `LASTFM_API_KEY`, and generate a salt for `RATE_LIMIT_SALT`:
+Fill in `LASTFM_API_KEY`, and generate a salt for `RATE_LIMIT_SALT`. `ANTHROPIC_API_KEY` is optional: without it the AI reasons are off and records show "Similar to …".
 
 ```bash
 openssl rand -hex 32
@@ -136,6 +136,7 @@ Open http://localhost:3000.
 | `pnpm typecheck` / `pnpm lint` | Type check and lint |
 | `pnpm db:studio` | Browse the cached data in Drizzle Studio |
 | `pnpm record:lastfm` / `pnpm record:itunes` | Re-record API fixtures from the real APIs |
+| `pnpm record:reasons` | Ask Claude for real reasons to check the prompt, and re-record its fixture (needs `ANTHROPIC_API_KEY`; costs a fraction of a cent) |
 
 ## Project structure
 

@@ -5,6 +5,8 @@ import type { RecommendationsResult, SeedNotFoundData } from "~~/shared/types/re
 import { normalizeArtistName } from "~~/shared/utils/normalize-artist-name";
 import type { CrateCard } from "~/components/RecordCrate.vue";
 import { withPreviews } from "~/utils/card-previews";
+import { reasonStateFor, type LevelReasons } from "~/utils/reason-state";
+import { readSse } from "~/utils/sse";
 import { canExplore, excludedFor, type Trail } from "~/utils/explore-trail";
 import {
   homeLocation,
@@ -158,43 +160,66 @@ function onIndexChange(index: number) {
 // The list comes back before uncached previews; fetch those in the browser and merge them in
 const previews = useCardPreviews();
 
-// LLM-written reasons per level, asked for once the records are on screen. Until they arrive the
-// line shows a loading bar; any failure leaves "Similar to …", so errors aren't shown
-const reasons = useState<Record<string, Record<string, string | null>>>("recommendation-reasons", () => ({}));
-const reasonsLoading = computed(() => Boolean(currentLevel.value) && !reasons.value[currentKey.value]);
-const asked = new Set<string>();
-async function loadReasons(key: string) {
-  if (reasons.value[key] || asked.has(key)) return;
+// LLM-written reasons per level, streamed once the records are on screen, the record on screen
+// first: each reason shows as it arrives. A stream that fails or takes too long leaves the records
+// it didn't reach with a retry, which asks again only for those (the server keeps the rest)
+const reasons = useState<Record<string, LevelReasons>>("recommendation-reasons", () => ({}));
+const streaming = new Set<string>();
+// Stopped when the visitor leaves the page; reasons already saved on the server stay
+const leaving = new AbortController();
+onBeforeUnmount(() => leaving.abort());
+
+async function loadReasons(key: string, first?: string) {
+  const status = reasons.value[key]?.status;
+  if (streaming.has(key) || (status && status !== "failed" && status !== "timeout")) return;
   const levelQuery = levelQueries.value[key];
-  // Shouldn't happen, but never leave the loading bar up for good
+  // Shouldn't happen, but never leave "Finding the words…" up for good
   if (!levelQuery) {
-    reasons.value[key] = {};
+    reasons.value[key] = { byArtist: {}, status: "done" };
     return;
   }
-  asked.add(key);
+  streaming.add(key);
+  // A retry keeps the reasons already shown
+  const level: LevelReasons = { byArtist: { ...reasons.value[key]?.byArtist }, status: "streaming" };
+  reasons.value[key] = level;
+  const set = (change: Partial<LevelReasons>) => (reasons.value[key] = { ...reasons.value[key]!, ...change });
   try {
-    reasons.value[key] = (await api<{ reasons: Record<string, string | null> }>("/api/reasons", { query: levelQuery })).reasons;
+    const body = await api<ReadableStream<Uint8Array>>("/api/reasons", {
+      query: { ...levelQuery, ...(first ? { first } : {}) },
+      responseType: "stream",
+      signal: leaving.signal,
+    });
+    await readSse(body, ({ event, data }) => {
+      const payload = JSON.parse(data);
+      if (event === "reason") set({ byArtist: { ...reasons.value[key]!.byArtist, [payload.artist]: payload.reason } });
+      else if (event === "done") set({ status: "done" });
+      else if (event === "stopped") set({ status: payload.why });
+    });
+    // The connection closed without saying how it ended
+    if (reasons.value[key]!.status === "streaming") set({ status: "failed" });
   } catch {
-    // One try per level is enough; every record falls back to "Similar to …"
-    reasons.value[key] = {};
+    if (!leaving.signal.aborted) set({ status: "failed" });
+  } finally {
+    streaming.delete(key);
   }
 }
 
 const cards = computed<CrateCard[]>(() => {
   if (!currentLevel.value) return [];
-  const levelReasons = reasons.value[currentKey.value] ?? {};
+  const level = reasons.value[currentKey.value];
   return withPreviews(currentLevel.value.result.recommendations, previews.loaded.value).map((card) => ({
     ...card,
-    reason: levelReasons[card.artist] ?? null,
+    reasonState: reasonStateFor(level, card.artist),
   }));
 });
+const currentArtist = () => currentLevel.value?.result.recommendations[viewing.value[currentKey.value] ?? 0]?.artist;
 onMounted(() => {
   watch(
     () => currentLevel.value?.result,
     (result) => {
       if (!result) return;
       void previews.load(result.recommendations, viewing.value[currentKey.value] ?? 0);
-      void loadReasons(currentKey.value);
+      void loadReasons(currentKey.value, currentArtist());
     },
     { immediate: true },
   );
@@ -356,13 +381,13 @@ useShareMeta(() => ({
               <RecordCrate
                 :index="viewing[currentKey] ?? 0"
                 :cards="cards"
-                :reasons-loading="reasonsLoading"
                 :can-explore="canExplore(trail)"
                 :exploring="exploring"
                 :notice="exploreMessage"
                 @update:index="onIndexChange"
                 @explore="explore"
                 @retry="previews.retry"
+                @retry-reasons="(artist) => loadReasons(currentKey, artist)"
               />
             </motion.div>
           </AnimatePresence>

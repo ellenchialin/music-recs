@@ -59,9 +59,10 @@ Every result is tagged with an `algo_version`.
 
 ### 3. Recommendation reasons [Deferrable: falls back to "Similar to A and B"]
 
-- One LLM call writes the reasons for all 10 cards.
-- Cached by seed set + recommended artist.
-- A daily site-wide call limit; past it, fall back to rule-based reasons.
+- One LLM call writes the reasons for all 10 cards, streamed to the page: each reason shows as soon as it's written, the record on screen first.
+- Cached by seed set + recommended artist, each reason as soon as it arrives.
+- A daily site-wide call limit; past it, records show "Similar to …" with a note that the AI is resting.
+- Every state is visible: "Finding the words…" while writing; "Similar to …" when the model had nothing it was sure of; "Couldn't find the words" or "Taking too long" with a Retry that asks only about the records still missing.
 
 ### 4. Explore from here [Required]
 
@@ -123,9 +124,9 @@ Every result is tagged with an `algo_version`.
 | Method | Path | Purpose |
 |---|---|---|
 | GET | `/api/artists/search?q=` | Autocomplete |
-| GET | `/api/recommendations?seed=&exclude=` | Seeds (plus artists to exclude when exploring) → recommendations, with previews only if already cached (others `pending`) |
+| GET | `/api/recommendations?seed=&exclude=&popularity=` | Seeds (plus artists to exclude when exploring, and the popularity setting) → recommendations, with previews only if already cached (others `pending`) |
 | GET | `/api/previews?artist=` | One card's track and preview, for cards left `pending` |
-| GET | `/api/reasons?seed=&exclude=` | LLM-written reasons for the same list (rebuilt on the server), `null` where there's none |
+| GET | `/api/reasons?seed=&exclude=&popularity=&first=` | LLM-written reasons for the same list (rebuilt on the server), as Server-Sent Events: `reason` per record (cached first, `null` where there's none), then `done` or `stopped` with why (`off`, `limit`, `failed`, `timeout`). `first` is the record on screen, written first |
 | POST | `/api/blind-tests` | Start a round |
 | POST | `/api/blind-tests/:id/ratings` | Submit ratings → reveal |
 | GET | `/api/stats` | Eval numbers |
@@ -151,7 +152,7 @@ Every result is tagged with an `algo_version`.
 
 The schedule is tight. If it slips, cut in this order: popularity slider → LLM reasons (use rule-based reasons) → Playwright.
 
-**Status (2026-11-10)**: deployed with the Taste Check, `/api/stats` and link previews. The eval reached 30 visitors (recommended +1.09 over random, 95% CI +0.42 to +1.75) and its table is in the README. Playwright covers the main flow in CI. LLM reasons are built; the popularity slider is deferred.
+**Status (2026-11-18)**: everything above is built and deployed, including the popularity setting, the public results page (`/stats`) and streamed reasons with visible failure states. The eval has 32 listeners (recommended +1.02 over random, 95% CI +0.36 to +1.68); live numbers are on `/stats`. Playwright covers the main flow, Explore, the Taste Check and the popularity setting in CI, and a smoke test runs against the live site after each deploy.
 
 ## Acceptance criteria
 

@@ -70,7 +70,6 @@ export function pickRound({
 
 export type RatedItem = { visitorId: string; algoVersion: string; isRecommended: boolean; rating: number };
 
-export type { VersionStats };
 export type GroupedItem = Omit<RatedItem, "algoVersion"> & { group: string };
 export type GroupStats = RatingStats & { group: string };
 

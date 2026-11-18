@@ -414,9 +414,28 @@ It runs twice: desktop, and a phone with Lighthouse's mobile profile (slow 4G, 4
 - **Structured output**: instead of asking for "a JSON list, please" and hoping, the request carries a JSON schema (`output_config.format`, built from a zod schema with `zodOutputFormat`). The model can only answer in that shape. We still validate it with our own stricter zod schema (length, known artists), because "valid JSON" isn't the same as "usable text".
 - **Grounding**: the prompt lists what we actually know (the seeds, their Last.fm tags, which seeds each record came from, its rank, its track). The model is told to use only that and well-known genre traits, and to answer `null` when unsure, so an obscure artist gets "Similar to X" instead of an invented fact.
 - **Untrusted input stays on the server**: the browser sends only the same seeds as the recommendations request; the server rebuilds the list from its cache. A client can't make the model write about arbitrary text, and the endpoint can't be used as a free LLM.
-- **Asynchronous, like previews**: records appear first; the reason replaces "Similar to X" when it arrives. The model's 1–3 s never blocks the page.
+- **Asynchronous, like previews**: records appear first; each reason replaces "Finding the words…" when it arrives. The model's 1–3 s never blocks the page.
 - **Cost control in layers**: a cache per seed set and artist (a repeated query costs nothing), a site-wide daily cap (300 calls), a per-IP rate limit, and a monthly spend limit in the Anthropic Console as the last line. Without an API key (tests, CI, E2E) the feature turns itself off.
 - **Prompt version in the cache key**: changing the prompt bumps `REASONS_PROMPT_VERSION`, so old reasons are ignored instead of mixed with new ones.
+
+### Streaming the reasons, one record at a time
+
+> **Frontend analogy**: a kitchen sending out each dish as it's ready instead of the whole order at once, and the waiter saying what went wrong instead of quietly swapping in plain rice.
+
+The model writes all ten reasons as one JSON answer. Streamed, it arrives a few characters at a time, so the server can send each record's reason the moment its entry is complete, instead of after the last one.
+
+1. **Claude → server**: `messages.stream` with the same structured output. `createReasonsParser` (`server/utils/reasons-stream-parser.ts`) watches the half-written JSON and hands out an entry once its closing brace arrives. It counts brackets only outside strings, so a `}` inside a reason doesn't end it early.
+2. **Server → browser: Server-Sent Events (SSE).** `/api/reasons` answers with `text/event-stream`: one `event: reason` per record (cached ones first, then new ones as they're written), then `event: done`, or `event: stopped` with why (`off`, `limit`, `failed`, `timeout`). SSE is plain HTTP, one direction, which is all this needs; WebSockets are two-way and awkward on serverless.
+3. **Browser**: `$fetch` with `responseType: "stream"`, read chunk by chunk (`readSse` in `app/utils/sse.ts`). Not the browser's `EventSource`: it reconnects on its own, which here would ask for the reasons again after the stream had ended.
+4. **One state per record** (`reasonStateFor`): a reason that arrived always wins; otherwise the stream decides: still open → "Finding the words…", finished → "Similar to …", out of AI calls for the day → "Similar to … · AI's resting today", failed or too slow → why, with Retry.
+
+**Failures keep what worked.** Each reason is saved the moment it arrives, so when the stream fails at record 7, records 1–6 stay, and Retry asks the model only about the rest. The record on screen is asked about first (`first` in the query), so the reason you're looking at comes first.
+
+**Timeouts and leaving.** The server gives the model 20 s, then ends with `stopped: timeout`. If the visitor leaves, the closed connection cancels the model call, so nobody pays for tokens nobody will read.
+
+**Tests never call Claude.** The writer's tests replay the recorded answer as the event stream the API sends; the page's tests answer `/api/reasons` with a short SSE string.
+
+**See it**: `curl -N "http://localhost:3000/api/reasons?seed=Tame%20Impala"` prints the events as they come (cached lists come back at once; an uncached one calls Claude if `.env` has a key).
 
 ## 18. Server-Timing: the server's own stopwatch
 

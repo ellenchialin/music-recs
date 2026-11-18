@@ -1,20 +1,24 @@
 <script setup lang="ts">
 import { AnimatePresence, motion, type PanInfo } from "motion-v";
 import type { RecommendationCard } from "~~/shared/types/recommendations";
+import type { ReasonState } from "~/utils/reason-state";
 
-// reason: the LLM-written line, filled in by the page once /api/reasons answers; null or missing
-// shows "Similar to …". While reasonsLoading, neither shows, so one never replaces the other
-export type CrateCard = RecommendationCard & { reason?: string | null };
+// reasonState: what the line under the title shows while /api/reasons streams: "Finding the
+// words…", the AI-written reason, "Similar to …", or why it's missing with a retry. Missing means
+// "Similar to …". Only one shows at a time, so a reason never pops in over "Similar to …"
+export type CrateCard = RecommendationCard & { reasonState?: ReasonState };
 
 // Flip through recommendations like a record crate: the selected cover in the middle, the rest
 // stacked to the sides. notice temporarily replaces the Explore button
 const props = withDefaults(
-  defineProps<{ cards: CrateCard[]; canExplore?: boolean; exploring?: boolean; notice?: string; reasonsLoading?: boolean }>(),
-  { canExplore: true, exploring: false, notice: "", reasonsLoading: false },
+  defineProps<{ cards: CrateCard[]; canExplore?: boolean; exploring?: boolean; notice?: string }>(),
+  { canExplore: true, exploring: false, notice: "" },
 );
 const emit = defineEmits<{
   // Ask the page to fetch this artist's preview again after an error
   retry: [artist: string];
+  // Ask the page to stream this level's missing reasons again, this record's first
+  "retry-reasons": [artist: string];
   explore: [artist: string];
 }>();
 
@@ -83,6 +87,9 @@ function togglePreview() {
 
 const listFormat = new Intl.ListFormat("en", { style: "long", type: "conjunction" });
 const sourcesText = computed(() => `Similar to ${listFormat.format(current.value.sources)}`);
+const reason = computed<ReasonState>(() => current.value.reasonState ?? { kind: "fallback" });
+const reasonText = computed(() => (reason.value.kind === "ai" ? reason.value.text : null));
+const fallbackNote = computed(() => (reason.value.kind === "fallback" ? reason.value.note : undefined));
 // The reason is cut off on narrow screens, so the whole of it and its sources open in a tooltip:
 // on mouse hover right away (the browser's own title tooltip waits about a second), or on a tap
 const tipOpen = ref(false);
@@ -203,7 +210,8 @@ const appleMusicUrl = computed(() => {
             <p class="mt-0.5 h-6 w-full truncate text-base sm:h-7 sm:text-lg" :title="current.track?.title">
               {{ current.track?.title }}
             </p>
-            <!-- One of three: a loading bar, the AI-written reason, or "Similar to …" -->
+            <!-- One of four: finding the words, the AI-written reason, "Similar to …", or why the
+                 reason is missing with a retry -->
             <div
               ref="reasonLine"
               data-testid="record-reason"
@@ -211,18 +219,14 @@ const appleMusicUrl = computed(() => {
               @pointerenter="onReasonPointer($event, true)"
               @pointerleave="onReasonPointer($event, false)"
             >
-              <template v-if="reasonsLoading">
-                <motion.span
-                  data-testid="reason-skeleton"
-                  aria-hidden="true"
-                  class="block h-3.5 w-2/3 bg-ink/15"
-                  :animate="{ opacity: [1, 0.4, 1] }"
-                  :transition="{ duration: 1.2, ease: 'easeInOut', repeat: Infinity }"
-                />
-                <span class="sr-only">Loading reason</span>
-              </template>
+              <motion.span
+                v-if="reason.kind === 'pending'"
+                class="min-w-0 truncate text-ink/70 italic"
+                :animate="{ opacity: [1, 0.45, 1] }"
+                :transition="{ duration: 1.4, ease: 'easeInOut', repeat: Infinity }"
+              >Finding the words…</motion.span>
               <button
-                v-else-if="current.reason"
+                v-else-if="reasonText"
                 type="button"
                 class="flex max-w-full min-w-0 items-center gap-1.5 text-ink focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
                 :aria-expanded="tipOpen"
@@ -232,13 +236,18 @@ const appleMusicUrl = computed(() => {
               >
                 <span data-testid="ai-tag" aria-hidden="true" class="inline-flex shrink-0 items-center gap-1 bg-ink px-1.5 leading-5 font-bold text-paper">
                   <svg viewBox="0 0 10 10" class="size-2.5 fill-current"><path d="M5 0l1.2 3.8L10 5 6.2 6.2 5 10 3.8 6.2 0 5l3.8-1.2z" /></svg>AI</span>
-                <span class="min-w-0 truncate"><span class="sr-only">AI-written reason: </span>{{ current.reason }}</span>
+                <span class="min-w-0 truncate"><span class="sr-only">AI-written reason: </span>{{ reasonText }}</span>
               </button>
-              <span v-else class="min-w-0 truncate text-ink/70">{{ sourcesText }}</span>
+              <p v-else-if="reason.kind === 'failed'" class="flex min-w-0 items-center gap-1.5 text-ink/70">
+                <span class="truncate">{{ reason.why === "timeout" ? "Taking too long" : "Couldn't find the words" }}</span>
+                <span aria-hidden="true">·</span>
+                <button type="button" class="shrink-0 font-bold text-ink underline underline-offset-4" @click="emit('retry-reasons', current.artist)">Retry</button>
+              </p>
+              <span v-else class="min-w-0 truncate text-ink/70">{{ sourcesText }}<template v-if="fallbackNote === 'limit'"> · AI's resting today</template></span>
 
               <AnimatePresence>
                 <motion.div
-                  v-if="tipOpen && current.reason"
+                  v-if="tipOpen && reasonText"
                   :id="tipId"
                   role="tooltip"
                   class="absolute inset-x-0 bottom-full z-30 mx-auto mb-2 w-fit max-w-[min(22rem,calc(100vw-2rem))] border-3 border-ink bg-ink px-3 py-2 text-left text-sm text-paper"
@@ -247,7 +256,7 @@ const appleMusicUrl = computed(() => {
                   :exit="{ opacity: 0, y: 4 }"
                   :transition="{ duration: 0.12 }"
                 >
-                  <p>{{ current.reason }}</p>
+                  <p>{{ reasonText }}</p>
                   <p class="mt-1 text-paper-muted">{{ sourcesText }}</p>
                 </motion.div>
               </AnimatePresence>

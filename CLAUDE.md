@@ -25,6 +25,7 @@ Run `nvm use` first (Node 24; Nuxt doesn't support Homebrew's Node 25).
 | `pnpm db:sandbox` | psql into `music_test` |
 | `pnpm record:lastfm` | Re-record `server/lastfm/fixtures/` from the real Last.fm API (needs `LASTFM_API_KEY` in `.env`; tests don't) |
 | `pnpm record:itunes` | Re-record `server/itunes/fixtures/` from the real iTunes Search API (no key needed) |
+| `pnpm record:reasons` | Ask Claude for real reasons for a few seed sets, print them for a quality check and save the first answer's raw event stream to `server/llm/fixtures/`. The only deliberate Claude call: run by hand when the prompt changes (needs `ANTHROPIC_API_KEY`, `LASTFM_API_KEY` and `pnpm db:up`) |
 | `graphify update .` | Rebuild the code knowledge graph in `graphify-out/` (local, no LLM). Install once: `python3 -m venv ~/.local/share/graphify-venv && ~/.local/share/graphify-venv/bin/pip install graphifyy`, then link `bin/graphify` into `~/.local/bin` |
 
 CI (`.github/workflows/ci.yml`) runs typecheck → lint → test, and E2E in a parallel job.

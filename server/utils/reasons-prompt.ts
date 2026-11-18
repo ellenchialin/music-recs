@@ -15,7 +15,7 @@ export type ReasonsInput = {
   records: { artist: string; sources: string[]; track: string | null }[];
 };
 
-export type ReasonsOutput = { reasons: { artist: string; reason: string | null }[] };
+export type ReasonEntry = { artist: string; reason: string | null };
 
 const SYSTEM = `You write one-line reasons for music recommendations. A listener picked some artists they like, and the site recommended other artists based on Last.fm's similar-artist data.
 
@@ -36,18 +36,11 @@ export function buildReasonsPrompt({ seeds, records }: ReasonsInput): { system: 
   return { system: SYSTEM, user };
 }
 
-// One entry per requested artist, keyed by normalized name: the reason, or null when the model
-// gave none, gave an unusable one, or skipped the artist. Artists nobody asked about are ignored
-export function pickReasons(output: ReasonsOutput, artists: string[]): Map<string, string | null> {
-  const given = new Map(output.reasons.map((r) => [normalizeArtistName(r.artist), r.reason?.trim() ?? null]));
-  return new Map(
-    artists.map((artist) => {
-      const key = normalizeArtistName(artist);
-      const reason = given.get(key);
-      const usable = reason && reason.length <= MAX_REASON_LENGTH && !reason.includes("\n");
-      return [key, usable ? reason : null];
-    }),
-  );
+// A reason the record can show, or null when the model gave none or an unusable one (empty, too
+// long for the line, or more than one line)
+export function usableReason(reason: string | null): string | null {
+  const trimmed = reason?.trim();
+  return trimmed && trimmed.length <= MAX_REASON_LENGTH && !trimmed.includes("\n") ? trimmed : null;
 }
 
 // Seeds in any order or spelling share reasons

@@ -103,21 +103,43 @@ describe("RecordCrate", () => {
   });
 
   it("shows where a record came from when it has no reason", async () => {
-    const wrapper = await mountSuspended(RecordCrate, { props: { cards: [{ ...cards[0]!, reason: null }] } });
+    const wrapper = await mountSuspended(RecordCrate, { props: { cards: [{ ...cards[0]!, reasonState: { kind: "fallback" as const } }] } });
     expect(wrapper.get('[data-testid="record-reason"]').text()).toBe("Similar to Tame Impala and Kokoroko");
   });
 
   // Only the final line ever shows: a reason or "Similar to …", never one replaced by the other
-  it("shows a loading bar instead of either line while reasons load", async () => {
-    const wrapper = await mountSuspended(RecordCrate, { props: { cards, reasonsLoading: true } });
+  it("says it's finding the words, instead of either line, while the reason is being written", async () => {
+    const wrapper = await mountSuspended(RecordCrate, { props: { cards: [{ ...cards[0]!, reasonState: { kind: "pending" as const } }] } });
     const line = wrapper.get('[data-testid="record-reason"]');
-    expect(line.find('[data-testid="reason-skeleton"]').exists()).toBe(true);
+    expect(line.text()).toBe("Finding the words…");
     expect(line.text()).not.toContain("Similar to");
-    expect(line.text()).toContain("Loading reason");
+  });
+
+  it("says the AI is resting today next to where the record came from", async () => {
+    const wrapper = await mountSuspended(RecordCrate, {
+      props: { cards: [{ ...cards[0]!, reasonState: { kind: "fallback" as const, note: "limit" as const } }] },
+    });
+    expect(wrapper.get('[data-testid="record-reason"]').text()).toBe("Similar to Tame Impala and Kokoroko · AI's resting today");
+  });
+
+  it("says why a reason is missing and offers to try again", async () => {
+    const failed = await mountSuspended(RecordCrate, {
+      props: { cards: [{ ...cards[0]!, reasonState: { kind: "failed" as const, why: "failed" as const } }] },
+    });
+    const line = failed.get('[data-testid="record-reason"]');
+    expect(line.text()).toContain("Couldn't find the words");
+    expect(line.get("button").text()).toBe("Retry");
+    await line.get("button").trigger("click");
+    expect(failed.emitted("retry-reasons")).toEqual([["Khruangbin"]]);
+
+    const slow = await mountSuspended(RecordCrate, {
+      props: { cards: [{ ...cards[0]!, reasonState: { kind: "failed" as const, why: "timeout" as const } }] },
+    });
+    expect(slow.get('[data-testid="record-reason"]').text()).toContain("Taking too long");
   });
 
   it("shows the record's reason, marked as written by AI", async () => {
-    const withReason = [{ ...cards[0]!, reason: "Same hazy, groove-first guitar." }];
+    const withReason = [{ ...cards[0]!, reasonState: { kind: "ai" as const, text: "Same hazy, groove-first guitar." } }];
     const wrapper = await mountSuspended(RecordCrate, { props: { cards: withReason } });
     const line = wrapper.get('[data-testid="record-reason"]');
     expect(line.get('[data-testid="ai-tag"]').text()).toBe("AI");
@@ -130,7 +152,7 @@ describe("RecordCrate", () => {
   // The line is cut off on narrow screens, so the whole reason and its sources open in a tooltip
   describe("reason tooltip", () => {
     const mountWithReason = () =>
-      mountSuspended(RecordCrate, { props: { cards: [{ ...cards[0]!, reason: "Same hazy, groove-first guitar." }] } });
+      mountSuspended(RecordCrate, { props: { cards: [{ ...cards[0]!, reasonState: { kind: "ai" as const, text: "Same hazy, groove-first guitar." } }] } });
     const tooltip = (wrapper: Awaited<ReturnType<typeof mountWithReason>>) => wrapper.find('[role="tooltip"]');
 
     it("opens on hover with the whole reason and where it came from", async () => {
@@ -154,7 +176,7 @@ describe("RecordCrate", () => {
     });
 
     it("has nothing to open without a reason", async () => {
-      const wrapper = await mountSuspended(RecordCrate, { props: { cards: [{ ...cards[0]!, reason: null }] } });
+      const wrapper = await mountSuspended(RecordCrate, { props: { cards: [{ ...cards[0]!, reasonState: { kind: "fallback" as const } }] } });
       expect(wrapper.find('[data-testid="record-reason"] button').exists()).toBe(false);
     });
   });
