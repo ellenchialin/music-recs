@@ -6,16 +6,18 @@
 
 Pick up to three artists you love and get ten records to flip through, each with a 30-second preview. From any record you can **explore** one level deeper, up to three levels, and every level shows artists you haven't seen yet. No account and no sign-in.
 
-> **Status**: a one-week portfolio project (November 2026). Recommendations, previews, Explore and the Taste Check are live. With 30 visitors, recommended songs beat random picks by about a point ([results](#results-algorithm-v2-2026-11-10)). Try it and [see whether the picks fit your taste](https://musicrecs.ellenchen.dev/).
+> **Status**: a portfolio project (November 2026). Recommendations, previews, Explore, the popularity setting, the Taste Check and its public results page are live. With 32 listeners, recommended songs beat random picks by about a point ([results](#results-algorithm-v2-2026-11-18)). Try it and [see whether the picks fit your taste](https://musicrecs.ellenchen.dev/).
 
 ## Features
 
 - **Seed artists**: type-ahead search backed by Last.fm, with misspelled lookalikes filtered out (for example "radıohead" with a dotless ı). Choose 1–3 artists; they're remembered in the browser.
 - **A crate of records**: ten recommendations shown like flipping through a record crate. Swipe, drag, click the side covers or use the arrow keys. Each record shows the artist, a representative track, which of your artists it's similar to, and a round play button for the preview.
+- **Mainstream ↔ obscure**: a three-stop setting (Obscure / Balanced / Mainstream) re-ranks the records by how many listeners each artist has, while staying among the most similar ones. Explore, the reasons and the Taste Check keep the setting.
 - **Explore from here**: dig from any record into artists similar to it, up to three levels deep. Each level excludes everything shown before, so you always get new names. A breadcrumb (`Home › Tame Impala + Kokoroko › Pond`) goes back to any level instantly, without refetching.
-- **Shareable URLs**: the URL is the single source of truth (`/recommendations?seed=…&explore=…`), so reload, Back and shared links all show the same screen, rendered on the server, with a link preview (Open Graph) for chat apps and social sites.
+- **Shareable URLs**: the URL is the single source of truth (`/recommendations?seed=…&explore=…&popularity=…`), so reload, Back and shared links all show the same screen, rendered on the server, with a link preview (Open Graph) for chat apps and social sites.
 - **Graceful gaps**: no preview in any store shows "No preview" with an Apple Music link; a temporary iTunes error affects only that record and offers a retry; an unknown artist suggests similar names.
 - **Taste Check** ("Fit your taste?" on the recommendations page): a blind test. Listen to three unnamed songs, rate each 1–5, then see which were picked for you and which were random picks from the same genre. Results feed the eval below.
+- **Public results** ([`/stats`](https://musicrecs.ellenchen.dev/stats)): everyone's ratings so far, led by one number (how much higher picked songs scored), with the same numbers per popularity setting and per algorithm version. It links back to your own recommendations.
 - **One screen, every size**: both pages fit exactly one viewport from a 320px phone to a 1920px desktop, with motion that respects the system's reduced-motion setting.
 
 ## How it works
@@ -45,11 +47,13 @@ Recommendations are easy to show and hard to prove, so the site measures itself.
 
 Live numbers: the [results page](https://musicrecs.ellenchen.dev/stats) (or [`/api/stats`](https://musicrecs.ellenchen.dev/api/stats) as JSON), per algorithm version and per popularity setting. Known limit: clearing cookies makes a new visitor, so the count is an upper bound on real people.
 
-### Results (algorithm v2, 2026-11-10)
+### Results (algorithm v2, 2026-11-18)
 
-| Visitors | Ratings | Picked for you | Random pick | Difference | 95% CI |
+| Listeners | Ratings | Picked for you | Random pick | Difference | 95% CI |
 |---:|---:|---:|---:|---:|---:|
-| 30 | 96 | 3.97 / 5 | 2.88 / 5 | **+1.09** | +0.42 to +1.75 |
+| 32 | 102 | 3.88 / 5 | 2.86 / 5 | **+1.02** | +0.36 to +1.68 |
+
+Balanced rounds only; the [results page](https://musicrecs.ellenchen.dev/stats) has the live numbers.
 
 Recommended songs scored about one point higher on a five-point scale, and the whole confidence interval is above zero, so the gap isn't noise. Caveats: most players found the site through me, so they aren't a random sample, and nothing checks that a song was actually heard before it was rated.
 
@@ -77,7 +81,18 @@ Recommended songs scored about one point higher on a five-point scale, and the w
 - **Security**: in production, a Content Security Policy, `frame-ancestors 'none'` against clickjacking, `nosniff`, a referrer policy and HSTS. Media URLs from iTunes must be https. The Taste Check's POSTs refuse other origins (CSRF), a round can be rated once, and another visitor's round answers 404.
 - **Privacy**: no accounts and no personal data. Your chosen artists are stored only in your browser. The Taste Check uses an anonymous random ID in an `httpOnly` cookie; the server keeps salted IP hashes for rate limiting and deletes them after about an hour.
 
-The reasoning behind each decision, including the ones that were tried and reverted, is in [`docs/ai-log.md`](docs/ai-log.md). Concepts are explained for a frontend engineer in [`docs/concepts.md`](docs/concepts.md). The full spec is [`SPEC.md`](SPEC.md).
+## How I built it
+
+I built this with [Claude Code](https://claude.com/claude-code) as a pair programmer, and I want to be clear about who did what.
+
+- **Claude Code** wrote most of the code and tests, always test first, and explained each new concept with frontend analogies ([`docs/concepts.md`](docs/concepts.md)).
+- **I** decided what to build and how it should feel: a recommender I'd use myself, a visual direction drawn from a reference illustration (after rejecting a first neon look as too childish), and which of Claude's proposals to take at each step. I checked every change in the browser and pushed back when something felt wrong. Some examples:
+  - When the smoke test failed on a slow phone, I asked for the root cause instead of looser budgets; covers moved to WebP and the time from Play to sound dropped from 4.0 s to 1.3 s.
+  - I tried a link to the results on the home page, saw it pull attention from the one action there, and moved it to the Taste Check.
+  - I noticed the results page was a dead end and had it lead back to your own recommendations.
+- Three core functions started as small exercises for me, from a failing test plus hints ([`docs/exercises/`](docs/exercises/)).
+
+Every decision is logged in [`docs/ai-log.md`](docs/ai-log.md), with Claude's suggestion next to what I settled on, including the ones tried and reverted. The full spec is [`SPEC.md`](SPEC.md).
 
 ## Running it locally
 
@@ -146,3 +161,5 @@ docs/                Decision log, concept notes, exercises
 ## Credits
 
 Artist data from [Last.fm](https://www.last.fm/). Previews and covers from the [iTunes Search API](https://performance-partners.apple.com/search-api). Non-commercial use.
+
+The code is under the [MIT License](LICENSE); the music data, previews and covers belong to their owners and aren't covered by it.
