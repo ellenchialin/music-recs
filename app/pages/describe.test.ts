@@ -17,6 +17,19 @@ registerEndpoint("/api/describe", {
     const { description } = await readJson<{ description: string }>(event);
     sent.push(description);
     if (description === "slow") await gate;
+    // One finished lookup, then the stream stays open while the model decides what's next
+    if (description === "pause") {
+      const encoder = new TextEncoder();
+      const step = { id: "t1", label: "Looking up Tame Impala" };
+      return new ReadableStream<Uint8Array>({
+        async start(controller) {
+          controller.enqueue(encoder.encode(sse("step", { ...step, status: "running" }) + sse("step", { ...step, status: "done", summary: "psychedelic" })));
+          await gate;
+          controller.enqueue(encoder.encode(sse("stopped", { why: "nothing" })));
+          controller.close();
+        },
+      });
+    }
     for (const why of ["off", "limit", "failed", "timeout", "nothing"]) {
       if (description === why) return sse("stopped", { why });
     }
@@ -74,6 +87,45 @@ describe("describe page", () => {
 
     await vi.waitFor(() => expect(sent).toEqual(["Like Tame Impala, but for running"]));
     expect(useState("describe-now").value).toBe(false);
+  });
+
+  // The model takes a moment before its first lookup and between lookups; without a hint the
+  // page looks stuck
+  describe("while the AI works", () => {
+    const thinking = (page: Page) => page.find('[data-testid="agent-thinking"]');
+
+    it("says it's reading the description before the first lookup", async () => {
+      let release = () => {};
+      gate = new Promise((resolve) => (release = resolve));
+      const page = await open();
+
+      await run(page, "slow");
+
+      await vi.waitFor(() => expect(thinking(page).text()).toBe("Reading your description…"));
+      release();
+      await vi.waitFor(() => expect(thinking(page).exists()).toBe(false));
+    });
+
+    it("says it's deciding what's next between lookups", async () => {
+      let release = () => {};
+      gate = new Promise((resolve) => (release = resolve));
+      const page = await open();
+
+      await run(page, "pause");
+
+      await vi.waitFor(() => expect(steps(page)).toEqual([["Looking up Tame Impala", "psychedelic"]]));
+      await vi.waitFor(() => expect(thinking(page).text()).toBe("Deciding what to look up next…"));
+      release();
+      await vi.waitFor(() => expect(thinking(page).exists()).toBe(false));
+    });
+
+    // A running lookup already shows its own progress
+    it("shows no extra line while a lookup is running", async () => {
+      const page = await open();
+      await run(page, "running");
+      await vi.waitFor(() => expect(steps(page)).toHaveLength(2));
+      expect(thinking(page).exists()).toBe(false);
+    });
   });
 
   it("shows each lookup and how it went", async () => {

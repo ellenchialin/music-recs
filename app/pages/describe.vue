@@ -22,6 +22,13 @@ const stopped = ref<DescribeStopReason | "user" | null>(null);
 const suggested = computed(() => Object.keys(whyFor.value).length > 0);
 let controller: AbortController | null = null;
 
+// The model takes a second or two before its first lookup and between lookups, with nothing to show
+// yet; this line says it's working. A running lookup shows its own progress instead
+const thinking = computed(() => {
+  if (phase.value !== "running" || steps.value.some((s) => s.status === "running")) return null;
+  return steps.value.length ? "Deciding what to look up next…" : "Reading your description…";
+});
+
 const MESSAGES: Record<DescribeStopReason | "user", string> = {
   off: "Describing a vibe isn't available right now.",
   limit: "That's all the searching for today. Try again tomorrow.",
@@ -161,7 +168,7 @@ useShareMeta(() => ({
       </form>
 
       <!-- Each lookup as the agent makes it: announced politely, so screen readers follow along -->
-      <ol v-if="steps.length" aria-label="What the AI looked up" aria-live="polite" class="mt-6 flex flex-col gap-2">
+      <ol v-if="steps.length || thinking" aria-label="What the AI looked up" aria-live="polite" class="mt-6 flex flex-col gap-2">
         <AnimatePresence>
           <motion.li
             v-for="step in steps"
@@ -186,6 +193,22 @@ useShareMeta(() => ({
               <span v-if="step.status === 'done'" data-testid="step-detail" class="text-ink/70">{{ step.summary }}</span>
               <span v-else-if="step.status === 'failed'" data-testid="step-detail" class="text-ink/70">Couldn't look this up</span>
             </p>
+          </motion.li>
+          <!-- One key throughout, so the line changes its words in place instead of re-entering -->
+          <motion.li
+            v-if="thinking"
+            key="thinking"
+            class="flex items-baseline gap-2 text-base text-ink/70 italic"
+            v-bind="fadeUp"
+            :transition="spring.smooth"
+          >
+            <motion.span
+              aria-hidden="true"
+              class="w-4 shrink-0 text-center font-black not-italic"
+              :animate="{ opacity: [1, 0.3, 1] }"
+              :transition="{ duration: 1, repeat: Infinity }"
+            >…</motion.span>
+            <span data-testid="agent-thinking">{{ thinking }}</span>
           </motion.li>
         </AnimatePresence>
       </ol>
