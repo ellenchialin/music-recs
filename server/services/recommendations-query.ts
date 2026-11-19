@@ -23,5 +23,8 @@ export const reasonsQuery = listQuery
   .extend({ first: artistName.optional() })
   .transform(({ seed, exclude, popularity, first }) => ({ seeds: seed, exclude, popularity, first }));
 
-// GET /api/previews?artist=Pond: one card's preview, for cards the list left "pending"
-export const previewQuery = z.object({ artist: artistName });
+// GET /api/previews?artist=Pond&artist=GUM: the previews of a page's records the list left
+// "pending", nearest record first, in one request (or one artist, for a retry)
+export const previewsQuery = z
+  .object({ artist: oneOrMany.pipe(z.array(z.string()).min(1).max(10)) })
+  .transform(({ artist }) => ({ artists: artist }));

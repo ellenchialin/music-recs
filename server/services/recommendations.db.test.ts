@@ -7,7 +7,7 @@ import { LastfmError, type LastfmClient } from "../lastfm/client";
 import type { ArtistSearchResult } from "../lastfm/schemas";
 import { normalizeArtistName } from "../../shared/utils/normalize-artist-name";
 import { ALGO_VERSION } from "../utils/recommend/recommend";
-import { SeedNotFoundError, getPreview, getRecommendations } from "./recommendations";
+import { SeedNotFoundError, getPreview, getRecommendations, streamPreviews, type PreviewEvent } from "./recommendations";
 
 const db = getDb();
 const now = new Date("2026-11-04T12:00:00Z");
@@ -291,3 +291,81 @@ describe("getPreview", () => {
     expect(await getPreview({ db, lastfm, itunes, now }, "Pond")).toEqual({ track: null, preview: { status: "error" } });
   });
 });
+
+describe("streamPreviews", () => {
+  const collect = async (artists: string[], d: Parameters<typeof streamPreviews>[0], signal?: AbortSignal) => {
+    const events: PreviewEvent[] = [];
+    await streamPreviews(d, artists, (event) => events.push(event), signal);
+    return events;
+  };
+
+  it("sends each artist's preview, then says it's done", async () => {
+    const { lastfm, itunes } = world();
+
+    const events = await collect(["Pond", "MGMT"], { db, lastfm, itunes, now });
+
+    expect(events).toHaveLength(3);
+    expect(events.slice(0, 2).map((e) => e.type === "preview" && e.artist).sort()).toEqual(["MGMT", "Pond"]);
+    expect(events.find((e) => e.type === "preview" && e.artist === "Pond")).toMatchObject({
+      type: "preview",
+      track: { title: "Pond Hit" },
+      preview: { status: "available" },
+    });
+    expect(events.at(-1)).toEqual({ type: "done" });
+  });
+
+  // The page sends the nearest records first; looking up three at a time keeps that order roughly
+  it("starts the lookups in the order asked, three at a time", async () => {
+    const started: string[] = [];
+    let running = 0;
+    let most = 0;
+    const { lastfm, itunes } = world();
+    const slowLastfm = {
+      ...lastfm,
+      getTopTracks: async (name: string) => {
+        started.push(name);
+        most = Math.max(most, ++running);
+        await new Promise((r) => setTimeout(r, 10));
+        running--;
+        return lastfm.getTopTracks(name);
+      },
+    };
+
+    await collect(["Pond", "MGMT", "Khruangbin", "Ezra Collective", "GUM"], { db, lastfm: slowLastfm, itunes, now });
+
+    // The three that start together reach Last.fm in any order (each checks the cache first)
+    expect(started.slice(0, 3).sort()).toEqual(["Khruangbin", "MGMT", "Pond"]);
+    expect(started.slice(3).sort()).toEqual(["Ezra Collective", "GUM"]);
+    expect(most).toBe(3);
+  });
+
+  it("sends an error for an artist whose lookup failed, and still sends the rest", async () => {
+    const { lastfm, itunes } = world({ previews: { Pond: "error" } });
+
+    const events = await collect(["Pond", "MGMT"], { db, lastfm, itunes, now });
+
+    expect(events.find((e) => e.type === "preview" && e.artist === "Pond")).toMatchObject({ preview: { status: "error" } });
+    expect(events.find((e) => e.type === "preview" && e.artist === "MGMT")).toMatchObject({ preview: { status: "available" } });
+  });
+
+  // Nobody is reading: don't spend iTunes' budget on the rest
+  it("starts no more lookups once the visitor has gone", async () => {
+    const left = new AbortController();
+    const started: string[] = [];
+    const { lastfm, itunes } = world();
+    const trackingLastfm = {
+      ...lastfm,
+      getTopTracks: async (name: string) => {
+        started.push(name);
+        if (name === "Pond") left.abort();
+        return lastfm.getTopTracks(name);
+      },
+    };
+
+    const events = await collect(["Pond", "MGMT", "Khruangbin", "Ezra Collective", "GUM"], { db, lastfm: trackingLastfm, itunes, now }, left.signal);
+
+    expect(started.sort()).toEqual(["Khruangbin", "MGMT", "Pond"]);
+    expect(events).toEqual([]);
+  });
+});
+

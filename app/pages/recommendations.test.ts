@@ -42,23 +42,50 @@ registerEndpoint("/api/recommendations", async (event) => {
   return result;
 });
 
-// Fake preview API: every artist has "<artist> Hit". failures[artist] requests fail first; $fetch
-// retries a failed GET once on its own, so failing the visitor's first try takes two
-let previewRequests: string[] = [];
+const sse = (event: string, data: object) => `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
+
+// Fake preview API, streamed like the real one: every artist has "<artist> Hit"; artists in
+// failures come back as an error that many times. previewHold pauses the stream before its first
+// preview or after it until previewGate opens; previewDrop ends it after the first, without
+// "done". Records each request's artists, in order
+let previewRequests: string[][] = [];
 let failures: Record<string, number> = {};
-registerEndpoint("/api/previews", async (event) => {
-  const artist = new URLSearchParams(event.path.split("?")[1]).get("artist")!;
-  previewRequests.push(artist);
-  if ((failures[artist] ?? 0) > 0) {
-    failures[artist]!--;
-    throw createError({ statusCode: 500 });
-  }
-  const found: CardPreview = {
-    track: { title: `${artist} Hit`, artworkUrl: null },
-    preview: { status: "available", url: `https://audio.example/${encodeURIComponent(artist)}.m4a` },
-  };
-  return found;
+let previewHold: "before" | "after-first" | null = null;
+let previewGate: Promise<void> = Promise.resolve();
+let previewDrop = false;
+registerEndpoint("/api/previews", (event) => {
+  const artists = new URLSearchParams(event.path.split("?")[1]).getAll("artist");
+  previewRequests.push(artists);
+  const hold = previewHold;
+  const events = artists.map((artist) => {
+    if ((failures[artist] ?? 0) > 0) {
+      failures[artist]!--;
+      return sse("preview", { artist, track: null, preview: { status: "error" } });
+    }
+    const found: CardPreview = {
+      track: { title: `${artist} Hit`, artworkUrl: null },
+      preview: { status: "available", url: `https://audio.example/${encodeURIComponent(artist)}.m4a` },
+    };
+    return sse("preview", { artist, ...found });
+  });
+  const encoder = new TextEncoder();
+  return new ReadableStream<Uint8Array>({
+    async start(controller) {
+      if (hold === "before") await previewGate;
+      controller.enqueue(encoder.encode(events[0]!));
+      if (previewDrop) return controller.close();
+      if (hold === "after-first") await previewGate;
+      controller.enqueue(encoder.encode(events.slice(1).join("") + sse("done", {})));
+      controller.close();
+    },
+  });
 });
+const holdPreviews = (where: "before" | "after-first") => {
+  let release = () => {};
+  previewGate = new Promise((resolve) => (release = resolve));
+  previewHold = where;
+  return () => release();
+};
 
 // Fake reasons API, streamed like the real one: a reason for Khruangbin, none for Nowhere.
 // reasonsMode "fail" stops after Khruangbin; "limit" says the day's AI calls are used up.
@@ -67,7 +94,6 @@ let reasonRequests: { seeds: string[]; exclude: string[] }[] = [];
 let reasonPopularity: (string | null)[] = [];
 let reasonFirst: (string | null)[] = [];
 let reasonsMode: "ok" | "fail" | "limit" = "ok";
-const sse = (event: string, data: object) => `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
 registerEndpoint("/api/reasons", async (event) => {
   const query = new URLSearchParams(event.path.split("?")[1]);
   reasonRequests.push({ seeds: query.getAll("seed"), exclude: query.getAll("exclude") });
@@ -88,6 +114,8 @@ beforeEach(() => {
   popularityRequests = [];
   previewRequests = [];
   failures = {};
+  previewHold = null;
+  previewDrop = false;
   gate = null;
   throttled = false;
   // Levels live in useState and useAsyncData results persist per key in the Nuxt app
@@ -265,19 +293,72 @@ describe("recommendations page", () => {
     const page = await open("/recommendations?seed=Slow%20Lane");
     await vi.waitFor(() => expect(recordNames(page)).toEqual(["Pond", "MGMT"]));
     await vi.waitFor(() => expect(button(page, "Play preview of Pond Hit")).toBeDefined());
-    expect(previewRequests.sort()).toEqual(["MGMT", "Pond"]);
+    // One request for the page, not one per record: requests that arrive together make Vercel
+    // start new instances, which took about 2 s right after a deploy
+    expect(previewRequests).toEqual([["Pond", "MGMT"]]);
   });
 
-  it("retries only the preview that failed", async () => {
-    failures = { Pond: 2 };
+  it("keeps Retry working while the rest of the page's previews are still on their way", async () => {
+    failures = { Pond: 1 };
+    const release = holdPreviews("after-first");
     const page = await open("/recommendations?seed=Slow%20Lane");
     await vi.waitFor(() => expect(page.text()).toContain("Preview failed to load"));
 
     await page.findAll("button").find((b) => b.text() === "Retry")!.trigger("click");
 
     await vi.waitFor(() => expect(button(page, "Play preview of Pond Hit")).toBeDefined());
-    expect(previewRequests.filter((a) => a === "Pond")).toHaveLength(3);
+    expect(previewRequests).toEqual([["Pond", "MGMT"], ["Pond"]]);
+    release();
+  });
+
+  // One tap instead of one per card, in one request
+  it("retries every failed preview of the page together, the tapped one first", async () => {
+    failures = { Pond: 1, MGMT: 1 };
+    const page = await open("/recommendations?seed=Slow%20Lane");
+    await vi.waitFor(() => expect(page.text()).toContain("Preview failed to load"));
+
+    await page.findAll("button").find((b) => b.text() === "Retry")!.trigger("click");
+
+    await vi.waitFor(() => expect(previewRequests).toEqual([["Pond", "MGMT"], ["Pond", "MGMT"]]));
+    await vi.waitFor(() => expect(button(page, "Play preview of Pond Hit")).toBeDefined());
+  });
+
+  it("offers a retry for previews the stream never sent", async () => {
+    previewDrop = true;
+    const page = await open("/recommendations?seed=Slow%20Lane");
+    await vi.waitFor(() => expect(button(page, "Play preview of Pond Hit")).toBeDefined());
+
+    await button(page, "Next record")!.trigger("click");
+
+    await vi.waitFor(() => expect(page.text()).toContain("Preview failed to load"));
+  });
+
+  it("retries only the preview that failed", async () => {
+    failures = { Pond: 1 };
+    const page = await open("/recommendations?seed=Slow%20Lane");
+    await vi.waitFor(() => expect(page.text()).toContain("Preview failed to load"));
+
+    await page.findAll("button").find((b) => b.text() === "Retry")!.trigger("click");
+
+    await vi.waitFor(() => expect(button(page, "Play preview of Pond Hit")).toBeDefined());
+    // The retry asks for that record alone
+    expect(previewRequests).toEqual([["Pond", "MGMT"], ["Pond"]]);
     expect(requests).toHaveLength(1);
+  });
+
+  // Two requests at once right after a deploy can make Vercel start a new instance (about 2 s);
+  // the preview on screen matters more than its reason, so it goes alone
+  it("asks for reasons only once the first missing preview has arrived", async () => {
+    const release = holdPreviews("before");
+    const page = await open("/recommendations?seed=Slow%20Lane");
+    await vi.waitFor(() => expect(previewRequests).toHaveLength(1));
+    await new Promise((r) => setTimeout(r, 50));
+    expect(reasonRequests).toEqual([]);
+
+    release();
+
+    await vi.waitFor(() => expect(button(page, "Play preview of Pond Hit")).toBeDefined());
+    await vi.waitFor(() => expect(reasonRequests).toHaveLength(1));
   });
 
   it("asks for reasons with the same query once the records are shown", async () => {

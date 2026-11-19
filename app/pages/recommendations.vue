@@ -218,8 +218,10 @@ onMounted(() => {
     () => currentLevel.value?.result,
     (result) => {
       if (!result) return;
-      void previews.load(result.recommendations, viewing.value[currentKey.value] ?? 0);
-      void loadReasons(currentKey.value, currentArtist());
+      // Reasons wait for the first missing preview: two requests arriving together right after a
+      // deploy can make Vercel start a new instance (about 2 s), and the record on screen comes first
+      const key = currentKey.value;
+      void previews.load(result.recommendations, viewing.value[key] ?? 0, () => void loadReasons(key, currentArtist()));
     },
     { immediate: true },
   );
@@ -386,7 +388,7 @@ useShareMeta(() => ({
                 :notice="exploreMessage"
                 @update:index="onIndexChange"
                 @explore="explore"
-                @retry="previews.retry"
+                @retry="(artist) => previews.retry(artist, currentLevel?.result.recommendations)"
                 @retry-reasons="(artist) => loadReasons(currentKey, artist)"
               />
             </motion.div>

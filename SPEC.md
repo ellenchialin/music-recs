@@ -125,7 +125,7 @@ Every result is tagged with an `algo_version`.
 |---|---|---|
 | GET | `/api/artists/search?q=` | Autocomplete |
 | GET | `/api/recommendations?seed=&exclude=&popularity=` | Seeds (plus artists to exclude when exploring, and the popularity setting) → recommendations, with previews only if already cached (others `pending`) |
-| GET | `/api/previews?artist=` | One card's track and preview, for cards left `pending` |
+| GET | `/api/previews?artist=&artist=` | The tracks and previews of a page's cards left `pending`, in one request, as Server-Sent Events: `preview` per artist as its lookup finishes (nearest record first, three at a time), then `done`. One artist for a retry |
 | GET | `/api/reasons?seed=&exclude=&popularity=&first=` | LLM-written reasons for the same list (rebuilt on the server), as Server-Sent Events: `reason` per record (cached first, `null` where there's none), then `done` or `stopped` with why (`off`, `limit`, `failed`, `timeout`). `first` is the record on screen, written first |
 | POST | `/api/describe` | `{ description }` → Server-Sent Events from the taste agent: `step` as each Last.fm lookup starts and ends, then `suggestion` with 1–3 artists and why, and `done`; or `stopped` with why (`off`, `limit`, `failed`, `timeout`, `nothing`) |
 | POST | `/api/blind-tests` | Start a round |

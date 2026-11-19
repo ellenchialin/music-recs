@@ -63,8 +63,8 @@ export const RATE_LIMITS = {
   // Starting a round fetches recommendations and control songs; rating is cheap but shares the limit
   blindTest: { limit: 12, windowMs: 60_000 },
   stats: { limit: 30, windowMs: 60_000 },
-  // One per card still pending: 10 a page, and a visitor exploring quickly opens a few pages a minute.
-  // Uncached lookups are also capped site-wide by the external budgets
+  // One per page of records (all its pending previews), plus a retry per failed card. Generous on
+  // purpose; uncached lookups are also capped site-wide by the external budgets
   previews: { limit: 60, windowMs: 60_000 },
   // One per page of records, like recommendations; the LLM itself is capped site-wide per day
   reasons: { limit: 20, windowMs: 60_000 },

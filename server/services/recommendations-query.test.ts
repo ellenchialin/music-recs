@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { previewQuery, reasonsQuery, recommendationsQuery } from "./recommendations-query";
+import { previewsQuery, reasonsQuery, recommendationsQuery } from "./recommendations-query";
 
 describe("recommendationsQuery", () => {
   it("turns one seed into a list", () => {
@@ -47,14 +47,21 @@ describe("recommendationsQuery", () => {
   });
 });
 
-describe("previewQuery", () => {
-  it("takes one trimmed artist name", () => {
-    expect(previewQuery.parse({ artist: " Pond " })).toEqual({ artist: "Pond" });
+describe("previewsQuery", () => {
+  // One request for every record still waiting on a preview, in the order to look them up
+  it("takes one or many trimmed artist names, in order", () => {
+    expect(previewsQuery.parse({ artist: " Pond " })).toEqual({ artists: ["Pond"] });
+    expect(previewsQuery.parse({ artist: ["GUM", " Pond"] })).toEqual({ artists: ["GUM", "Pond"] });
   });
 
-  it("rejects a missing, empty, repeated or very long name", () => {
-    for (const query of [{}, { artist: " " }, { artist: ["Pond", "MGMT"] }, { artist: "x".repeat(201) }]) {
-      expect(previewQuery.safeParse(query).success).toBe(false);
+  it("takes at most a page of records", () => {
+    expect(previewsQuery.safeParse({ artist: Array.from({ length: 10 }, (_, i) => `A${i}`) }).success).toBe(true);
+    expect(previewsQuery.safeParse({ artist: Array.from({ length: 11 }, (_, i) => `A${i}`) }).success).toBe(false);
+  });
+
+  it("rejects a missing, empty or very long name", () => {
+    for (const query of [{}, { artist: " " }, { artist: "x".repeat(201) }]) {
+      expect(previewsQuery.safeParse(query).success).toBe(false);
     }
   });
 });

@@ -1,13 +1,20 @@
 import { getDb } from "../db/client";
 import { getItunesClient, getLastfmClient } from "../services/clients";
 import { enforceRateLimit } from "../services/rate-limit";
-import { getPreview } from "../services/recommendations";
-import { previewQuery } from "../services/recommendations-query";
+import { streamPreviews, type PreviewEvent } from "../services/recommendations";
+import { previewsQuery } from "../services/recommendations-query";
 
-// GET /api/previews?artist=Pond → { track, preview }. The recommendations list answers before
-// previews are looked up; the page asks here for each card still "pending"
+// GET /api/previews?artist=Pond&artist=GUM → a Server-Sent Events stream: "preview" { artist,
+// track, preview } for each artist as its lookup finishes, then "done". The recommendations list
+// answers before uncached previews are looked up; the page asks here once for all of them.
+// If it fails partway it just ends without "done", and the page offers Retry for the rest
 export default defineEventHandler(async (event) => {
   await enforceRateLimit(event, "previews");
-  const { artist } = await getValidatedQuery(event, (query) => previewQuery.parse(query));
-  return getPreview({ db: getDb(), lastfm: getLastfmClient(), itunes: getItunesClient(), now: new Date() }, artist);
+  const { artists } = await getValidatedQuery(event, (query) => previewsQuery.parse(query));
+  return sendEvents<PreviewEvent>(
+    event,
+    (send, signal) =>
+      streamPreviews({ db: getDb(), lastfm: getLastfmClient(), itunes: getItunesClient(), now: new Date() }, artists, send, signal),
+    { label: "Previews" },
+  );
 });

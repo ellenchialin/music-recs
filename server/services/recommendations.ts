@@ -88,6 +88,33 @@ async function getListeners(deps: Deps, candidates: Candidate[]): Promise<Map<st
   return new Map(entries);
 }
 
+export type PreviewEvent = ({ type: "preview"; artist: string } & CardPreview) | { type: "done" };
+
+// Lookups at once: as before when the page asked three at a time, so iTunes' budget is shared the same way
+const PREVIEWS_AT_ONCE = 3;
+
+// A page's pending previews in one request, each sent the moment it's found. One request rather
+// than several at once: right after a deploy, Vercel starts a new instance (about 2 s) for
+// requests that arrive together, and one of them was often the record on screen.
+// artists: in the order to look them up, nearest record first. signal: the visitor left; no new
+// lookups start and nothing more is sent
+export async function streamPreviews(
+  deps: Omit<Deps, "lastfm"> & { lastfm: Pick<LastfmClient, "getTopTracks"> },
+  artists: string[],
+  emit: (event: PreviewEvent) => void,
+  signal?: AbortSignal,
+): Promise<void> {
+  const queue = [...artists];
+  const worker = async () => {
+    for (let artist = queue.shift(); artist !== undefined && !signal?.aborted; artist = queue.shift()) {
+      const preview = await getPreview(deps, artist);
+      if (!signal?.aborted) emit({ type: "preview", artist, ...preview });
+    }
+  };
+  await Promise.all(Array.from({ length: PREVIEWS_AT_ONCE }, worker));
+  if (!signal?.aborted) emit({ type: "done" });
+}
+
 // One card's track and preview. Catches its own error so one failed preview doesn't fail a whole list
 export async function getPreview(deps: Omit<Deps, "lastfm"> & { lastfm: Pick<LastfmClient, "getTopTracks"> }, artist: string): Promise<CardPreview> {
   try {
