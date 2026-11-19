@@ -3,7 +3,7 @@
 useHead({ title: "Music Recs" });
 useShareMeta(() => ({
   title: "Music Recs",
-  description: "Pick 1–3 artists you love. Get recommendations you can preview, then dig deeper from any of them.",
+  description: "Name a few artists or describe a vibe, and get ten records you can preview, with a way to dig deeper from any of them.",
 }));
 </script>
 

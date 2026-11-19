@@ -2,8 +2,10 @@ import { getDb } from "../db/client";
 import { createItunesClient } from "../itunes/client";
 import { createLastfmClient } from "../lastfm/client";
 import { createReasonsWriter } from "../llm/reasons-writer";
+import { createTasteModel } from "../llm/taste-model";
 import { parseLastfmEnv, parseLlmEnv } from "../utils/env";
 import type { ReasonsWriter } from "./reasons";
+import type { TasteModel } from "./taste-agent";
 import { withItunesBudget, withLastfmBudget } from "./external-budget";
 
 // Real clients, created on first use and wrapped in the site-wide budgets.
@@ -34,3 +36,12 @@ export function getReasonsWriter(): ReasonsWriter | null {
   return reasonsWriter;
 }
 
+// null without ANTHROPIC_API_KEY: describing a sound is optional. The daily cap lives in runTasteAgent
+let tasteModel: TasteModel | null | undefined;
+export function getTasteModel(): TasteModel | null {
+  if (tasteModel === undefined) {
+    const { apiKey } = parseLlmEnv();
+    tasteModel = apiKey ? createTasteModel({ apiKey }) : null;
+  }
+  return tasteModel;
+}

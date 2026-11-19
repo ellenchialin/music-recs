@@ -1,6 +1,6 @@
 # Music Recs
 
-Enter artists you like → get song recommendations (preview + reason) → explore deeper from any record → a blind test measures how good the recommendations are. The spec is in `SPEC.md`; decisions already made are in `docs/ai-log.md` (when they disagree, the decision wins).
+Enter artists you like, or describe a vibe for an AI agent to find some → get song recommendations (preview + reason) → explore deeper from any record → a blind test measures how good the recommendations are. The spec is in `SPEC.md`; decisions already made are in `docs/ai-log.md` (when they disagree, the decision wins).
 
 ## Stack
 

@@ -1,6 +1,6 @@
 # Music Recs spec
 
-Anyone can enter a few artists they like and get song recommendations with previews and reasons, and a blind test measures whether the recommendations really beat random picks.
+Anyone can name a few artists they like, or describe a vibe, and get song recommendations with previews and reasons, and a blind test measures whether the recommendations really beat random picks.
 
 Decisions already made are in `docs/ai-log.md`. When the spec and a decision disagree, the decision wins.
 
@@ -29,7 +29,7 @@ Decisions already made are in `docs/ai-log.md`. When the spec and a decision dis
 
 ## User flow
 
-1. Open the home page (`/`), enter 1–3 artists you like (with autocomplete) and press Recommend.
+1. Open the home page (`/`), enter 1–3 artists you like (with autocomplete) and press Recommend. Or switch to "By vibe", describe what you're in the mood for and press Find artists: `/describe` shows each lookup the AI makes, then suggests 1–3 artists, which you can change before pressing Recommend.
 2. The recommendations page (`/recommendations?seed=…`, one screen, no scrolling) shows 10 records: cover, title, a 30-second preview and a one-line reason.
 3. "Explore from here" on a record digs one level deeper (the URL gains `&explore=…`), up to 3 levels. The breadcrumb `Home › seeds › Pond` goes back to any level, the browser's Back button works too, and Home returns with the seeds for editing.
 4. A popularity setting (Obscure / Balanced / Mainstream, `&popularity=…`) re-ranks the recommendations; Explore and the Taste Check keep the setting.
@@ -127,6 +127,7 @@ Every result is tagged with an `algo_version`.
 | GET | `/api/recommendations?seed=&exclude=&popularity=` | Seeds (plus artists to exclude when exploring, and the popularity setting) → recommendations, with previews only if already cached (others `pending`) |
 | GET | `/api/previews?artist=` | One card's track and preview, for cards left `pending` |
 | GET | `/api/reasons?seed=&exclude=&popularity=&first=` | LLM-written reasons for the same list (rebuilt on the server), as Server-Sent Events: `reason` per record (cached first, `null` where there's none), then `done` or `stopped` with why (`off`, `limit`, `failed`, `timeout`). `first` is the record on screen, written first |
+| POST | `/api/describe` | `{ description }` → Server-Sent Events from the taste agent: `step` as each Last.fm lookup starts and ends, then `suggestion` with 1–3 artists and why, and `done`; or `stopped` with why (`off`, `limit`, `failed`, `timeout`, `nothing`) |
 | POST | `/api/blind-tests` | Start a round |
 | POST | `/api/blind-tests/:id/ratings` | Submit ratings → reveal |
 | GET | `/api/stats` | Eval numbers |
@@ -152,7 +153,7 @@ Every result is tagged with an `algo_version`.
 
 The schedule is tight. If it slips, cut in this order: popularity slider → LLM reasons (use rule-based reasons) → Playwright.
 
-**Status (2026-11-18)**: everything above is built and deployed, including the popularity setting, the public results page (`/stats`) and streamed reasons with visible failure states. The eval has 32 listeners (recommended +1.02 over random, 95% CI +0.36 to +1.68); live numbers are on `/stats`. Playwright covers the main flow, Explore, the Taste Check and the popularity setting in CI, and a smoke test runs against the live site after each deploy.
+**Status (2026-11-18)**: everything above is built and deployed, including the popularity setting, the public results page (`/stats`), streamed reasons with visible failure states, and "By vibe": a tool-using agent that finds seed artists from a description. The eval has 32 listeners (recommended +1.02 over random, 95% CI +0.36 to +1.68); live numbers are on `/stats`. Playwright covers the main flow, Explore, the Taste Check and the popularity setting in CI, and a smoke test runs against the live site after each deploy.
 
 ## Acceptance criteria
 

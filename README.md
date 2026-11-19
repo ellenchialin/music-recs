@@ -1,16 +1,17 @@
 # Music Recs
 
-![Music Recs: pick 1–3 artists you love, get recommendations you can preview](public/og-image.png)
+![Music Recs: name a few artists or describe a vibe, and get records you can preview](public/og-image.png)
 
 **Live demo: [musicrecs.ellenchen.dev](https://musicrecs.ellenchen.dev/)**
 
-Pick up to three artists you love and get ten records to flip through, each with a 30-second preview. From any record you can **explore** one level deeper, up to three levels, and every level shows artists you haven't seen yet. No account and no sign-in.
+Pick up to three artists you love and get ten records to flip through, each with a 30-second preview and a one-line reason written by AI as you watch. Or describe what you're in the mood for, and an AI agent looks up artists that fit, showing each step as it works. From any record you can **explore** one level deeper, up to three levels, and every level shows artists you haven't seen yet. No account and no sign-in.
 
-> **Status**: a portfolio project (November 2026). Recommendations, previews, Explore, the popularity setting, the Taste Check and its public results page are live. With 32 listeners, recommended songs beat random picks by about a point ([results](#results-algorithm-v2-2026-11-18)). Try it and [see whether the picks fit your taste](https://musicrecs.ellenchen.dev/).
+> **Status**: a portfolio project (November 2026). Recommendations, previews, streamed AI reasons, Explore, the popularity setting, "By vibe" (an AI agent that finds artists from a description), the Taste Check and its public results page are live. With 32 listeners, recommended songs beat random picks by about a point ([results](#results-algorithm-v2-2026-11-18)). Try it and [see whether the picks fit your taste](https://musicrecs.ellenchen.dev/).
 
 ## Features
 
 - **Seed artists**: type-ahead search backed by Last.fm, with misspelled lookalikes filtered out (for example "radıohead" with a dotless ı). Choose 1–3 artists; they're remembered in the browser.
+- **Or describe a vibe**: "By vibe" on the home page takes a sentence ("like Tame Impala, but for running", "lazy jazz for a rainy afternoon"). An AI agent looks up artists on Last.fm, each lookup shown as it happens, and suggests 1–3 to start from, each with a one-line why. They become your picks: remove any you don't want, then Recommend.
 - **A crate of records**: ten recommendations shown like flipping through a record crate. Swipe, drag, click the side covers or use the arrow keys. Each record shows the artist, a representative track, which of your artists it's similar to, and a round play button for the preview.
 - **Mainstream ↔ obscure**: a three-stop setting (Obscure / Balanced / Mainstream) re-ranks the records by how many listeners each artist has, while staying among the most similar ones. Explore, the reasons and the Taste Check keep the setting.
 - **Explore from here**: dig from any record into artists similar to it, up to three levels deep. Each level excludes everything shown before, so you always get new names. A breadcrumb (`Home › Tame Impala + Kokoroko › Pond`) goes back to any level instantly, without refetching.
@@ -22,7 +23,7 @@ Pick up to three artists you love and get ten records to flip through, each with
 
 ## How it works
 
-![Architecture: Nuxt pages call API routes (rate limit, zod); the Recommendations, Reasons and Taste Check services read and write a Postgres cache on Neon, which calls Last.fm and iTunes on a miss; Reasons optionally calls Claude Haiku](docs/diagrams/architecture.png)
+![Architecture: Nuxt pages call API routes (rate limit, zod, Server-Sent Events). Four services read and write a Postgres cache on Neon, which calls Last.fm and iTunes on a miss: Recommendations builds the list, Reasons streams optional AI reasons from Claude Haiku, the By vibe agent lets Claude Haiku choose Last.fm lookups to find artists, and the Taste Check runs the blind test](docs/diagrams/architecture.png)
 
 <sub>Source: [`docs/diagrams/architecture.html`](docs/diagrams/architecture.html), drawn with the [diagram-design](https://github.com/cathrynlavery/diagram-design) skill in the site's own colors.</sub>
 
@@ -33,6 +34,8 @@ Pick up to three artists you love and get ten records to flip through, each with
 5. **Previews**: for each of the top 10, take Last.fm's top track and find it on iTunes, trying the Taiwan, US and Japan stores in turn (stores localize artist names, e.g. BoA is 寶兒 in Taiwan). A small tiered matcher prefers the original title, then a version of it, and never a different artist's song. The list doesn't wait for this: it answers with cached previews, and the page fetches the rest from `/api/previews`, nearest record first, while the Play button shows a spinner.
 
 6. **Reasons**: once the records are on screen, Claude Haiku 5.5 writes a one-line reason for each, marked "AI", in one call per list, streamed to the page so each reason shows as soon as it's written, the record on screen first. It's told to describe the sound rather than biography and to answer null when unsure; reasons are cached per seed set and capped at 300 calls a day site-wide. Every outcome has its own line: "Finding the words…" while writing, "Similar to …" when the model had nothing it was sure of, a note when the day's AI calls are used up, and a Retry that asks again only for the records still missing when the stream fails or takes too long.
+
+**By vibe** works differently: Claude Haiku 5.5 runs as an agent with four read-only Last.fm tools (search, artist tags and listeners, similar artists, top artists for a tag) and one way to finish (`suggest_artists`). The server runs each lookup it asks for and streams every step to the page. It may only suggest artists its lookups returned, so every suggestion is a real Last.fm artist; an invented name goes back to it for another try. Each run gets at most six lookups, 30 seconds and a share of a daily cap, and stops when the visitor does.
 
 Every result is tagged with an algorithm version, and every Taste Check round with its popularity setting, so blind-test ratings can compare both.
 
@@ -73,7 +76,7 @@ Recommended songs scored about one point higher on a five-point scale, and the w
 
 ## Engineering notes
 
-- **Test-driven**: about 430 tests, plus Playwright end-to-end and a smoke test of the live site after each deploy and weekly against Core Web Vitals and Nielsen's response-time limits. The algorithm and rate limiting are pure functions with unit tests; caching and services run against a real test database; pages and components are tested in a simulated browser. External APIs are never called in tests: recorded fixtures stand in for them.
+- **Test-driven**: about 500 tests, plus Playwright end-to-end and a smoke test of the live site after each deploy and weekly against Core Web Vitals and Nielsen's response-time limits. The algorithm and rate limiting are pure functions with unit tests; caching and services run against a real test database; pages and components are tested in a simulated browser. External APIs are never called in tests: recorded fixtures stand in for them.
 - **Show the list, then fill it in**: an uncached recommendation used to take 4–5 s because every preview was looked up before answering. Now the records appear in about 2 s (1.1 s of it the turntable animation) and each preview follows on its own.
 - **Caching that won't lie**: "iTunes has no preview" is cached (so we don't ask again for 30 days); "iTunes is down" is not (so the preview comes back when it recovers).
 - **Rate limiting**: fixed one-minute windows counted atomically in Postgres, because serverless instances don't share memory. IPv6 clients are grouped by /64, `x-forwarded-for` is trusted only behind Vercel's proxy, and only a salted hash of the IP is stored.

@@ -34,6 +34,18 @@ describe("index page", () => {
     await vi.waitFor(() => expect(document.title).toBe("Music Recs"));
   });
 
+  // What search results and link previews say about the site: both ways in
+  it("describes the site as artists or a vibe", async () => {
+    mountedApps.push(await mountSuspended(App, { route: "/" }));
+    const description = () => document.querySelector('meta[name="description"]')?.getAttribute("content");
+    await vi.waitFor(() =>
+      expect(description()).toBe(
+        "Name a few artists or describe a vibe, and get ten records you can preview, with a way to dig deeper from any of them.",
+      ),
+    );
+    expect(document.querySelector('meta[property="og:description"]')?.getAttribute("content")).toBe(description());
+  });
+
 
   // The words are separate elements with no space between them, so aria-label gives the name
   it("shows the app title", async () => {
@@ -106,5 +118,52 @@ describe("index page", () => {
     await open("/?seed=Tame+Impala&seed=Kokoroko");
     await vi.waitFor(() => expect(useSeedsStore().seeds).toEqual(["Tame Impala", "Kokoroko"]));
     await vi.waitFor(() => expect(useRouter().currentRoute.value.fullPath).toBe("/"));
+  });
+
+  describe("two ways to start", () => {
+    const mode = (page: Page, value: string) => page.get(`input[name="start-mode"][value="${value}"]`);
+    const checkedMode = (page: Page) =>
+      page.findAll('input[name="start-mode"]').find((i) => (i.element as HTMLInputElement).checked)?.attributes("value");
+    const button = (page: Page, text: string) => page.findAll("button").find((b) => b.text().includes(text));
+    const panel = (page: Page, name: string) => page.get(`[data-testid="start-${name}"]`);
+
+    it("says there are two ways, and starts with picking artists", async () => {
+      const page = await open();
+
+      expect(page.text()).toContain("Name a few artists, or just describe what you're in the mood for.");
+      expect(page.get("fieldset legend").text()).toBe("Start from");
+      expect(page.get("fieldset").findAll("label").map((l) => l.text())).toEqual(["By artist", "By vibe"]);
+      expect(checkedMode(page)).toBe("artists");
+      expect(panel(page, "artists").attributes("inert")).toBeUndefined();
+      expect(panel(page, "vibe").attributes("inert")).toBeDefined();
+    });
+
+    it("swaps the artist search for a description box", async () => {
+      const page = await open();
+
+      await mode(page, "vibe").setValue(true);
+
+      const box = page.get("textarea");
+      expect(box.attributes("maxlength")).toBe("200");
+      expect(box.attributes("placeholder")).toMatch(/^e\.g\. /);
+      // Both stay in the layout, so switching doesn't move anything; only one can be used
+      expect(panel(page, "vibe").attributes("inert")).toBeUndefined();
+      expect(panel(page, "artists").attributes("inert")).toBeDefined();
+      expect(button(page, "Find artists")!.attributes("disabled")).toBeDefined();
+      expect(button(page, "Recommend")).toBeUndefined();
+    });
+
+    it("hands the description to the describe page, which starts at once", async () => {
+      const page = await open();
+      await mode(page, "vibe").setValue(true);
+
+      await page.get("textarea").setValue("  Like Tame Impala, but for running ");
+      await button(page, "Find artists")!.trigger("click");
+
+      await vi.waitFor(() =>
+        expect(useRouter().currentRoute.value).toMatchObject({ path: "/describe", query: { q: "Like Tame Impala, but for running" } }),
+      );
+      expect(useState("describe-now").value).toBe(true);
+    });
   });
 });

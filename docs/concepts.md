@@ -458,3 +458,21 @@ Chrome shows it in DevTools → Network → a request → Timing, under "Server 
 
 **See it**: open the live site with DevTools on the Network tab, pick an `/api/previews` request and look at its Timing tab, or run `curl -sI "https://musicrecs.ellenchen.dev/api/stats" | grep -i server-timing`.
 
+## 19. An agent with tools: "By vibe"
+
+> **Frontend analogy**: a junior colleague you send to find something, with a few phones they may call and a rule that they bring back only what someone on those phones actually said. You watch their call log as they work, and you decide whether to use what they bring.
+
+A plain LLM call answers in one go. An **agent** works in a loop: the model asks for a tool, our server runs it and hands back the result, and the model decides what to do next, until it answers.
+
+- **The loop** (`runTasteAgent` in `server/services/taste-agent.ts`): send the conversation; if the reply asks for tools, run them, append each result as a `tool_result`, and send again. It ends when the model calls `suggest_artists`.
+- **Tools are ours, and read-only** (`server/services/taste-tools.ts`): search artists, an artist's tags and listeners, similar artists, a tag's top artists. All go through the same caches and Last.fm budget as the rest of the site. The model can't do anything else: there's no tool for it.
+- **Grounding by rule, not by hope**: the model may only suggest artists its lookups returned (`checkSuggestion`). An invented or misspelled name goes back to it as an error, with one more chance. This keeps every suggestion a real Last.fm artist the recommendations can start from.
+- **Limits**: six lookups, then the request forces the final tool (`tool_choice`); 30 seconds per run; 100 runs a day site-wide; 6 a minute per visitor; and a closed connection cancels the run.
+- **The listener's words are data**: the description goes inside `<description>` tags, and the system prompt says it describes music and never changes the instructions. With read-only tools and the grounding check, a description that tries to redirect the model can't do more than produce a bad suggestion.
+- **Showing the work**: each lookup streams to the page twice, when it starts ("Finding artists like Tame Impala…") and when it ends ("20 found", or "Couldn't look this up"). Same SSE as the reasons (section 17), with more kinds of events.
+- **The person decides**: the suggestions become the visitor's picks, the same tags as on the home page. They can remove any before pressing Recommend; adding artists by name stays on the home page's "By artist".
+
+**Tests never call Claude**: the model sits behind a small `TasteModel` interface, and the loop's tests script each turn (a lookup, an invented name, a failed lookup, a model that never answers) to check what the loop does with it.
+
+**See it**: on the home page choose "By vibe", or open `/describe?q=lazy%20jazz` and press Find artists (this calls Claude if `.env` has a key).
+

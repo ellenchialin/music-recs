@@ -68,6 +68,8 @@ export const RATE_LIMITS = {
   previews: { limit: 60, windowMs: 60_000 },
   // One per page of records, like recommendations; the LLM itself is capped site-wide per day
   reasons: { limit: 20, windowMs: 60_000 },
+  // Each run makes several model calls; a person rewording their description a few times fits
+  describe: { limit: 6, windowMs: 60_000 },
 } satisfies Record<string, RateLimitRule>;
 
 // Throws 429 with Retry-After when over the limit. Outside Vercel, SSR's internal requests have no
