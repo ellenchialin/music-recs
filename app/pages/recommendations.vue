@@ -269,31 +269,45 @@ useShareMeta(() => ({
 <template>
   <div class="flex h-dvh flex-col">
     <!-- One screen tall: everything has a fixed height except the covers, which take the rest -->
-    <header class="mx-auto flex w-full max-w-7xl shrink-0 items-baseline gap-4 px-4 pt-4 sm:px-8 sm:pt-6">
-      <!-- One line; scrolls sideways when too long -->
-      <nav aria-label="Breadcrumb" class="min-w-0 flex-1 overflow-x-auto">
-        <ol class="flex items-center gap-2 text-base whitespace-nowrap">
-          <li class="flex items-center gap-2">
+    <!-- Phones: the breadcrumb takes the whole width and "Fit your taste?" sits under it on the
+         right, so the two don't run into each other. Wider: one row -->
+    <header
+      class="mx-auto flex w-full max-w-7xl shrink-0 flex-col gap-1 px-4 pt-4 sm:flex-row sm:items-baseline sm:gap-4 sm:px-8 sm:pt-6"
+    >
+      <!-- One row with every level: names that don't fit end in "…" (a fade would need a gradient).
+           Earlier levels give up their room first, so the current one stays readable -->
+      <nav aria-label="Breadcrumb" class="min-w-0 sm:flex-1">
+        <ol class="flex items-baseline gap-2 text-base whitespace-nowrap">
+          <li class="flex shrink-0 items-baseline gap-2">
             <NuxtLink :to="homeLocation(query?.seeds ?? [])" class="font-bold underline underline-offset-4">Home</NuxtLink>
           </li>
-          <li v-for="(crumb, i) in crumbs" :key="i" class="flex items-center gap-2">
-            <span aria-hidden="true">›</span>
+          <li
+            v-for="(crumb, i) in crumbs"
+            :key="i"
+            class="flex min-w-0 items-baseline gap-2"
+            :class="{ 'shrink-0 max-w-[60%]': i === crumbs.length - 1 }"
+          >
+            <span aria-hidden="true" class="shrink-0">›</span>
             <!-- The router ignores the query when marking a link exact-active, so without this every
                  level's link to its parent would also claim to be the current page -->
             <NuxtLink
               v-if="i < crumbs.length - 1"
               :to="crumb.to"
               :aria-current="undefined"
-              class="font-bold underline underline-offset-4"
+              class="min-w-0 truncate font-bold underline underline-offset-4"
             >
               {{ crumb.label }}
             </NuxtLink>
-            <span v-else aria-current="page" class="font-bold">{{ crumb.label }}</span>
+            <span v-else aria-current="page" class="min-w-0 truncate font-bold">{{ crumb.label }}</span>
           </li>
         </ol>
       </nav>
       <!-- Always tests the original seeds' recommendations, whichever level is showing -->
-      <NuxtLink v-if="query" :to="tasteCheckLocation(query.seeds, query.popularity)" class="shrink-0 font-bold whitespace-nowrap underline underline-offset-4">
+      <NuxtLink
+        v-if="query"
+        :to="tasteCheckLocation(query.seeds, query.popularity)"
+        class="shrink-0 self-end font-bold whitespace-nowrap underline underline-offset-4 sm:self-auto"
+      >
         Fit your taste? →
       </NuxtLink>
     </header>
@@ -350,12 +364,13 @@ useShareMeta(() => ({
       </section>
 
       <section v-else-if="currentLevel" :aria-busy="exploring || resorting" class="flex min-h-0 flex-1 flex-col">
-        <!-- The picker sits beside the heading, and wraps under it on narrow screens -->
-        <div class="flex shrink-0 flex-wrap items-end justify-between gap-x-6 gap-y-2">
+        <!-- Centred over the centred records, with the picker under the heading as the list's own
+             setting. A long artist name wraps to a second line rather than being cut -->
+        <div class="flex shrink-0 flex-col items-center gap-2 text-center sm:gap-3 short-landscape:gap-1">
           <h1
             ref="heading"
             tabindex="-1"
-            class="min-w-0 truncate font-wide text-[clamp(1.375rem,6vw,3rem)] leading-tight font-black focus:outline-none short-landscape:text-2xl"
+            class="line-clamp-2 max-w-full font-wide text-[clamp(1.5rem,6.5vw,2.5rem)] leading-tight font-black text-balance focus:outline-none short-landscape:text-2xl"
           >
             {{ currentLevel.artist ? `More like ${currentLevel.artist}` : "Recommended for you" }}
           </h1>

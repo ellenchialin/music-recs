@@ -116,25 +116,27 @@ useShareMeta(() => ({
 <template>
   <div class="flex h-dvh flex-col">
     <header class="mx-auto w-full max-w-7xl shrink-0 px-4 pt-4 sm:px-8 sm:pt-6">
-      <nav aria-label="Breadcrumb" class="overflow-x-auto">
-        <ol class="flex items-center gap-2 text-base whitespace-nowrap">
-          <li>
+      <!-- One row: long seeds end in "…" so the current page's name always shows (a fade would
+           need a gradient) -->
+      <nav aria-label="Breadcrumb">
+        <ol class="flex items-baseline gap-2 text-base whitespace-nowrap">
+          <li class="shrink-0">
             <NuxtLink
               :to="homeLocation(query?.seeds ?? [])"
               class="font-bold underline underline-offset-4"
               >Home</NuxtLink
             >
           </li>
-          <li v-if="query" class="flex items-center gap-2">
-            <span aria-hidden="true">›</span>
+          <li v-if="query" class="flex min-w-0 items-baseline gap-2">
+            <span aria-hidden="true" class="shrink-0">›</span>
             <NuxtLink
               :to="recommendationsLocation(query.seeds, [], query.popularity)"
-              class="font-bold underline underline-offset-4"
+              class="min-w-0 truncate font-bold underline underline-offset-4"
             >
               {{ seedsLabel(query.seeds) }}
             </NuxtLink>
           </li>
-          <li class="flex items-center gap-2">
+          <li class="flex shrink-0 items-baseline gap-2">
             <span aria-hidden="true">›</span>
             <span aria-current="page" class="font-bold">Taste Check</span>
           </li>
