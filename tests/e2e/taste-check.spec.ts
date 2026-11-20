@@ -40,7 +40,7 @@ test("plays a blind round, rates it and reveals which songs were picked", async 
   await expect(page.getByTestId("average-bar")).toHaveText(["Picked for you4.0", "Random pick4.0"]);
 
   // And back to the list, without starting over from home
-  await page.getByRole("link", { name: "Back to your recommendations" }).click();
+  await page.getByRole("link", { name: "Back", exact: true }).click();
   await expect(page).toHaveURL("/recommendations?seed=Radiohead");
   await expect(page.getByRole("heading", { name: "Recommended for you" })).toBeVisible();
 });

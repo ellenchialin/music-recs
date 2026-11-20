@@ -104,6 +104,29 @@ useShareMeta(() => ({
         These are everyone's ratings so far.
       </p>
 
+      <!-- Right after the intro: it explains how to read the numbers below. Folded and small, so the
+           numbers still come first for anyone who skips it -->
+      <CollapsibleSection title="How it's measured" size="small" class="mt-3">
+        <ul class="flex list-disc flex-col gap-1 pl-4">
+          <li>
+            <strong>A fair opponent:</strong> the random songs are popular ones
+            from the same genre as your artists.
+          </li>
+          <li>
+            <strong>Blind:</strong> names stay hidden until all three songs are
+            rated.
+          </li>
+          <li>
+            <strong>One listener, one vote:</strong> each listener's own
+            difference is averaged first, so playing twenty rounds counts once.
+          </li>
+          <li>
+            <strong>Honest about chance:</strong> a winner is only called once
+            the 95% interval is entirely above or below zero.
+          </li>
+        </ul>
+      </CollapsibleSection>
+
       <p
         v-if="error"
         role="alert"
@@ -310,30 +333,6 @@ useShareMeta(() => ({
           >Pick artists</NuxtLink
         >
       </nav>
-
-      <section aria-labelledby="method" class="mt-8">
-        <h2 id="method" class="font-wide text-2xl font-black">
-          How it's measured
-        </h2>
-        <ul class="mt-2 flex list-disc flex-col gap-1 pl-5 text-base">
-          <li>
-            <strong>A fair opponent:</strong> the random songs are popular ones
-            from the same genre as your artists.
-          </li>
-          <li>
-            <strong>Blind:</strong> names stay hidden until all three songs are
-            rated.
-          </li>
-          <li>
-            <strong>One listener, one vote:</strong> each listener's own
-            difference is averaged first, so playing twenty rounds counts once.
-          </li>
-          <li>
-            <strong>Honest about chance:</strong> a winner is only called once
-            the 95% interval is entirely above or below zero.
-          </li>
-        </ul>
-      </section>
     </main>
   </div>
 </template>

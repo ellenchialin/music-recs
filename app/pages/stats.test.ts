@@ -93,6 +93,25 @@ describe("stats page", () => {
     expect(page.get('[role="alert"]').text()).toContain("Couldn't load the results");
   });
 
+  it("keeps how it's measured folded until the visitor opens it", async () => {
+    const page = await open();
+    const toggle = page.findAll("h2 button").find((b) => b.text() === "How it's measured")!;
+    expect(toggle.attributes("aria-expanded")).toBe("false");
+    expect(page.text()).not.toContain("A fair opponent");
+
+    await toggle.trigger("click");
+
+    expect(page.text()).toContain("A fair opponent");
+  });
+
+  it("offers how it's measured before the numbers, as a guide to reading them", async () => {
+    const page = await open();
+    const toggle = page.findAll("h2 button").find((b) => b.text() === "How it's measured")!;
+    const headline = page.get('[data-testid="headline"]');
+    // DOCUMENT_POSITION_FOLLOWING: the headline comes after the toggle
+    expect(toggle.element.compareDocumentPosition(headline.element) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
   describe("coming from a Taste Check", () => {
     const crumbs = (page: Page) => page.findAll('nav[aria-label="Breadcrumb"] li').map((li) => li.text().replace("›", "").trim());
     const link = (page: Page, text: string) => page.findAll("a").find((a) => a.text() === text);
@@ -103,7 +122,7 @@ describe("stats page", () => {
       expect(crumbs(page)).toEqual(["Home", "Tame Impala + Kokoroko", "Results"]);
       const crumb = page.findAll('nav[aria-label="Breadcrumb"] a').find((a) => a.text() === "Tame Impala + Kokoroko");
       expect(crumb?.attributes("href")).toBe("/recommendations?seed=Tame+Impala&seed=Kokoroko&popularity=obscure");
-      expect(link(page, "Back to your recommendations")?.attributes("href")).toBe(
+      expect(link(page, "Back")?.attributes("href")).toBe(
         "/recommendations?seed=Tame+Impala&seed=Kokoroko&popularity=obscure",
       );
       expect(link(page, "Take another Taste Check")?.attributes("href")).toBe(
@@ -115,7 +134,7 @@ describe("stats page", () => {
       const page = await open();
 
       expect(crumbs(page)).toEqual(["Home", "Results"]);
-      expect(link(page, "Back to your recommendations")).toBeUndefined();
+      expect(link(page, "Back")).toBeUndefined();
       expect(link(page, "Pick artists")?.attributes("href")).toBe("/");
     });
   });
