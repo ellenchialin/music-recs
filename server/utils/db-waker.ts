@@ -1,4 +1,4 @@
-// Neon sleeps after 5 idle minutes and its first query then takes about 2 s. Waking it while a
+// Neon sleeps after 5 idle minutes and its first query then takes 0.6–1.2 s (2.6 s after a quiet weekend). Waking it while a
 // page renders hides that behind the visitor's first seconds on any page, before they ask for
 // anything. Throttled per server instance, so a busy minute costs one query, not one per page
 

@@ -478,3 +478,13 @@ A plain LLM call answers in one go. An **agent** works in a loop: the model asks
 
 **See it**: on the home page choose "By vibe", or open `/describe?q=lazy%20jazz` and press Find artists (this calls Claude if `.env` has a key).
 
+## 20. waitUntil: work that outlives the response
+
+> **Frontend analogy**: `navigator.sendBeacon` when a tab closes. The page is done, but the browser promises to finish sending the beacon. `waitUntil(promise)` asks the same of a serverless platform: the response is sent, but keep this instance running until the promise settles.
+
+On a plain Node server nothing stops after a response, so background work just carries on. On Vercel an instance is **frozen** as soon as its response is sent, unless a promise was handed to Vercel's own `waitUntil`. Frozen work doesn't fail: it sits mid-step (a half-open database connection) and only continues when the next request thaws the instance, which then pays for it.
+
+- **The trap here**: Nitro's `event.waitUntil()` forwards to `event.context.waitUntil` only if the platform adapter set it, and Nitro 2's Vercel (Node) preset doesn't. So the Neon wake-up (`server/middleware/wake-db.ts`) never ran in the background on production; the next request's first query waited 0.8–1.1 s even with a 5 s head start.
+- **The fix**: `server/plugins/vercel-wait-until.ts` sets `event.context.waitUntil` on every request to `waitUntil` from `@vercel/functions`, which finds the current request's Vercel context when it's called and does nothing off Vercel (`bridgeWaitUntil` in `server/utils/platform-wait-until.ts`). Every `event.waitUntil()` in the project works on Vercel now, and nothing changes elsewhere.
+
+**See it**: after the site has been idle for 6+ minutes, open any page, wait 5 seconds, then run `curl -sI "https://musicrecs.ellenchen.dev/api/stats" | grep -i server-timing`. `db-first` should be a few milliseconds (Neon already awake), not near a second.
